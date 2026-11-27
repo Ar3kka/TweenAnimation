@@ -6,6 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
+const UI_REVISION := 2
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -25,9 +26,11 @@ var lesson_path := 0
 var content_body: VBoxContainer
 var card_style: StyleBoxFlat
 var copy_button: Button
+var timeline_example := ""
 
 
 func build(logo_texture: Texture2D) -> void:
+	set_meta("ui_revision", UI_REVISION)
 	name = "Setup"
 	menu = CenterContainer.new()
 	add_child(menu)
@@ -102,7 +105,8 @@ func build(logo_texture: Texture2D) -> void:
 	var body := VBoxContainer.new()
 	content_body = body
 	body.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	resized.connect(_fit_body)
+	if not resized.is_connected(_fit_body):
+		resized.connect(_fit_body)
 	_fit_body()
 	body.add_theme_constant_override("separation", 14)
 	details.add_child(body)
@@ -205,6 +209,10 @@ func build(logo_texture: Texture2D) -> void:
 			_change_step(1)
 	)
 	navigation.add_child(next_button)
+	var navigation_hint := _text("Next / Back change the lesson. Run copied code in your scene, or use Open timeline to try the editor steps.", 12)
+	navigation_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	navigation_hint.modulate.a = 0.7
+	body.add_child(navigation_hint)
 	show_menu()
 
 
@@ -222,6 +230,7 @@ func _text(value: String, font_size: int) -> Label:
 
 
 func _show_guide(index: int) -> void:
+	_ensure_ui()
 	selected_mode = index
 	menu.hide()
 	details.show()
@@ -255,7 +264,7 @@ func _show_guide(index: int) -> void:
 		{"title": "Let your game press Play", "body": "[b]Your animation is ready for code.[/b]\n\nAdd an [b]AnimationPlayer[/b] as a child of the scene root used when authoring. Keep its default root_node (..).\n\nThe example loads your saved Animation into a library. Replace the file path with yours. The other two functions show direct Tween and helper alternatives."},
 		{"title": "Bring your existing work along", "body": "[b]Already made an animation? Give it a home here.[/b]\n\n[b].tres Animation[/b] → Open it below. Its track paths must match the open scene.\n\n[b]AnimationPlayer[/b] → Save its Animation resource as .tres, then Open it.\n\n[b]Tween code[/b] → Keep running it, or recreate its property, values and duration as keys. Running Tweens cannot be imported.\n\nValue tracks are supported. Script easing, chained and parallel Tween calls are not automatically converted. The helper's custom() works across 2D, 3D and UI; its movement shortcuts currently accept Node2D."}
 	]
-	code_view.text = ("# Attach to the scene root; add AnimationPlayer as a child.\n" +
+	code_view.text = ("# Attach to the scene root; add AnimationPlayer as a child.\nextends Node\n\n" +
 		"func _ready() -> void:\n" +
 		"    var clip := load(\"res://animations/my_animation.tres\") as Animation\n" +
 		"    var library := AnimationLibrary.new()\n" +
@@ -271,14 +280,19 @@ func _show_guide(index: int) -> void:
 		"    var animator := TweenAnimation.new(self)\n" +
 		"    animator.custom(%s, ^\"%s\", %s, 1.0)\n") % [node_path, property, end_value, node_path, property, end_value]
 
+	timeline_example = code_view.text
 	if lesson_path > 0:
 		_build_code_lesson(node_path, property, end_value)
+	steps.insert(1, _property_lesson())
 	step_index = 0
 	_render_step()
 
 
 func _change_step(direction: int) -> void:
-	step_index = clampi(step_index + direction, 0, steps.size() - 1)
+	var previous_step := step_index
+	if _ensure_ui():
+		_show_guide(selected_mode)
+	step_index = clampi(previous_step + direction, 0, steps.size() - 1)
 	_render_step()
 
 
@@ -293,12 +307,14 @@ func _render_step() -> void:
 	visual.set("step", step_index)
 	visual.set("elapsed", 0.0)
 	card_style.border_color = [Color("78b9ff"), Color("ff8f91"), Color("8fdfb3")][selected_mode]
-	if lesson_path > 0:
+	if steps[step_index].has("code"):
 		code_view.text = str(steps[step_index].get("code", ""))
-	code_view.visible = lesson_path > 0 or step_index == 5
+	elif lesson_path == 0 and step_index == 6:
+		code_view.text = timeline_example
+	code_view.visible = steps[step_index].has("code") or (lesson_path == 0 and step_index == 6)
 	copy_button.visible = code_view.visible
 	copy_button.text = "Copy example"
-	reuse_button.visible = lesson_path == 0 and step_index == 6
+	reuse_button.visible = lesson_path == 0 and step_index == 7
 	previous.disabled = step_index == 0
 	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
 	if lesson_path > 0 and step_index == steps.size() - 1:
@@ -309,6 +325,60 @@ func _render_step() -> void:
 func _fit_body() -> void:
 	if is_instance_valid(content_body):
 		content_body.custom_minimum_size.x = maxf(300.0, minf(860.0, size.x - 32.0))
+
+
+func _ensure_ui() -> bool:
+	# Tool scripts can reload while their existing controls remain alive.
+	# Rebuild added fields and signal targets together rather than using stale UI.
+	if get_meta("ui_revision", 0) == UI_REVISION and is_instance_valid(card_style) and is_instance_valid(copy_button):
+		return false
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
+	build(preload("res://addons/tween_animation/header_logo.svg"))
+	lesson_picker.select(lesson_path)
+	return true
+
+
+func _property_lesson() -> Dictionary:
+	var path := "$Sprite2D"
+	var operations: Array[Array] = [
+		["position", "Vector2(100, 0)", "position is measured in 2D units"],
+		["scale", "Vector2(1.2, 1.2)", "scale is a multiplier; (1, 1) is normal size"],
+		["rotation", "PI / 2.0", "rotation uses radians: PI / 2 is 90 degrees"],
+		["rotation_degrees", "180.0", "same angle, expressed in degrees instead"]
+	]
+	var explanation := "[b]Position and scale → Vector2. Rotation → one number.[/b]\n\nThis script moves, grows, then turns the target. rotation and rotation_degrees describe the same angle in different units. Each operation below lasts half a second."
+	if selected_mode == 1:
+		path = "$MeshInstance3D"
+		operations = [
+			["position", "Vector3(2, 0, 0)", "move 2 units along local X"],
+			["scale", "Vector3(1.2, 1.2, 1.2)", "grow evenly on all three axes"],
+			["rotation", "Vector3(0, PI / 2.0, 0)", "turn 90 degrees around Y, expressed in radians"],
+			["rotation_degrees", "Vector3(0, 180, 0)", "continue to 180 degrees around Y, using degrees"]
+		]
+		explanation = "[b]Three axes → Vector3(x, y, z).[/b]\n\nPosition moves the target; scale changes its size. rotation uses radians on each axis. rotation_degrees describes the same orientation using degrees.\n\nThe script below shows all four properties in sequence. These are ordinary Node3D properties; specialized skeleton tracks are outside this editor's scope."
+	elif selected_mode == 2:
+		path = "$Panel"
+		operations = [
+			["position", "Vector2(100, 40)", "move the Control in its parent's coordinates"],
+			["size", "Vector2(240, 100)", "request a size; minimum size may constrain it"],
+			["scale", "Vector2(1.1, 1.1)", "scale is a multiplier"],
+			["modulate:a", "0.3", "alpha: 0 is transparent, 1 is opaque"]
+		]
+		explanation = "[b]UI layout → Vector2. Opacity → a number from 0 to 1.[/b]\n\nPosition moves a Control, size resizes it, and modulate:a fades it. A Container can override its direct child's position and size. Try this on a Panel outside a Container, or animate a nested wrapper."
+	var code := "# Attach to the parent. Update the child path to match your scene.\nextends Node\n\n@onready var target = " + path + "\n\nfunc _ready() -> void:\n"
+	if lesson_path == 2:
+		code += "    var animator := TweenAnimation.new(self)\n"
+	else:
+		code += "    var tween := create_tween()\n"
+	for operation in operations:
+		code += "    # " + str(operation[2]) + "\n"
+		if lesson_path == 2:
+			code += '    await animator.custom(target, ^"%s", %s, 0.5).finished\n' % [operation[0], operation[1]]
+		else:
+			code += '    tween.tween_property(target, "%s", %s, 0.5)\n' % [operation[0], operation[1]]
+	return {"title": "See what each property does", "body": explanation + "\n\nCopy the script, run the scene, and compare the results. Next step advances this guide; it does not change your scene.", "code": code}
 
 
 func _build_code_lesson(node_path: String, property: String, end_value: String) -> void:
