@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 15
+const UI_REVISION := 16
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -35,6 +35,7 @@ var language_picker: OptionButton
 var snippet_context: Label
 var content_mode := 0
 var timeline_practice
+var navigation_hint: Label
 
 
 func build(logo_texture: Texture2D) -> void:
@@ -137,7 +138,13 @@ func build(logo_texture: Texture2D) -> void:
 		lesson_path = index
 		_show_guide(selected_mode)
 	)
-	body.add_child(lesson_picker)
+	var lesson_row := HBoxContainer.new()
+	lesson_row.add_theme_constant_override("separation", 10)
+	lesson_row.add_child(_text("Tutorial path", 14))
+	lesson_picker.tooltip_text = "Choose which series of lessons to read. Next and Back navigate within this path. This does not change your animation."
+	lesson_picker.custom_minimum_size.x = 320
+	lesson_row.add_child(lesson_picker)
+	body.add_child(lesson_row)
 	language_picker = OptionButton.new()
 	language_picker.add_item("GDScript")
 	language_picker.add_item("C# · Godot .NET")
@@ -246,7 +253,7 @@ func build(logo_texture: Texture2D) -> void:
 			_change_step(1)
 	)
 	navigation.add_child(next_button)
-	var navigation_hint := _text("Next / Back change the lesson. Run copied code in your scene, or use Open timeline to try the editor steps.", 12)
+	navigation_hint = _text("", 12)
 	navigation_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	navigation_hint.modulate.a = 0.7
 	body.add_child(navigation_hint)
@@ -269,16 +276,17 @@ func _text(value: String, font_size: int) -> Label:
 func _show_guide(index: int) -> void:
 	_ensure_ui()
 	selected_mode = index
+	start_button.text = "Open " + MODES[index] + " timeline →"
+	navigation_hint.text = "Next / Back show prepared practice examples. Open timeline switches to editing your project's animation." if content_mode == 2 else "Next / Back change the lesson. Run copied code in your scene, or use Open timeline to try the editor steps."
 	menu.hide()
 	details.show()
-	lesson_picker.visible = content_mode != 2
+	lesson_picker.get_parent().visible = content_mode != 2
 	if content_mode == 2:
 		steps = preload("res://addons/tween_animation/editor/visual_lessons.gd").lessons(index)
 		step_index = 0
 		_render_step()
 		return
 	var mode: String = MODES[index]
-	start_button.text = "Open " + mode + " timeline →"
 	var target := "Node2D (Sprite2D, CharacterBody2D, etc.)"
 	var differences := "Position and scale use Vector2. Rotation uses a single angle in radians."
 	var property := "position"

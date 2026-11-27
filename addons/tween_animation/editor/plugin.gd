@@ -37,9 +37,14 @@ func _enter_tree() -> void:
 	get_editor_interface().get_editor_main_screen().add_child(frame)
 	set_process(true)
 	_make_visible(false)
+	get_editor_interface().get_selection().selection_changed.connect(_selection_changed)
+	_selection_changed()
 
 
 func _exit_tree() -> void:
+	var selection := get_editor_interface().get_selection()
+	if selection.selection_changed.is_connected(_selection_changed):
+		selection.selection_changed.disconnect(_selection_changed)
 	if is_instance_valid(frame):
 		frame.queue_free()
 
@@ -172,6 +177,7 @@ func _build_ui() -> void:
 	timeline_controls.key_selected.connect(_select_key)
 	timeline_controls.draw_requested.connect(_draw_timeline)
 	timeline_controls.timeline_input.connect(_timeline_input)
+	timeline_controls.action_requested.connect(_action_template)
 	status = _label("Create an animation, select a node, then add a property track.", 0)
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.custom_minimum_size.y = 40
@@ -229,17 +235,97 @@ func _add_track() -> void:
 		_set_status("Select a node inside the currently edited scene.")
 		return
 	var property_name := property_path.text.strip_edges()
-	if (setup_mode == "2D" and not selected[0] is Node2D) or (setup_mode == "3D" and not selected[0] is Node3D) or (setup_mode == "UI" and not selected[0] is Control):
-		_set_status("This setup expects a %s target. Select a matching node or choose another guide in Setup." % setup_mode)
-		return
 	if property_name.is_empty() or not _has_property(selected[0], property_name):
 		_set_status("Enter a valid property name for the selected node.")
 		return
 	var track := animation.add_track(Animation.TYPE_VALUE)
 	var node_path := root.get_path_to(selected[0])
 	animation.track_set_path(track, NodePath(str(node_path) + ":" + property_name))
+	if typeof(selected[0].get_indexed(NodePath(property_name))) in [TYPE_BOOL, TYPE_STRING, TYPE_STRING_NAME]:
+		animation.value_track_set_update_mode(track, Animation.UPDATE_DISCRETE)
 	_refresh_tracks(track)
 	_set_status("Track added: %s:%s" % [node_path, property_name])
+
+
+func _selection_changed() -> void:
+	var nodes := get_editor_interface().get_selection().get_selected_nodes()
+	var root := get_editor_interface().get_edited_scene_root()
+	var target: Node = nodes[0] if not nodes.is_empty() else null
+	if target == null or root == null or (target != root and not root.is_ancestor_of(target)):
+		target = null
+	timeline_controls.set_target(target)
+
+
+func _action_template(action: String) -> void:
+	var nodes := get_editor_interface().get_selection().get_selected_nodes()
+	if nodes.is_empty():
+		_set_status("Select the node to animate first.")
+		return
+	var target: Node = nodes[0]
+	var options := preload("res://addons/tween_animation/editor/timeline_options.gd")
+	if not action in options.actions(target):
+		_set_status("That template is not available for the selected node.")
+		return
+	var spec := options.describe(target, action)
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "%s() · %s" % [action, target.name]
+	dialog.min_size = Vector2i(520, 260)
+	dialog.dialog_hide_on_ok = false
+	dialog.get_ok_button().text = "Create track and keys"
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 10)
+	dialog.add_child(body)
+	var description := _label("Create editable %s keys from this node's current value. Start at the playhead; existing tracks are preserved." % spec.property, 0)
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(description)
+	body.add_child(_label(str(spec.label), 0))
+	var parameter := LineEdit.new()
+	parameter.text = var_to_str(spec.value)
+	body.add_child(parameter)
+	body.add_child(_label("Duration · seconds", 0))
+	var seconds := SpinBox.new()
+	seconds.min_value = 0.01
+	seconds.max_value = 3600
+	seconds.step = 0.01
+	seconds.value = maxf(animation.length - time_slider.value, 0.3)
+	body.add_child(seconds)
+	var hint := _label("Value-track templates use linear interpolation. Runtime helper easing and automatic Control pivot changes are not applied.", 0)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(hint)
+	dialog.confirmed.connect(func():
+		if _commit_template(target, action, _parse_value(parameter.text.strip_edges()), seconds.value):
+			dialog.queue_free()
+		else:
+			hint.text = "Check the value type and selected scene. Use a number, Vector2(x, y), or Vector3(x, y, z) as appropriate."
+	)
+	dialog.canceled.connect(dialog.queue_free)
+	page.add_child(dialog)
+	dialog.popup_centered()
+
+
+func _commit_template(target: Node, action: String, value: Variant, seconds: float) -> bool:
+	var root := get_editor_interface().get_edited_scene_root()
+	if not is_instance_valid(target) or root == null or (root != target and not root.is_ancestor_of(target)):
+		return false
+	var options := preload("res://addons/tween_animation/editor/timeline_options.gd")
+	if not action in options.actions(target) or seconds <= 0 or not is_finite(seconds):
+		return false
+	var keys: Array = options.keys(target, action, value)
+	if keys.is_empty():
+		return false
+	var property: String = options.describe(target, action).property
+	var track := animation.add_track(Animation.TYPE_VALUE)
+	animation.track_set_path(track, NodePath(str(root.get_path_to(target)) + ":" + property))
+	var start_time := time_slider.value
+	for key in keys:
+		animation.track_insert_key(track, start_time + float(key[0]) * seconds, key[1])
+	animation.length = maxf(animation.length, start_time + seconds)
+	duration.set_value_no_signal(animation.length)
+	time_slider.max_value = animation.length
+	property_path.text = property
+	_refresh_tracks(track)
+	_set_status("%s(): created %d editable keys for %s. No scene properties were changed." % [action, keys.size(), target.name])
+	return true
 
 
 func _capture_key() -> void:

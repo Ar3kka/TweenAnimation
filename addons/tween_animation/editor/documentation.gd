@@ -57,7 +57,7 @@ func build() -> void:
 	sidebar.add_child(category)
 	target_filter = OptionButton.new()
 	for target_type in ["All targets", "2D", "3D", "UI", "Audio", "Shader resources", "Callbacks"]:
-		target_filter.add_item(target_type)
+		target_filter.add_icon_item(_target_icon(target_type), target_type)
 	target_filter.item_selected.connect(func(_index: int): _filter())
 	sidebar.add_child(target_filter)
 	results = _label("", 12)
@@ -177,7 +177,17 @@ func _show_entry(key: String) -> void:
 	tags.add_theme_constant_override("h_separation", 8)
 	tags.add_theme_constant_override("v_separation", 6)
 	for target_type in item["targets"]:
-		var tag := _label(str(target_type), 14)
+		var tag := HBoxContainer.new()
+		tag.add_theme_constant_override("separation", 7)
+		var target_icon := TextureRect.new()
+		target_icon.texture = _target_icon(str(target_type))
+		target_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		target_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		target_icon.custom_minimum_size = Vector2(20, 20)
+		tag.add_child(target_icon)
+		var target_name := _label(str(target_type), 14)
+		target_name.autowrap_mode = TextServer.AUTOWRAP_OFF
+		tag.add_child(target_name)
 		tags.add_child(_card(tag, _kind_color(is_guide)))
 	content.add_child(tags)
 	content.add_child(_label(str(item["target_note"]), 15))
@@ -322,6 +332,12 @@ func _kind_icon(is_guide: bool) -> Texture2D:
 	return editor.get_theme_icon(name if editor.has_theme_icon(name, "EditorIcons") else "Node", "EditorIcons")
 
 
+func _target_icon(target_type: String) -> Texture2D:
+	var editor := EditorInterface.get_base_control()
+	var icon_name: String = {"2D": "Node2D", "3D": "Node3D", "UI": "Control", "Audio": "AudioStreamPlayer", "Shader resources": "ShaderMaterial", "Callbacks": "Callable", "Any Tween": "Tween"}.get(target_type, "Node")
+	return editor.get_theme_icon(icon_name if editor.has_theme_icon(icon_name, "EditorIcons") else "Node", "EditorIcons")
+
+
 func set_content_mode(value: int) -> void:
 	var old_mode := content_mode
 	content_mode = clampi(value, 0, 2)
@@ -334,7 +350,7 @@ func set_content_mode(value: int) -> void:
 		category.select(0)
 		target_filter.clear()
 		for target_type in (["All targets", "2D", "3D", "UI"] if content_mode == 2 else ["All targets", "2D", "3D", "UI", "Audio", "Shader resources", "Callbacks"]):
-			target_filter.add_item(target_type)
+			target_filter.add_icon_item(_target_icon(target_type), target_type)
 		target_filter.select(0)
 		kind_tabs.set_tab_title(2, "Controls" if content_mode == 2 else "Functions")
 		kind_tabs.current_tab = 0

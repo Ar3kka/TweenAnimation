@@ -9,6 +9,7 @@ signal time_changed(value: float)
 signal key_selected(index: int)
 signal draw_requested
 signal timeline_input(event: InputEvent)
+signal action_requested(action: String)
 
 const DEFAULT_LENGTH := 1.0
 var track_picker: OptionButton
@@ -20,12 +21,28 @@ var timeline: Control
 var key_list: ItemList
 var add_track_button: Button
 var capture_key_button: Button
+var property_browser: Button
+var action_menu: MenuButton
+var target_label: Label
+var property_row: HBoxContainer
+var value_row: HBoxContainer
+var timeline_row: HBoxContainer
+var key_heading: Label
+var separator: HSeparator
+var property_dialog: AcceptDialog
+var property_search: LineEdit
+var property_list: ItemList
+var available_properties := PackedStringArray()
+var available_actions := PackedStringArray()
 
 
 func build() -> void:
 	add_theme_constant_override("separation", 8)
 	var workspace: VBoxContainer = self
 	workspace.add_child(_text("TIMELINE  ·  2D / 3D / UI properties", 12))
+	target_label = _text("Select a node in Godot's Scene tree to browse its properties and actions.", 0)
+	target_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	workspace.add_child(target_label)
 	var track_tools := HFlowContainer.new()
 	track_tools.add_theme_constant_override("h_separation", 8)
 	track_tools.add_theme_constant_override("v_separation", 6)
@@ -36,7 +53,7 @@ func build() -> void:
 	track_picker.item_selected.connect(track_selected.emit)
 	track_picker.tooltip_text = "Select a track to view and capture its keyframes."
 	track_tools.add_child(track_picker)
-	var property_row := HBoxContainer.new()
+	property_row = HBoxContainer.new()
 	track_tools.add_child(property_row)
 	property_row.add_theme_constant_override("separation", 4)
 	property_path = LineEdit.new()
@@ -44,8 +61,15 @@ func build() -> void:
 	property_path.custom_minimum_size.x = 160
 	property_path.tooltip_text = "Select a scene node, then enter a property such as position, scale or modulate:a."
 	property_row.add_child(property_path)
+	property_browser = _button(property_row, "Properties…", _open_properties)
+	property_browser.tooltip_text = "Search writable value-track properties on the selected node. You can also type a property path."
+	action_menu = MenuButton.new()
+	action_menu.text = "Action templates"
+	action_menu.tooltip_text = "Create editable keys inspired by Tweenimator effects. These are value-track templates, not runtime Tween calls."
+	action_menu.get_popup().id_pressed.connect(func(index: int): action_requested.emit(available_actions[index]))
+	property_row.add_child(action_menu)
 	add_track_button = _button(property_row, "Add track", add_track_requested.emit)
-	var value_row := HBoxContainer.new()
+	value_row = HBoxContainer.new()
 	track_tools.add_child(value_row)
 	value_row.add_theme_constant_override("separation", 4)
 	value_input = LineEdit.new()
@@ -54,9 +78,10 @@ func build() -> void:
 	value_input.custom_minimum_size.x = 160
 	value_row.add_child(value_input)
 	capture_key_button = _button(value_row, "Capture key", capture_key_requested.emit)
-	workspace.add_child(HSeparator.new())
+	separator = HSeparator.new()
+	workspace.add_child(separator)
 
-	var timeline_row := HBoxContainer.new()
+	timeline_row = HBoxContainer.new()
 	workspace.add_child(timeline_row)
 	time_label = _text("0.00s", 0)
 	time_label.custom_minimum_size.x = 70
@@ -77,11 +102,84 @@ func build() -> void:
 	timeline.gui_input.connect(timeline_input.emit)
 	workspace.add_child(timeline)
 
-	workspace.add_child(_text("KEYFRAMES  ·  Select a key to jump to its time", 12))
+	key_heading = _text("KEYFRAMES  ·  Select a key to jump to its time", 12)
+	workspace.add_child(key_heading)
 	key_list = ItemList.new()
 	key_list.custom_minimum_size.y = 90
 	key_list.item_selected.connect(key_selected.emit)
 	workspace.add_child(key_list)
+	_build_property_browser()
+	set_target(null)
+
+
+func _build_property_browser() -> void:
+	property_dialog = AcceptDialog.new()
+	property_dialog.title = "Selected node · animatable value properties"
+	property_dialog.min_size = Vector2i(500, 400)
+	property_dialog.get_ok_button().text = "Use property"
+	add_child(property_dialog)
+	var body := VBoxContainer.new()
+	property_dialog.add_child(body)
+	property_search = LineEdit.new()
+	property_search.placeholder_text = "Search properties, e.g. position, alpha, shader…"
+	property_search.text_changed.connect(func(_text: String): _filter_properties())
+	body.add_child(property_search)
+	property_list = ItemList.new()
+	property_list.custom_minimum_size = Vector2(460, 280)
+	property_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	property_list.item_activated.connect(func(_index: int): _use_property(); property_dialog.hide())
+	body.add_child(property_list)
+	property_dialog.confirmed.connect(_use_property)
+
+
+func set_target(target: Node) -> void:
+	var options := preload("res://addons/tween_animation/editor/timeline_options.gd")
+	available_properties = options.properties(target)
+	available_actions = options.actions(target)
+	property_browser.disabled = available_properties.is_empty()
+	action_menu.disabled = available_actions.is_empty()
+	property_dialog.hide()
+	action_menu.get_popup().clear()
+	for index in available_actions.size():
+		action_menu.get_popup().add_item(available_actions[index] + "()…", index)
+	target_label.text = "Target for new tracks: %s (%s) · type a path or choose a property/action." % [target.name, target.get_class()] if is_instance_valid(target) else "Select a node in Godot's Scene tree to browse its properties and actions."
+
+
+func _open_properties() -> void:
+	property_search.clear()
+	_filter_properties()
+	property_dialog.popup_centered()
+	property_search.grab_focus()
+
+
+func _filter_properties() -> void:
+	property_list.clear()
+	for path in available_properties:
+		if property_search.text.is_empty() or path.to_lower().contains(property_search.text.to_lower()):
+			property_list.add_item(path)
+	if property_list.item_count > 0:
+		property_list.select(0)
+
+
+func _use_property() -> void:
+	var indices := property_list.get_selected_items()
+	if not indices.is_empty():
+		property_path.text = property_list.get_item_text(indices[0])
+		property_path.grab_focus()
+
+
+func focus_lesson(phase: int) -> void:
+	# The real editor shows everything; practice progressively reveals relevant controls.
+	target_label.visible = phase > 0
+	track_picker.visible = phase >= 2
+	property_row.visible = phase == 1
+	action_menu.hide()
+	value_row.visible = phase in [2, 3]
+	separator.visible = phase in [2, 3, 4]
+	timeline_row.visible = phase in [2, 3, 4]
+	timeline.visible = phase in [2, 3, 4]
+	key_heading.visible = phase in [3, 4]
+	key_list.visible = phase in [3, 4]
 
 
 func paint(animation: Animation) -> void:
@@ -124,7 +222,7 @@ func _button(parent: Control, caption: String, action: Callable) -> Button:
 	button.text = caption
 	button.custom_minimum_size = Vector2(80, 34)
 	button.pressed.connect(action)
-	var icon_name := "Add" if caption == "Add track" else "Key"
+	var icon_name: String = {"Add track": "Add", "Capture key": "Key", "Properties…": "Search"}.get(caption, "Add")
 	button.icon = EditorInterface.get_base_control().get_theme_icon(icon_name, "EditorIcons")
 	button.tooltip_text = "Add the selected node property as a track." if caption == "Add track" else "Capture a property value at the playhead time."
 	parent.add_child(button)
