@@ -25,3 +25,5 @@ Tweenimation opens on a Setup tab with 2D, 3D and UI guides. Each guide explains
 Existing Animation resources can be opened as .tres files. Existing procedural Tween code must be kept as code or recreated as property keys; running Tweens cannot be imported. Non-value tracks in imported resources are not previewed or edited by the property capture controls.
 
 The Setup tutorial also offers two code-only learning paths: native Godot Tweens and the TweenAnimation helper. Each target type includes runnable script examples for basic motion, easing, sequencing, and interrupting repeated animations. Copy example copies the current script. Adjust child node paths before running it in your scene.
+
+Every tutorial step shows both native Godot Tween code and optional Tweenimation helper code, with separate copy controls and a comparison of the convenience gained. Tweenimation wraps Godot Tweens; it is not required for procedural animation. The guides call out the different default easing and explain when both paths share the same Tween API.

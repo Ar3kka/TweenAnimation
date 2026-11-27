@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 2
+const UI_REVISION := 3
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -27,6 +27,9 @@ var content_body: VBoxContainer
 var card_style: StyleBoxFlat
 var copy_button: Button
 var timeline_example := ""
+var helper_view: CodeEdit
+var comparison: RichTextLabel
+var resource_view: CodeEdit
 
 
 func build(logo_texture: Texture2D) -> void:
@@ -173,6 +176,7 @@ func build(logo_texture: Texture2D) -> void:
 	for keyword in ["extends", "var", "func", "await", "if", "return", "else"]:
 		syntax.add_keyword_color(keyword, Color("c7a9ed"))
 	code_view.syntax_highlighter = syntax
+	card_body.add_child(_text("GODOT TWEEN · Built into Godot", 14))
 	card_body.add_child(code_view)
 	copy_button = Button.new()
 	copy_button.text = "Copy example"
@@ -182,6 +186,29 @@ func build(logo_texture: Texture2D) -> void:
 		copy_button.text = "Copied!"
 	)
 	card_body.add_child(copy_button)
+	card_body.add_child(_text("TWEENIMATION · Optional convenience helper", 14))
+	helper_view = CodeEdit.new()
+	helper_view.editable = false
+	helper_view.custom_minimum_size.y = 230
+	helper_view.gutters_draw_line_numbers = true
+	helper_view.syntax_highlighter = syntax.duplicate()
+	card_body.add_child(helper_view)
+	var copy_helper := Button.new()
+	copy_helper.text = "Copy helper example"
+	copy_helper.size_flags_horizontal = Control.SIZE_SHRINK_END
+	copy_helper.pressed.connect(func(): DisplayServer.clipboard_set(helper_view.text))
+	card_body.add_child(copy_helper)
+	comparison = RichTextLabel.new()
+	comparison.bbcode_enabled = true
+	comparison.fit_content = true
+	comparison.scroll_active = false
+	comparison.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	card_body.add_child(comparison)
+	resource_view = CodeEdit.new()
+	resource_view.editable = false
+	resource_view.custom_minimum_size.y = 230
+	resource_view.gutters_draw_line_numbers = true
+	card_body.add_child(resource_view)
 	reuse_button = Button.new()
 	reuse_button.text = "Open an existing .tres animation…"
 	reuse_button.pressed.connect(func(): open_requested.emit())
@@ -284,6 +311,7 @@ func _show_guide(index: int) -> void:
 	if lesson_path > 0:
 		_build_code_lesson(node_path, property, end_value)
 	steps.insert(1, _property_lesson())
+	_attach_comparisons(node_path, property, end_value, start_value)
 	step_index = 0
 	_render_step()
 
@@ -307,13 +335,15 @@ func _render_step() -> void:
 	visual.set("step", step_index)
 	visual.set("elapsed", 0.0)
 	card_style.border_color = [Color("78b9ff"), Color("ff8f91"), Color("8fdfb3")][selected_mode]
-	if steps[step_index].has("code"):
-		code_view.text = str(steps[step_index].get("code", ""))
-	elif lesson_path == 0 and step_index == 6:
-		code_view.text = timeline_example
-	code_view.visible = steps[step_index].has("code") or (lesson_path == 0 and step_index == 6)
-	copy_button.visible = code_view.visible
-	copy_button.text = "Copy example"
+	code_view.text = str(steps[step_index]["native"])
+	helper_view.text = str(steps[step_index]["helper"])
+	code_view.show()
+	helper_view.show()
+	copy_button.show()
+	copy_button.text = "Copy Godot example"
+	comparison.text = str(steps[step_index]["comparison"])
+	resource_view.visible = lesson_path == 0 and step_index == 6
+	resource_view.text = "# Play the saved .tres timeline with AnimationPlayer.\n" + timeline_example
 	reuse_button.visible = lesson_path == 0 and step_index == 7
 	previous.disabled = step_index == 0
 	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
@@ -330,7 +360,7 @@ func _fit_body() -> void:
 func _ensure_ui() -> bool:
 	# Tool scripts can reload while their existing controls remain alive.
 	# Rebuild added fields and signal targets together rather than using stale UI.
-	if get_meta("ui_revision", 0) == UI_REVISION and is_instance_valid(card_style) and is_instance_valid(copy_button):
+	if get_meta("ui_revision", 0) == UI_REVISION and is_instance_valid(card_style) and is_instance_valid(copy_button) and is_instance_valid(helper_view):
 		return false
 	for child in get_children():
 		remove_child(child)
@@ -386,6 +416,10 @@ func _build_code_lesson(node_path: String, property: String, end_value: String) 
 	var create := "var tween := create_tween()" if lesson_path == 1 else "var animator := TweenAnimation.new(self)"
 	var animate := 'tween.tween_property(target, "%s", %s, 1.0)' % [property, end_value]
 	var helper := 'var tween := animator.custom(target, ^"%s", %s, 1.0)' % [property, end_value]
+	if selected_mode == 0:
+		helper = 'var tween := animator.move_to(target, %s, 1.0)' % end_value
+	elif selected_mode == 2:
+		helper = 'var tween := animator.fade_to(target, %s, 1.0)' % end_value
 	var basic := header + "func _ready() -> void:\n    " + create + "\n    " + (animate if lesson_path == 1 else helper) + "\n"
 	var eased := header + "func _ready() -> void:\n    " + create + "\n"
 	if lesson_path == 1:
@@ -405,3 +439,41 @@ func _build_code_lesson(node_path: String, property: String, end_value: String) 
 		{"title": "Make one thing follow another", "body": "[b]Move → wait → celebrate.[/b]\n\nTween operations are sequential by default. This example waits briefly after the motion, then runs a callback. The helper also returns a normal Tween, so the same chaining works.\n\nFor completion in an async function, use await tween.finished. To run properties together, configure parallel mode before appending those property operations.", "code": sequence},
 		{"title": "Handle another click gracefully", "body": "[b]One target, one active animation.[/b]\n\nStore the Tween so a new action can kill the old one before starting again. Connect a button or input action to animate() to try repeated triggers.\n\nCreate the helper with an owner inside the scene tree. Node.create_tween() binds the Tween lifetime to that owner. After a Tween finishes, create a new one to replay it.", "code": cancel}
 	]
+
+
+func _attach_comparisons(node_path: String, property: String, end_value: String, start_value: String) -> void:
+	var original_steps := steps
+	var original_path := lesson_path
+	lesson_path = 1
+	_build_code_lesson(node_path, property, end_value)
+	var native_steps := steps
+	var native_properties := _property_lesson()
+	lesson_path = 2
+	_build_code_lesson(node_path, property, end_value)
+	var helper_steps := steps
+	var helper_properties := _property_lesson()
+	lesson_path = original_path
+	steps = original_steps
+	for index in steps.size():
+		var title := str(steps[index]["title"])
+		var example_index := 0
+		for candidate in native_steps.size():
+			if native_steps[candidate]["title"] == title:
+				example_index = candidate
+		steps[index]["native"] = native_steps[example_index]["code"]
+		steps[index]["helper"] = helper_steps[example_index]["code"]
+		var benefit := "[b]What the add-on saves:[/b] move_to() names the intent and wraps tween_property(). You can always use Godot's Tween API directly."
+		if selected_mode == 1:
+			benefit = "[b]What the add-on saves:[/b] custom() centralizes owner and transition setup. 3D uses the same property names and Vector3 values; the helper does not add a separate 3D animation engine."
+		elif selected_mode == 2:
+			benefit = "[b]What the add-on saves:[/b] fade_to() supplies modulate:a and clamps alpha to 0–1. Native tween_property() can do the same thing explicitly."
+		if example_index >= 2:
+			benefit = "[b]Same Tween underneath:[/b] the helper returns a Godot Tween. Sequencing, callbacks, finished and kill() use Godot's existing API in both examples."
+		if title == "See what each property does":
+			steps[index]["native"] = native_properties["code"]
+			steps[index]["helper"] = helper_properties["code"]
+			benefit = "[b]Same properties, two entry points:[/b] custom() wraps tween_property(); the property names and values stay the same. Use the helper when its defaults and shared owner are convenient."
+		if title == "Plant the first key":
+			for api in ["native", "helper"]:
+				steps[index][api] = str(steps[index][api]).replace("func _ready() -> void:\n", 'func _ready() -> void:\n    target.set_indexed(^"%s", %s) # Explicit starting value\n' % [property, start_value])
+		steps[index]["comparison"] = benefit + "\n\n[b]Defaults:[/b] native Tween uses Linear / In-Out; Tweenimation uses Sine / In-Out. Set native transition/ease before tween_property() to match the helper. Both scripts are alternatives; run one at a time."
