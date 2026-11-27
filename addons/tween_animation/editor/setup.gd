@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 8
+const UI_REVISION := 9
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -507,6 +507,7 @@ func _attach_comparisons(node_path: String, property: String, end_value: String,
 
 
 func _style_code(view: CodeEdit) -> void:
+	view.scroll_fit_content_height = true
 	var background := EditorInterface.get_base_control().get_theme_color("dark_color_2", "Editor")
 	var dark := background.get_luminance() < 0.5
 	var foreground := Color("dce4ef") if dark else Color("202733")

@@ -12,6 +12,8 @@ var results: Label
 var scroll: ScrollContainer
 var content: VBoxContainer
 var current_key := ""
+var kind_tabs: TabBar
+var visible_items: Array[int] = []
 
 const PARAMETER_HELP := {
 	"name": "Non-empty StringName used as a key in this Tweenimator's registry.",
@@ -39,6 +41,11 @@ func build() -> void:
 	search.clear_button_enabled = true
 	search.text_changed.connect(func(_text: String): _filter())
 	sidebar.add_child(search)
+	kind_tabs = TabBar.new()
+	for kind in ["All", "Guides", "Functions"]:
+		kind_tabs.add_tab(kind)
+	kind_tabs.tab_changed.connect(func(_index: int): _filter())
+	sidebar.add_child(kind_tabs)
 	category = OptionButton.new()
 	category.add_item("All sections")
 	for group in ["Start here", "Configuration", "Setup", "Named registry", "Playback", "Movement", "Transform", "Effects", "Advanced"]:
@@ -49,7 +56,10 @@ func build() -> void:
 	sidebar.add_child(results)
 	navigation = ItemList.new()
 	navigation.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	navigation.item_selected.connect(func(index: int): _show_entry(str(navigation.get_item_metadata(index))))
+	navigation.item_selected.connect(func(index: int):
+		if navigation.get_item_metadata(index) != null:
+			_show_entry(str(navigation.get_item_metadata(index)))
+	)
 	sidebar.add_child(navigation)
 	scroll = ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -84,29 +94,42 @@ func _read_signatures() -> void:
 
 func _filter() -> void:
 	navigation.clear()
+	visible_items.clear()
 	var query := search.text.strip_edges().to_lower()
 	var chosen := category.get_item_text(category.selected)
+	var last_section := ""
 	for key in entries:
 		var item: Dictionary = entries[key]
+		var is_guide := str(key).begins_with("guide_")
+		if (kind_tabs.current_tab == 1 and not is_guide) or (kind_tabs.current_tab == 2 and is_guide):
+			continue
 		if category.selected > 0 and item["group"] != chosen:
 			continue
 		if not query.is_empty() and not (str(key) + " " + str(item)).to_lower().contains(query):
 			continue
-		var index := navigation.add_item(str(item["title"]))
+		var section := "GUIDES · HOW TO" if is_guide else "FUNCTIONS · API"
+		if section != last_section:
+			var heading := navigation.add_item(section, null, false)
+			navigation.set_item_disabled(heading, true)
+			navigation.set_item_custom_fg_color(heading, _kind_color(is_guide))
+			last_section = section
+		var index := navigation.add_item(str(item["title"]), _kind_icon(is_guide))
+		navigation.set_item_icon_modulate(index, _kind_color(is_guide))
 		navigation.set_item_metadata(index, key)
-		navigation.set_item_tooltip(index, str(item["group"]) + " · " + str(item["summary"]))
-	results.text = "%d entries" % navigation.item_count
-	if navigation.item_count > 0:
-		var selected := 0
-		for index in navigation.item_count:
+		navigation.set_item_tooltip(index, ("Workflow guide" if is_guide else "Function reference") + " · " + str(item["summary"]))
+		visible_items.append(index)
+	results.text = "%d entries" % visible_items.size()
+	if not visible_items.is_empty():
+		var selected := visible_items[0]
+		for index in visible_items:
 			if str(navigation.get_item_metadata(index)) == current_key:
 				selected = index
 		navigation.select(selected)
 		_show_entry(str(navigation.get_item_metadata(selected)))
 	else:
 		_clear_content()
-		content.add_child(_label("No matching functions", 24))
-		content.add_child(_label("Try another word or choose All sections.", 17))
+		content.add_child(_label("No matching entries", 24))
+		content.add_child(_label("Try another word, section or entry type.", 17))
 
 
 func _clear_content() -> void:
@@ -119,10 +142,23 @@ func _show_entry(key: String) -> void:
 	current_key = key
 	_clear_content()
 	var item: Dictionary = entries[key]
-	var badge := _label(str(item["group"]).to_upper(), 12)
-	badge.modulate = EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
+	var is_guide := key.begins_with("guide_")
+	var badge := _label(("WORKFLOW GUIDE" if is_guide else "FUNCTION REFERENCE") + "  /  " + str(item["group"]).to_upper(), 12)
+	badge.modulate = _kind_color(is_guide)
 	content.add_child(badge)
-	content.add_child(_label(str(item["title"]), 26))
+	var heading := HBoxContainer.new()
+	heading.add_theme_constant_override("separation", 12)
+	var icon := TextureRect.new()
+	icon.texture = _kind_icon(is_guide)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(28, 28)
+	icon.modulate = _kind_color(is_guide)
+	heading.add_child(icon)
+	var title := _label(str(item["title"]), 26)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.add_child(title)
+	content.add_child(_card(heading, _kind_color(is_guide)))
 	content.add_child(_label(str(item["summary"]), 17))
 	if item.has("signature"):
 		var signature := _label(str(item["signature"]), 15)
@@ -166,11 +202,14 @@ func _label(value: String, font_size: int) -> Label:
 	return label
 
 
-func _card(child: Control) -> PanelContainer:
+func _card(child: Control, accent: Color = Color.TRANSPARENT) -> PanelContainer:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
 	style.set_corner_radius_all(6)
+	if accent.a > 0.0:
+		style.border_color = accent
+		style.border_width_left = 4
 	style.content_margin_left = 14
 	style.content_margin_right = 14
 	style.content_margin_top = 12
@@ -201,7 +240,9 @@ func _add_example(source: String) -> void:
 	view.editable = false
 	view.text = source
 	view.gutters_draw_line_numbers = true
-	view.custom_minimum_size.y = 320
+	view.custom_minimum_size.y = 120
+	# Let the outer page scroll; don't crop a complete example inside a fixed box.
+	view.scroll_fit_content_height = true
 	var background := EditorInterface.get_base_control().get_theme_color("dark_color_2", "Editor")
 	var dark := background.get_luminance() < 0.5
 	var foreground := Color("dce4ef") if dark else Color("202733")
@@ -221,3 +262,16 @@ func _add_example(source: String) -> void:
 		syntax.add_keyword_color(keyword, Color("d4b8f4") if dark else Color("663795"))
 	view.syntax_highlighter = syntax
 	body.add_child(view)
+
+
+func _kind_color(is_guide: bool) -> Color:
+	var editor := EditorInterface.get_base_control()
+	if not is_guide:
+		return editor.get_theme_color("accent_color", "Editor")
+	return Color("72d7bb") if editor.get_theme_color("dark_color_2", "Editor").get_luminance() < 0.5 else Color("147257")
+
+
+func _kind_icon(is_guide: bool) -> Texture2D:
+	var editor := EditorInterface.get_base_control()
+	var name := "Help" if is_guide else "GDScript"
+	return editor.get_theme_icon(name if editor.has_theme_icon(name, "EditorIcons") else "Node", "EditorIcons")
