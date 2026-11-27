@@ -50,3 +50,5 @@ The runtime helper's move/scale/rotate/wiggle shortcuts currently accept Node2D.
 Tweenimation opens on a Setup tab with 2D, 3D and UI guides. Each guide explains target nodes, property types, first keyframes, scene preview, AnimationPlayer integration, and copyable runtime Tween/helper examples. Set up chooses a target type and suggested property without clearing existing tracks. Use the Timeline tab to continue editing.
 
 Existing Animation resources can be opened as .tres files. Existing procedural Tween code must be kept as code or recreated as property keys; running Tweens cannot be imported. Non-value tracks in imported resources are not previewed or edited by the property capture controls.
+
+The Setup tutorial also offers two code-only learning paths: native Godot Tweens and the TweenAnimation helper. Each target type includes runnable script examples for basic motion, easing, sequencing, and interrupting repeated animations. Copy example copies the current script. Adjust child node paths before running it in your scene.

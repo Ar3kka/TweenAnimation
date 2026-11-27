@@ -20,6 +20,11 @@ var next_button: Button
 var reuse_button: Button
 var visual: Control
 var steps: Array[Dictionary] = []
+var lesson_picker: OptionButton
+var lesson_path := 0
+var content_body: VBoxContainer
+var card_style: StyleBoxFlat
+var copy_button: Button
 
 
 func build(logo_texture: Texture2D) -> void:
@@ -95,7 +100,10 @@ func build(logo_texture: Texture2D) -> void:
 	details.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(details)
 	var body := VBoxContainer.new()
-	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_body = body
+	body.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	resized.connect(_fit_body)
+	_fit_body()
 	body.add_theme_constant_override("separation", 14)
 	details.add_child(body)
 	var actions := HFlowContainer.new()
@@ -109,12 +117,23 @@ func build(logo_texture: Texture2D) -> void:
 	start_button.custom_minimum_size.y = 36
 	start_button.pressed.connect(func(): start_requested.emit(MODES[selected_mode]))
 	actions.add_child(start_button)
+	lesson_picker = OptionButton.new()
+	lesson_picker.add_item("Learn visually · Timeline")
+	lesson_picker.add_item("Learn Godot Tweens · Code only")
+	lesson_picker.add_item("Use Tweenimation · Helper code")
+	lesson_picker.item_selected.connect(func(index: int):
+		lesson_path = index
+		_show_guide(selected_mode)
+	)
+	body.add_child(lesson_picker)
 	progress = _text("", 13)
 	body.add_child(progress)
 	var progress_style := StyleBoxFlat.new()
-	progress_style.bg_color = Color(0.16, 0.18, 0.21)
-	progress_style.content_margin_left = 20
-	progress_style.content_margin_right = 20
+	card_style = progress_style
+	progress_style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
+	progress_style.border_width_top = 3
+	progress_style.content_margin_left = 26
+	progress_style.content_margin_right = 26
 	progress_style.content_margin_top = 16
 	progress_style.content_margin_bottom = 16
 	progress_style.set_corner_radius_all(12)
@@ -134,13 +153,31 @@ func build(logo_texture: Texture2D) -> void:
 	guide.fit_content = true
 	guide.scroll_active = false
 	guide.selection_enabled = true
+	guide.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	guide.add_theme_font_size_override("normal_font_size", 15)
 	card_body.add_child(guide)
 
 	code_view = CodeEdit.new()
 	code_view.editable = false
 	code_view.custom_minimum_size.y = 250
 	code_view.gutters_draw_line_numbers = true
+	var syntax := CodeHighlighter.new()
+	syntax.number_color = Color("a7d5a0")
+	syntax.add_color_region('"', '"', Color("e8c988"))
+	syntax.add_color_region("#", "", Color("88949d"), true)
+	syntax.function_color = Color("83c5ed")
+	for keyword in ["extends", "var", "func", "await", "if", "return", "else"]:
+		syntax.add_keyword_color(keyword, Color("c7a9ed"))
+	code_view.syntax_highlighter = syntax
 	card_body.add_child(code_view)
+	copy_button = Button.new()
+	copy_button.text = "Copy example"
+	copy_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	copy_button.pressed.connect(func():
+		DisplayServer.clipboard_set(code_view.text)
+		copy_button.text = "Copied!"
+	)
+	card_body.add_child(copy_button)
 	reuse_button = Button.new()
 	reuse_button.text = "Open an existing .tres animation…"
 	reuse_button.pressed.connect(func(): open_requested.emit())
@@ -160,7 +197,10 @@ func build(logo_texture: Texture2D) -> void:
 	next_button.custom_minimum_size = Vector2(150, 38)
 	next_button.pressed.connect(func():
 		if step_index == steps.size() - 1:
-			start_requested.emit(MODES[selected_mode])
+			if lesson_path > 0:
+				show_menu()
+			else:
+				start_requested.emit(MODES[selected_mode])
 		else:
 			_change_step(1)
 	)
@@ -231,6 +271,8 @@ func _show_guide(index: int) -> void:
 		"    var animator := TweenAnimation.new(self)\n" +
 		"    animator.custom(%s, ^\"%s\", %s, 1.0)\n") % [node_path, property, end_value, node_path, property, end_value]
 
+	if lesson_path > 0:
+		_build_code_lesson(node_path, property, end_value)
 	step_index = 0
 	_render_step()
 
@@ -241,16 +283,55 @@ func _change_step(direction: int) -> void:
 
 
 func _render_step() -> void:
-	progress.text = MODES[selected_mode] + " QUEST   ·   STEP %d OF %d   " % [step_index + 1, steps.size()]
+	progress.text = MODES[selected_mode] + " GUIDE   ·   STEP %d OF %d   " % [step_index + 1, steps.size()]
 	for index in steps.size():
 		progress.text += "●  " if index <= step_index else "○  "
 	step_title.text = str(steps[step_index]["title"])
+	start_button.visible = lesson_path == 0
 	guide.text = str(steps[step_index]["body"])
 	visual.set("mode", selected_mode)
 	visual.set("step", step_index)
 	visual.set("elapsed", 0.0)
-	code_view.visible = step_index == 5
-	reuse_button.visible = step_index == 6
+	card_style.border_color = [Color("78b9ff"), Color("ff8f91"), Color("8fdfb3")][selected_mode]
+	if lesson_path > 0:
+		code_view.text = str(steps[step_index].get("code", ""))
+	code_view.visible = lesson_path > 0 or step_index == 5
+	copy_button.visible = code_view.visible
+	copy_button.text = "Copy example"
+	reuse_button.visible = lesson_path == 0 and step_index == 6
 	previous.disabled = step_index == 0
 	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
+	if lesson_path > 0 and step_index == steps.size() - 1:
+		next_button.text = "Choose another guide →"
 	details.scroll_vertical = 0
+
+
+func _fit_body() -> void:
+	if is_instance_valid(content_body):
+		content_body.custom_minimum_size.x = maxf(300.0, minf(860.0, size.x - 32.0))
+
+
+func _build_code_lesson(node_path: String, property: String, end_value: String) -> void:
+	var header := "# Attach this script to the scene root. Adjust the child path.\nextends Node\n\n@onready var target = " + node_path + "\n\n"
+	var create := "var tween := create_tween()" if lesson_path == 1 else "var animator := TweenAnimation.new(self)"
+	var animate := 'tween.tween_property(target, "%s", %s, 1.0)' % [property, end_value]
+	var helper := 'var tween := animator.custom(target, ^"%s", %s, 1.0)' % [property, end_value]
+	var basic := header + "func _ready() -> void:\n    " + create + "\n    " + (animate if lesson_path == 1 else helper) + "\n"
+	var eased := header + "func _ready() -> void:\n    " + create + "\n"
+	if lesson_path == 1:
+		eased += "    tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)\n    " + animate + "\n"
+	else:
+		eased += '    animator.transition_type = Tween.TRANS_SINE\n    ' + helper + "\n"
+	var sequence := basic + '    tween.tween_interval(0.2)\n    tween.tween_callback(func(): print("Animation finished!"))\n'
+	var cancel := header + "var active_tween: Tween\n\nfunc _ready() -> void:\n    animate()\n\nfunc animate() -> void:\n    if active_tween and active_tween.is_running():\n        active_tween.kill()\n"
+	if lesson_path == 1:
+		cancel += '    active_tween = create_tween()\n    active_tween.tween_property(target, "%s", %s, 1.0)\n' % [property, end_value]
+	else:
+		cancel += '    var animator := TweenAnimation.new(self)\n    active_tween = animator.custom(target, ^"%s", %s, 1.0)\n' % [property, end_value]
+	var api := "Godot's built-in Tween API" if lesson_path == 1 else "the add-on's TweenAnimation helper"
+	steps = [
+		{"title": "A little motion, all in code", "body": "[b]This path uses %s.[/b]\n\nCreate the matching child node, attach this script to its parent, and adjust the child path. Run the scene: _ready() creates the animation. No timeline resource is needed.\n\nThe property name is %s; the destination is %s. Duration is 1 second. The Tween starts at the property's current value." % [api, property, end_value], "code": basic},
+		{"title": "Give the movement a feel", "body": "[b]Easing shapes the journey.[/b]\n\nSine easing makes the start and finish softer. Try a different transition, such as TRANS_BACK, and run again.\n\nNative defaults are linear. The helper defaults to Sine with Ease In/Out. Its custom() returns a Godot Tween; transition settings must be chosen before the property is added.", "code": eased},
+		{"title": "Make one thing follow another", "body": "[b]Move → wait → celebrate.[/b]\n\nTween operations are sequential by default. This example waits briefly after the motion, then runs a callback. The helper also returns a normal Tween, so the same chaining works.\n\nFor completion in an async function, use await tween.finished. To run properties together, configure parallel mode before appending those property operations.", "code": sequence},
+		{"title": "Handle another click gracefully", "body": "[b]One target, one active animation.[/b]\n\nStore the Tween so a new action can kill the old one before starting again. Connect a button or input action to animate() to try repeated triggers.\n\nCreate the helper with an owner inside the scene tree. Node.create_tween() binds the Tween lifetime to that owner. After a Tween finishes, create a new one to replay it.", "code": cancel}
+	]
