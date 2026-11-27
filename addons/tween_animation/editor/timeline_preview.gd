@@ -3,6 +3,8 @@ extends VBoxContainer
 ## Uses the real timeline controls with a private Animation and sample values.
 ## No scene-tree selection, project resource saving or scene properties are changed.
 
+signal target_selection_changed(is_selected: bool)
+
 var controls
 var clip: Animation
 var scene_tree: Tree
@@ -13,6 +15,9 @@ var callout: Label
 var play_button: Button
 var save_button: Button
 var sample_stage: Control
+var toolbar: HFlowContainer
+var inspector_title: Label
+var sidebar: VBoxContainer
 var mode := 0
 var phase := 0
 var selected := false
@@ -22,10 +27,10 @@ var _highlights: Array[Control] = []
 
 func build() -> void:
 	add_theme_constant_override("separation", 10)
-	add_child(_text("PRACTICE PREVIEW · Real timeline controls, isolated sample data", 14))
+	add_child(_text("PRACTICE · Try it here before using your own scene", 14))
 	callout = _text("", 17)
 	add_child(callout)
-	var toolbar := HFlowContainer.new()
+	toolbar = HFlowContainer.new()
 	toolbar.add_theme_constant_override("h_separation", 8)
 	add_child(toolbar)
 	var reset := Button.new()
@@ -55,19 +60,16 @@ func build() -> void:
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 12)
 	add_child(body)
-	var sidebar := VBoxContainer.new()
+	sidebar = VBoxContainer.new()
 	sidebar.custom_minimum_size.x = 150
 	body.add_child(sidebar)
-	sidebar.add_child(_text("SCENE · click the target", 12))
+	sidebar.add_child(_text("PRACTICE SCENE", 12))
 	scene_tree = Tree.new()
 	scene_tree.custom_minimum_size.y = 92
-	scene_tree.item_selected.connect(func():
-		selected = scene_tree.get_selected() == scene_item
-		if selected:
-			feedback.text = "Target selected. Enter the property and choose Add track."
-	)
+	scene_tree.item_selected.connect(_select_target)
 	sidebar.add_child(scene_tree)
-	sidebar.add_child(_text("SAMPLE INSPECTOR", 12))
+	inspector_title = _text("SAMPLE INSPECTOR", 12)
+	sidebar.add_child(inspector_title)
 	for index in range(3):
 		var spinner := SpinBox.new()
 		spinner.min_value = -10000
@@ -98,6 +100,12 @@ func build() -> void:
 func configure(target_mode: int, step: int) -> void:
 	mode = target_mode
 	phase = clampi(step, 0, 5)
+	toolbar.visible = phase > 0
+	sample_stage.visible = phase > 0
+	controls.visible = phase > 0
+	inspector_title.visible = phase > 0
+	sidebar.custom_minimum_size.x = 280 if phase == 0 else 180
+	sidebar.size_flags_horizontal = Control.SIZE_EXPAND_FILL if phase == 0 else Control.SIZE_FILL
 	playing = false
 	play_button.text = "Play preview"
 	for control in _highlights:
@@ -108,8 +116,10 @@ func configure(target_mode: int, step: int) -> void:
 	scene_tree.clear()
 	var root := scene_tree.create_item()
 	root.set_text(0, "PreviewScene")
+	root.set_selectable(0, false)
 	scene_item = scene_tree.create_item(root)
 	scene_item.set_text(0, ["Sprite2D", "MeshInstance3D", "Panel"][mode])
+	scene_item.set_tooltip_text(0, "Click this row to choose the object we will animate.")
 	scene_item.set_icon(0, EditorInterface.get_base_control().get_theme_icon(["Node2D", "Node3D", "Control"][mode], "EditorIcons"))
 	selected = phase > 0
 	if selected:
@@ -122,7 +132,7 @@ func configure(target_mode: int, step: int) -> void:
 	controls.value_input.clear()
 	controls.key_list.clear()
 	for index in range(3):
-		property_values[index].visible = index == 0 or (mode != 2 and (index == 1 or mode == 1))
+		property_values[index].visible = phase > 0 and (index == 0 or (mode != 2 and (index == 1 or mode == 1)))
 		property_values[index].prefix = "Alpha" if mode == 2 else ["X", "Y", "Z"][index]
 		property_values[index].set_value_no_signal(0.0)
 	if phase >= 2:
@@ -136,6 +146,8 @@ func configure(target_mode: int, step: int) -> void:
 	_refresh_keys()
 	var messages := ["1 · Click the target under PreviewScene.", "2 · Property goes here → then Add track.", "3 · Start at 0 seconds → Capture key.", "4 · Playhead at 1 second → change the sample Inspector → Capture key.", "5 · Press Play preview. Rewind returns to the beginning.", "6 · Save in the real Timeline creates an Animation resource."]
 	callout.text = messages[phase]
+	if phase == 0:
+		callout.text = "↓ Click the %s row below." % scene_item.get_text(0)
 	match phase:
 		0: _highlight(scene_tree)
 		1:
@@ -148,6 +160,20 @@ func configure(target_mode: int, step: int) -> void:
 		4: _highlight(play_button)
 		5: _highlight(save_button)
 	feedback.text = "Practice only: controls edit this sample clip, not your scene. Use Timeline in the top bar for your project."
+	if phase == 0:
+		feedback.text = "Waiting for selection. Click the object name, not PreviewScene."
+		target_selection_changed.emit(false)
+
+
+func _select_target() -> void:
+	selected = scene_tree.get_selected() == scene_item
+	if selected:
+		if phase == 0:
+			callout.text = "✓ %s selected" % scene_item.get_text(0)
+			feedback.text = "Done! This is the object we will animate. Click Next: add a track below."
+		else:
+			feedback.text = "Target selected. Enter the property and choose Add track."
+	target_selection_changed.emit(selected)
 
 
 func _add_track() -> void:

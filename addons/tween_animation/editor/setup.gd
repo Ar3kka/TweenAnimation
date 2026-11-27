@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 13
+const UI_REVISION := 14
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -174,6 +174,7 @@ func build(logo_texture: Texture2D) -> void:
 	card_body.add_child(visual)
 	timeline_practice = preload("res://addons/tween_animation/editor/timeline_preview.gd").new()
 	timeline_practice.build()
+	timeline_practice.target_selection_changed.connect(_practice_selection_changed)
 	card_body.add_child(timeline_practice)
 	timeline_practice.hide()
 	guide = RichTextLabel.new()
@@ -191,6 +192,7 @@ func build(logo_texture: Texture2D) -> void:
 	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	guide.add_theme_constant_override("line_separation", 6)
 	card_body.add_child(guide)
+	card_body.move_child(timeline_practice, guide.get_index())
 
 	code_view = CodeEdit.new()
 	code_view.editable = false
@@ -344,6 +346,7 @@ func _change_step(direction: int) -> void:
 
 
 func _render_step() -> void:
+	next_button.disabled = false
 	progress.text = MODES[selected_mode] + " GUIDE   ·   STEP %d OF %d   " % [step_index + 1, steps.size()]
 	for index in steps.size():
 		progress.text += "●  " if index <= step_index else "○  "
@@ -370,6 +373,8 @@ func _render_step() -> void:
 		reuse_button.visible = step_index == steps.size() - 1
 		previous.disabled = step_index == 0
 		next_button.text = "Open timeline →" if step_index == steps.size() - 1 else "Next step →"
+		if step_index == 0:
+			_practice_selection_changed(timeline_practice.selected)
 		details.scroll_vertical = 0
 		return
 	var examples := preload("res://addons/tween_animation/editor/tutorial_examples.gd")
@@ -402,6 +407,13 @@ func _render_step() -> void:
 	if lesson_path == 2 and step_index == steps.size() - 1:
 		next_button.text = "Choose another guide →"
 	details.scroll_vertical = 0
+
+
+func _practice_selection_changed(is_selected: bool) -> void:
+	if content_mode != 2 or step_index != 0:
+		return
+	next_button.disabled = not is_selected
+	next_button.text = "Next: add a track →" if is_selected else "Select the object above to continue"
 
 
 func _fit_body() -> void:
