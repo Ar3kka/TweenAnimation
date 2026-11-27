@@ -284,6 +284,8 @@ func _action_template(action: String) -> void:
 	dialog.add_child(body)
 	var description := _label("Create editable %s keys from this node's current value. Start at the playhead; existing tracks are preserved." % spec.property, 0)
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Wrapped labels need a width before the dialog measures its minimum height.
+	description.custom_minimum_size.x = 480
 	body.add_child(description)
 	body.add_child(_label(str(spec.label), 0))
 	var parameter := LineEdit.new()
@@ -304,6 +306,7 @@ func _action_template(action: String) -> void:
 	body.add_child(interval)
 	var hint := _label("Interval adds a hold at the final value after the effect. Templates use linear interpolation; runtime easing and automatic Control pivot changes are not applied.", 0)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size.x = 480
 	body.add_child(hint)
 	dialog.confirmed.connect(func():
 		if _commit_template(target, action, _parse_value(parameter.text.strip_edges()), seconds.value, interval.value):
