@@ -1,10 +1,10 @@
-# Tween Animation
+# Tweenimation
 
-A Godot add-on for authoring property animations in a dedicated **Tween Animation** timeline tab.
+A Godot add-on for authoring property animations in a dedicated **Tweenimation** timeline tab.
 
 ## Install
 
-Copy `addons/tween_animation` into your project's `addons/` folder. Enable **Tween Animation** in **Project > Project Settings > Plugins**.
+Copy `addons/tween_animation` into your project's `addons/` folder. Enable **Tweenimation** in **Project > Project Settings > Plugins**.
 
 ## Quick start
 
