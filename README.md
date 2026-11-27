@@ -36,3 +36,11 @@ The runtime convenience helper is available from `src/tween_animation.gd` for sm
 ## Development
 
 The add-on source is in `addons/tween_animation`. The editor tab lives in `editor/plugin.gd`; runtime helpers are in `src/tween_animation.gd`.
+
+## Preview support
+
+The timeline toolbar groups track selection, property entry and key capture beside the timeline. It wraps onto another line in narrow editor panels.
+
+Value tracks preview properties on Node2D, Node3D and Control nodes. Examples include position and scale (Vector2 for 2D/UI, Vector3 for 3D), rotation, and CanvasItem modulate:a. Leave the value field blank to capture the current property value. The preview applies to the open scene; the Tweenimation tab does not contain an embedded 2D or 3D viewport. Changes can be inspected in the scene editor. Saved resources are standard Animation resources, not recordings of arbitrary running Tween scripts.
+
+The runtime helper's move/scale/rotate/wiggle shortcuts currently accept Node2D. Its custom() method can tween properties on other objects, including Node3D and Control; fade helpers accept CanvasItem (2D and UI).

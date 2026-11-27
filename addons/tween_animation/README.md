@@ -9,3 +9,11 @@ The saved resource uses standard Godot animation data and can be added to an `An
 The current editor supports numeric, `Vector2`, and `Vector3` values. It does not yet support moving keys by dragging, easing-curve editing, or undo history for timeline edits.
 
 See the repository README for installation and development notes. See the repository `LICENSE` file for the license terms.
+
+## Preview support
+
+The timeline toolbar groups track selection, property entry and key capture beside the timeline. It wraps onto another line in narrow editor panels.
+
+Value tracks preview properties on Node2D, Node3D and Control nodes. Examples include position and scale (Vector2 for 2D/UI, Vector3 for 3D), rotation, and CanvasItem modulate:a. Leave the value field blank to capture the current property value. The preview applies to the open scene; the Tweenimation tab does not contain an embedded 2D or 3D viewport. Changes can be inspected in the scene editor. Saved resources are standard Animation resources, not recordings of arbitrary running Tween scripts.
+
+The runtime helper's move/scale/rotate/wiggle shortcuts currently accept Node2D. Its custom() method can tween properties on other objects, including Node3D and Control; fade helpers accept CanvasItem (2D and UI).

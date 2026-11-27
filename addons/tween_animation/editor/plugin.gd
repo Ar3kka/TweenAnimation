@@ -2,6 +2,7 @@
 extends EditorPlugin
 
 const ADDON_ICON := preload("res://addons/tween_animation/icon.svg")
+const HEADER_LOGO := preload("res://addons/tween_animation/header_logo.svg")
 const DEFAULT_LENGTH := 1.0
 
 var page: VBoxContainer
@@ -81,10 +82,10 @@ func _build_ui() -> void:
 	header.add_theme_constant_override("separation", 16)
 	_add_card(header)
 	var logo := TextureRect.new()
-	logo.texture = ADDON_ICON
+	logo.texture = HEADER_LOGO
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.custom_minimum_size = Vector2(28, 28)
+	logo.custom_minimum_size = Vector2(96, 32)
 	header.add_child(logo)
 	header.add_child(_label("Tweenimation", 22))
 	var subtitle := _label("Animation editor", 0)
@@ -120,45 +121,42 @@ func _build_ui() -> void:
 	duration.value_changed.connect(_set_length)
 	toolbar.add_child(duration)
 
-	page.add_child(HSeparator.new())
-	page.add_child(_label("PROPERTY TRACKS", 12))
-	var edit_row := VBoxContainer.new()
-	edit_row.add_theme_constant_override("separation", 8)
-	_add_card(edit_row)
-	var track_row := HBoxContainer.new()
-	edit_row.add_child(track_row)
-	track_row.add_theme_constant_override("separation", 10)
-	track_row.add_child(_field_label("Active track"))
+	var workspace := VBoxContainer.new()
+	workspace.add_theme_constant_override("separation", 8)
+	_add_card(workspace)
+	workspace.add_child(_label("TIMELINE  ·  2D / 3D / UI properties", 12))
+	var track_tools := HFlowContainer.new()
+	track_tools.add_theme_constant_override("h_separation", 8)
+	track_tools.add_theme_constant_override("v_separation", 6)
+	workspace.add_child(track_tools)
 	track_picker = OptionButton.new()
-	track_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	track_picker.custom_minimum_size.x = 200
+	track_picker.fit_to_longest_item = false
 	track_picker.item_selected.connect(_select_track)
 	track_picker.tooltip_text = "Select a track to view and capture its keyframes."
-	track_row.add_child(track_picker)
+	track_tools.add_child(track_picker)
 	var property_row := HBoxContainer.new()
-	edit_row.add_child(property_row)
-	property_row.add_theme_constant_override("separation", 10)
-	property_row.add_child(_field_label("Node property"))
+	track_tools.add_child(property_row)
+	property_row.add_theme_constant_override("separation", 4)
 	property_path = LineEdit.new()
-	property_path.placeholder_text = "Property on selected node, e.g. position"
-	property_path.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	property_path.placeholder_text = "Property: position"
+	property_path.custom_minimum_size.x = 160
 	property_path.tooltip_text = "Select a scene node, then enter a property such as position, scale or modulate:a."
 	property_row.add_child(property_path)
 	_add_button(property_row, "Add track", _add_track)
 	var value_row := HBoxContainer.new()
-	edit_row.add_child(value_row)
-	value_row.add_theme_constant_override("separation", 10)
-	value_row.add_child(_field_label("Keyframe value"))
+	track_tools.add_child(value_row)
+	value_row.add_theme_constant_override("separation", 4)
 	value_input = LineEdit.new()
-	value_input.placeholder_text = "Leave empty to capture the node's current value"
-	value_input.tooltip_text = "Optional override: a number, Vector2(100, 50), or Vector3(0, 1, 0)."
-	value_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value_input.placeholder_text = "Value: current"
+	value_input.tooltip_text = "Leave empty to capture the node's current value. Override with a number, Vector2(100, 50), or Vector3(0, 1, 0)."
+	value_input.custom_minimum_size.x = 160
 	value_row.add_child(value_input)
 	_add_button(value_row, "Capture key", _capture_key)
-	page.add_child(HSeparator.new())
-	page.add_child(_label("TIMELINE", 12))
+	workspace.add_child(HSeparator.new())
 
 	var timeline_row := HBoxContainer.new()
-	page.add_child(timeline_row)
+	workspace.add_child(timeline_row)
 	time_label = _label("0.00s", 0)
 	time_label.custom_minimum_size.x = 70
 	timeline_row.add_child(time_label)
@@ -176,13 +174,13 @@ func _build_ui() -> void:
 	timeline.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	timeline.draw.connect(_draw_timeline)
 	timeline.gui_input.connect(_timeline_input)
-	page.add_child(timeline)
+	workspace.add_child(timeline)
 
-	page.add_child(_label("KEYFRAMES  ·  Select a key to jump to its time", 12))
+	workspace.add_child(_label("KEYFRAMES  ·  Select a key to jump to its time", 12))
 	key_list = ItemList.new()
 	key_list.custom_minimum_size.y = 90
 	key_list.item_selected.connect(_select_key)
-	page.add_child(key_list)
+	workspace.add_child(key_list)
 	status = _label("Create an animation, select a node, then add a property track.", 0)
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.custom_minimum_size.y = 40
@@ -347,7 +345,7 @@ func _refresh_tracks(select: int = -1) -> void:
 		track_picker.select(clampi(select, 0, animation.get_track_count() - 1))
 		_refresh_keys(track_picker.selected)
 	else:
-		track_picker.add_item("No tracks — select a scene node, then add a property")
+		track_picker.add_item("No tracks yet")
 		track_picker.set_item_disabled(0, true)
 		track_picker.select(-1)
 		key_list.clear()
@@ -477,9 +475,10 @@ func _parse_value(text: String) -> Variant:
 
 
 func _has_property(target: Object, name: String) -> bool:
+	var base_property := name.get_slice(":", 0)
 	for item in target.get_property_list():
-		if str(item.name) == name:
-			return true
+		if str(item.name) == base_property:
+			return target.get_indexed(NodePath(name)) != null
 	return false
 
 
