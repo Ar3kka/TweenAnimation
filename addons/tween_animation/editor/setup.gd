@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 4
+const UI_REVISION := 5
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -283,7 +283,7 @@ func _show_guide(index: int) -> void:
 		{"title": "Choose the destination", "body": "[b]Two keys. One little journey. ◆ ━━━ ◆[/b]\n\nMove the playhead to [b]1 second[/b], enter [code]%s[/code], then [b]Capture key[/b] again.\n\nScrub between them: Godot fills in the values along the way." % end_value},
 		{"title": "Bring it to life", "body": "[b]Press Play preview, then take a look![/b]\n\nSwitch to Godot's [b]%s view[/b] while playback continues; return to Timeline to pause. Then [b]Save[/b] your animation as a .tres file.\n\nPreview changes the open scene's properties and leaves the last sampled values on its nodes. The animation illustrated here is only a demonstration." % ("3D" if mode == "3D" else "2D")},
 		{"title": "Let your game press Play", "body": "[b]Your animation is ready for code.[/b]\n\nAdd an [b]AnimationPlayer[/b] as a child of the scene root used when authoring. Keep its default root_node (..).\n\nThe example loads your saved Animation into a library. Replace the file path with yours. The other two functions show direct Tween and helper alternatives."},
-		{"title": "Bring your existing work along", "body": "[b]Already made an animation? Give it a home here.[/b]\n\n[b].tres Animation[/b] → Open it below. Its track paths must match the open scene.\n\n[b]AnimationPlayer[/b] → Save its Animation resource as .tres, then Open it.\n\n[b]Tween code[/b] → Keep running it, or recreate its property, values and duration as keys. Running Tweens cannot be imported.\n\nValue tracks are supported. Script easing, chained and parallel Tween calls are not automatically converted. The helper's custom() works across 2D, 3D and UI; its movement shortcuts currently accept Node2D."}
+		{"title": "Bring your existing work along", "body": "[b]Already made an animation? Give it a home here.[/b]\n\n[b].tres Animation[/b] → Open it below. Its track paths must match the open scene.\n\n[b]AnimationPlayer[/b] → Save its Animation resource as .tres, then Open it.\n\n[b]Tween code[/b] → Keep running it, or recreate its property, values and duration as keys. Running Tweens cannot be imported.\n\nValue tracks are supported. Script easing, chained and parallel Tween calls are not automatically converted. The helper's custom() works across 2D, 3D and UI; its movement, scale, rotation, press and wiggle helpers support Node2D, Node3D and Control."}
 	]
 	code_view.text = ("# Attach to the scene root; add AnimationPlayer as a child.\nextends Node\n\n" +
 		"func _ready() -> void:\n" +
@@ -305,6 +305,8 @@ func _show_guide(index: int) -> void:
 	if lesson_path > 0:
 		_build_code_lesson(node_path, property, end_value)
 	steps.insert(1, _property_lesson())
+	steps.insert(2, _direction_lesson())
+	steps.insert(3, _press_lesson())
 	_attach_comparisons(node_path, property, end_value, start_value)
 	step_index = 0
 	_render_step()
@@ -336,9 +338,9 @@ func _render_step() -> void:
 	copy_button.show()
 	copy_button.text = "Copy Godot example"
 	comparison.text = str(steps[step_index]["comparison"])
-	resource_view.visible = lesson_path == 0 and step_index == 6
+	resource_view.visible = lesson_path == 0 and step_index == 8
 	resource_view.text = "# Play the saved .tres timeline with AnimationPlayer.\n" + timeline_example
-	reuse_button.visible = lesson_path == 0 and step_index == 7
+	reuse_button.visible = lesson_path == 0 and step_index == 9
 	previous.disabled = step_index == 0
 	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
 	if lesson_path > 0 and step_index == steps.size() - 1:
@@ -393,6 +395,8 @@ func _property_lesson() -> Dictionary:
 		]
 		explanation = "[b]UI layout → Vector2. Opacity → a number from 0 to 1.[/b]\n\nPosition moves a Control, size resizes it, and modulate:a fades it. A Container can override its direct child's position and size. Try this on a Panel outside a Container, or animate a nested wrapper."
 	var code := "# Attach to the parent. Update the child path to match your scene.\nextends Node\n\n@onready var target = " + path + "\n\nfunc _ready() -> void:\n"
+	if selected_mode == 2 and lesson_path != 2:
+		code += "    target.pivot_offset = target.size / 2.0 # Center scaling and rotation\n"
 	if lesson_path == 2:
 		code += "    var animator := TweenAnimation.new(self)\n"
 	else:
@@ -400,7 +404,8 @@ func _property_lesson() -> Dictionary:
 	for operation in operations:
 		code += "    # " + str(operation[2]) + "\n"
 		if lesson_path == 2:
-			code += '    await animator.custom(target, ^"%s", %s, 0.5).finished\n' % [operation[0], operation[1]]
+			var method_name: String = {"position": "move_to", "scale": "scale_to", "rotation": "rotate_to", "rotation_degrees": "rotate_degrees", "size": "resize_to", "modulate:a": "fade_to"}[operation[0]]
+			code += '    await animator.%s(target, %s, 0.5).finished\n' % [method_name, operation[1]]
 		else:
 			code += '    tween.tween_property(target, "%s", %s, 0.5)\n' % [operation[0], operation[1]]
 	return {"title": "See what each property does", "body": explanation + "\n\nCopy the script, run the scene, and compare the results. Next step advances this guide; it does not change your scene.", "code": code}
@@ -410,7 +415,7 @@ func _build_code_lesson(node_path: String, property: String, end_value: String) 
 	var header := "# Attach this script to the scene root. Adjust the child path.\nextends Node\n\n@onready var target = " + node_path + "\n\n"
 	var create := "var tween := create_tween()" if lesson_path == 1 else "var animator := TweenAnimation.new(self)"
 	var animate := 'tween.tween_property(target, "%s", %s, 1.0)' % [property, end_value]
-	var helper := 'var tween := animator.custom(target, ^"%s", %s, 1.0)' % [property, end_value]
+	var helper := 'var tween := animator.move_to(target, %s, 1.0)' % end_value
 	if selected_mode == 0:
 		helper = 'var tween := animator.move_to(target, %s, 1.0)' % end_value
 	elif selected_mode == 2:
@@ -426,13 +431,15 @@ func _build_code_lesson(node_path: String, property: String, end_value: String) 
 	if lesson_path == 1:
 		cancel += '    active_tween = create_tween()\n    active_tween.tween_property(target, "%s", %s, 1.0)\n' % [property, end_value]
 	else:
-		cancel += '    var animator := TweenAnimation.new(self)\n    active_tween = animator.custom(target, ^"%s", %s, 1.0)\n' % [property, end_value]
+		cancel = header + "@onready var animator := TweenAnimation.new(self)\n\nfunc _ready() -> void:\n    animate()\n\nfunc animate() -> void:\n"
+		cancel += ('    animator.fade_to(target, %s, 1.0)\n' if selected_mode == 2 else '    animator.move_to(target, %s, 1.0)\n') % end_value
+
 	var api := "Godot's built-in Tween API" if lesson_path == 1 else "the add-on's TweenAnimation helper"
 	steps = [
 		{"title": "A little motion, all in code", "body": "[b]This path uses %s.[/b]\n\nCreate the matching child node, attach this script to its parent, and adjust the child path. Run the scene: _ready() creates the animation. No timeline resource is needed.\n\nThe property name is %s; the destination is %s. Duration is 1 second. The Tween starts at the property's current value." % [api, property, end_value], "code": basic},
 		{"title": "Give the movement a feel", "body": "[b]Easing shapes the journey.[/b]\n\nSine easing makes the start and finish softer. Try a different transition, such as TRANS_BACK, and run again.\n\nNative defaults are linear. The helper defaults to Sine with Ease In/Out. Its custom() returns a Godot Tween; transition settings must be chosen before the property is added.", "code": eased},
 		{"title": "Make one thing follow another", "body": "[b]Move → wait → celebrate.[/b]\n\nTween operations are sequential by default. This example waits briefly after the motion, then runs a callback. The helper also returns a normal Tween, so the same chaining works.\n\nFor completion in an async function, use await tween.finished. To run properties together, configure parallel mode before appending those property operations.", "code": sequence},
-		{"title": "Handle another click gracefully", "body": "[b]One target, one active animation.[/b]\n\nStore the Tween so a new action can kill the old one before starting again. Connect a button or input action to animate() to try repeated triggers.\n\nCreate the helper with an owner inside the scene tree. Node.create_tween() binds the Tween lifetime to that owner. After a Tween finishes, create a new one to replay it.", "code": cancel}
+		{"title": "Handle another click gracefully", "body": "[b]One target, one active animation.[/b]\n\nNative code stores and kills its previous Tween. Reuse one TweenAnimation instance and it replaces the active effect on that target/property automatically. Connect an input action to animate() to try repeated triggers.\n\nCreate the helper with an owner inside the scene tree. Node.create_tween() binds the Tween lifetime to that owner. After a Tween finishes, create a new one to replay it.", "code": cancel}
 	]
 
 
@@ -459,15 +466,27 @@ func _attach_comparisons(node_path: String, property: String, end_value: String,
 		steps[index]["helper"] = helper_steps[example_index]["code"]
 		var benefit := "[b]What the add-on saves:[/b] move_to() names the intent and wraps tween_property(). You can always use Godot's Tween API directly."
 		if selected_mode == 1:
-			benefit = "[b]What the add-on saves:[/b] custom() centralizes owner and transition setup. 3D uses the same property names and Vector3 values; the helper does not add a separate 3D animation engine."
+			benefit = "[b]What the add-on saves:[/b] Movement helpers centralize coordinates, easing and replacement of an active move. move_to() and directional helpers support Node3D directly, including its Vector3 coordinates."
 		elif selected_mode == 2:
 			benefit = "[b]What the add-on saves:[/b] fade_to() supplies modulate:a and clamps alpha to 0–1. Native tween_property() can do the same thing explicitly."
 		if example_index >= 2:
 			benefit = "[b]Same Tween underneath:[/b] the helper returns a Godot Tween. Sequencing, callbacks, finished and kill() use Godot's existing API in both examples."
+		if example_index == 3:
+			benefit = "[b]Less repeat-input bookkeeping:[/b] native code stores and kills its previous Tween. A persistent TweenAnimation helper replaces only the matching target/property automatically; a simultaneous fade or scale can continue."
 		if title == "See what each property does":
 			steps[index]["native"] = native_properties["code"]
 			steps[index]["helper"] = helper_properties["code"]
-			benefit = "[b]Same properties, two entry points:[/b] custom() wraps tween_property(); the property names and values stay the same. Use the helper when its defaults and shared owner are convenient."
+			benefit = "[b]Same properties, two entry points:[/b] named movement, rotation, size and fade methods remove property strings. Controls are centered for scale/rotation automatically; set auto_center_pivot = false to preserve your own pivot."
+		if title == "Move left without the vector math":
+			var pair := _direction_lesson()
+			steps[index]["native"] = pair["native"]
+			steps[index]["helper"] = pair["helper"]
+			benefit = "[b]Less setup:[/b] move_left() calculates the relative destination, selects Vector2 or Vector3, applies shared easing, and replaces an active position effect. Reuse the same helper for that replacement behavior."
+		if title == "A press that returns to its starting size":
+			var pair := _press_lesson()
+			steps[index]["native"] = pair["native"]
+			steps[index]["helper"] = pair["helper"]
+			benefit = "[b]A complete effect:[/b] press() captures the starting scale, builds both phases, centers Control pivots, and preserves the original rest scale across repeated presses."
 		if title == "Plant the first key":
 			for api in ["native", "helper"]:
 				steps[index][api] = str(steps[index][api]).replace("func _ready() -> void:\n", 'func _ready() -> void:\n    target.set_indexed(^"%s", %s) # Explicit starting value\n' % [property, start_value])
@@ -495,3 +514,22 @@ func _style_code(view: CodeEdit) -> void:
 	for keyword in ["extends", "var", "func", "await", "if", "return", "else"]:
 		syntax.add_keyword_color(keyword, Color("d4b8f4") if dark else Color("663795"))
 	view.syntax_highlighter = syntax
+
+
+func _direction_lesson() -> Dictionary:
+	var path: String = ["$Sprite2D", "$MeshInstance3D", "$Panel"][selected_mode]
+	var distance := "2.0" if selected_mode == 1 else "100.0"
+	var vector := "Vector3.LEFT" if selected_mode == 1 else "Vector2.LEFT"
+	var header := "extends Node\n\n@onready var target = " + str(path) + "\n\n"
+	var native := header + "func _ready() -> void:\n    var tween := create_tween()\n    tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)\n    var destination = target.position + " + vector + " * " + distance + '\n    tween.tween_property(target, "position", destination, 0.3)\n'
+	var helper := header + "@onready var animate := TweenAnimation.new(self)\n\nfunc _ready() -> void:\n    animate.move_left(target, " + distance + ", 0.3)\n"
+	return {"title": "Move left without the vector math", "body": "[b]Say the direction, distance and duration.[/b]\n\nmove_left(), move_right(), move_up() and move_down() work on 2D, 3D and UI nodes. All directions use the parent's axes, not the camera or the target's rotated axes.\n\nUp is -Y for 2D/UI and +Y for 3D. In 3D, move_forward() uses -Z and move_back() uses +Z. Distances are pixels for normal 2D/UI layouts and scene units for 3D. Containers may override UI movement.", "native": native, "helper": helper}
+
+
+func _press_lesson() -> Dictionary:
+	var path: String = ["$Sprite2D", "$MeshInstance3D", "$Panel"][selected_mode]
+	var header := "extends Node\n\n@onready var target = " + str(path) + "\n\n"
+	var pivot := "    target.pivot_offset = target.size / 2.0\n" if selected_mode == 2 else ""
+	var native := header + "func _ready() -> void:\n" + pivot + "    var rest = target.scale\n    var tween := create_tween()\n    tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)\n    tween.tween_property(target, ^\"scale\", rest * 0.95, 0.1)\n    tween.tween_property(target, ^\"scale\", rest, 0.2)\n"
+	var helper := header + "@onready var animate := TweenAnimation.new(self)\n\nfunc _ready() -> void:\n    animate.press(target)\n"
+	return {"title": "A press that returns to its starting size", "body": "[b]A whole effect in one call.[/b]\n\npress() shrinks by 5 percent, then returns to the target's original scale. It works on 2D, 3D and UI nodes. Reuse the helper for repeated triggers.\n\nFor UI, the pivot is centered automatically. Disable auto_center_pivot when you intentionally use a different pivot. scale_up(), scale_down() and wiggle() are also available.", "native": native, "helper": helper}
