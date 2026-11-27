@@ -1,63 +1,123 @@
 # Tweenimation
 
-Tweenimation is a Godot editor add-on for creating reusable property animations with a timeline.
+A Godot add-on for keeping track of individual Tweens, creating intent-first effects, and authoring property animations in a visual timeline. Built on the original Tween Animator implementation.
 
-Enable it in **Project > Project Settings > Plugins**, open the **Tweenimation** tab, and create an animation. Select a node in the edited scene, enter a property name such as `position` or `modulate:a`, and add a track. Scrub the timeline and capture values as keyframes, then save the result as a Godot `.tres` `Animation` resource.
+## Install
 
-The saved resource uses standard Godot animation data and can be added to an `AnimationLibrary` on an `AnimationPlayer`. The edited scene must remain open while previewing because track paths are relative to its root.
+Copy `addons/tween_animation` into your project's `addons/` folder. Enable **Tweenimation** in **Project > Project Settings > Plugins**. The Setup tab offers centered 2D, 3D and UI entry points, visual walkthroughs, and paired native/helper code examples.
 
-The current editor supports numeric, `Vector2`, and `Vector3` values. It does not yet support moving keys by dragging, easing-curve editing, or undo history for timeline edits.
+## Name your Tweens
 
-See the repository README for installation and development notes. See the repository `LICENSE` file for the license terms.
-
-## Preview support
-
-The timeline toolbar groups track selection, property entry and key capture beside the timeline. It wraps onto another line in narrow editor panels.
-
-Value tracks preview properties on Node2D, Node3D and Control nodes. Examples include position and scale (Vector2 for 2D/UI, Vector3 for 3D), rotation, and CanvasItem modulate:a. Leave the value field blank to capture the current property value. The preview applies to the open scene; the Tweenimation tab does not contain an embedded 2D or 3D viewport. Changes can be inspected in the scene editor. Saved resources are standard Animation resources, not recordings of arbitrary running Tween scripts.
-
-Runtime movement, scaling, rotation, press and wiggle helpers support Node2D, Node3D and Control. Fade helpers accept CanvasItem (2D and UI); use custom() for properties with no named effect.
-
-## Setup guides
-
-Tweenimation opens on a Setup tab with 2D, 3D and UI guides. Each guide explains target nodes, property types, first keyframes, scene preview, AnimationPlayer integration, and copyable runtime Tween/helper examples. Set up chooses a target type and suggested property without clearing existing tracks. Use the Timeline tab to continue editing.
-
-Existing Animation resources can be opened as .tres files. Existing procedural Tween code must be kept as code or recreated as property keys; running Tweens cannot be imported. Non-value tracks in imported resources are not previewed or edited by the property capture controls.
-
-The Setup tutorial also offers two code-only learning paths: native Godot Tweens and the TweenAnimation helper. Each target type includes runnable script examples for basic motion, easing, sequencing, and interrupting repeated animations. Copy example copies the current script. Adjust child node paths before running it in your scene.
-
-Every tutorial step shows both native Godot Tween code and optional Tweenimation helper code, with separate copy controls and a comparison of the convenience gained. Tweenimation wraps Godot Tweens; it is not required for procedural animation. The guides call out the different default easing and explain when both paths share the same Tween API.
-
-
-## Intent-first runtime effects
-
-The helper is based on the original Tween Animator implementation's named effects, shared easing, UI pivot handling, and replacement behavior.
+`Tweenimator` is the runtime class. Its public `tweens` dictionary stores ordinary Godot Tween objects by StringName. You can construct it before your scene is ready, with no owner or existing Tween.
 
 ```gdscript
-@onready var animate := TweenAnimation.new(self)
+extends Node
 
-func slide_left() -> void:
-    animate.move_left($MeshInstance3D, 2.0, 0.3)
+var animate := Tweenimator.new()
 
-func button_feedback() -> void:
-    animate.press($Button) # shrink and return to its starting scale
-
-func stop_movement() -> void:
-    animate.stop($MeshInstance3D, ^"position")
+func _ready() -> void:
+    # This effect creates its own Tween, bound to the target Node.
+    animate.store(&"slide", animate.move_left($Sprite2D, 100, 0.3))
+    # The dictionary and the local handle refer to the exact same Tween.
+    var slide: Tween = animate.tweens[&"slide"]
+    slide.tween_interval(0.2)
+    animate.pause(&"slide")
+    animate.resume(&"slide")
 ```
 
-Reuse one helper per owner. A new effect cancels an active effect from that helper on the same target/property, so repeated movement calls do not compete. Different properties can animate together (for example position and opacity). The returned Tween supports ordinary Godot chaining and awaiting. Starting another effect cancels the previous Tween, including any steps appended to it. Canceled Tweens do not emit finished.
+Names belong to a particular Tweenimator instance. Share that instance with the scripts that should access its animations; separate instances have separate registries.
 
-Direction helpers use position in the parent's coordinates. Left/right use X; up/down use -/+Y in 2D and UI, +/−Y in 3D. Forward/back use −/+Z in 3D. They do not follow camera orientation or the target's rotated axes. Relative moves sample the current position when called. Container layout may override a Control's position or size.
+## Create here or bring an existing Tween
 
-scale_to(target, 1.2) selects Vector2 or Vector3 automatically. scale_up/down multiply the current scale; press restores its captured rest scale, including when retriggered midway through a press. wiggle restores its original angle and uses the Y axis in 3D. UI scale/rotation effects center pivot_offset; set animate.auto_center_pivot = false to retain a custom pivot. Changing the pivot can shift an already transformed Control.
+```gdscript
+# Create a named animation with an explicit owner, then use any Godot operations.
+var intro := animate.create(&"intro", self)
+intro.set_parallel(true)
+intro.tween_property($Panel, "position:x", 100.0, 0.4)
+intro.tween_property($Panel, "modulate:a", 1.0, 0.4)
+intro.chain().tween_callback(func(): print("Intro finished"))
 
-Set animate.transition_type and animate.ease_type once to share easing between calls. Sine / In-Out is the default. stop() and stop_all() leave properties at their current sampled values. stop_all() also cancels method() effects. custom() remains available for advanced properties; it is not needed for ordinary directional movement or named effects.
+# A Tween may be created before the manager or anywhere else in your code.
+var external := create_tween()
+external.tween_property($Panel, "scale", Vector2.ONE * 1.1, 0.2)
+animate.store(&"hover", external)
 
-The editor still saves Animation resources independently of the runtime helper. Godot's Tween API remains available and sufficient on its own; the helper removes repeated coordinate calculations, effect sequences, pivot setup, easing configuration and replacement bookkeeping.
+# Release the handle to outside code without killing or resetting it.
+var handed_back := animate.release(&"hover")
+handed_back.tween_interval(0.1)
+```
 
-## Why pass self?
+`store()` does not recreate operations, change easing, or rebind an existing Tween. Anything a valid Godot Tween can do remains available through the returned object. You can append properties, methods, callbacks and intervals yourself. It does not reconstruct arbitrary Tween scripts as editor tracks.
 
-TweenAnimation is a RefCounted helper rather than a Node. It needs an owner Node to call create_tween() and bind the Tween lifetime. self is a convenient choice, not a requirement: TweenAnimation.new(target_node) or another controller Node works too. The owner must be inside the scene tree when starting an effect; it can differ from the animated target. Reuse the helper for same-property replacement across repeated calls.
+| Operation | Behavior |
+| --- | --- |
+| `create(name, owner = null)` | Create and store a configured Tween. Uses the supplied owner or the manager's default owner. Append operations before the next process frame. |
+| `store(name, tween, replace = true)` | Register any valid Tween. Reusing a name kills its previous Tween; pass false to reject a duplicate without killing either. |
+| `tweens[&"name"]` | Direct access to the actual Tween. Only index a name you know exists. |
+| `get_tween(name)` / `has_tween(name)` | Safe lookup, including cleanup of a killed/invalid entry. |
+| `list_tweens()` | List valid stored names and prune invalid entries. |
+| `pause(name)` / `resume(name)` | Control one named Tween. |
+| `stop_named(name)` | Kill the named Tween and remove its tracking. |
+| `release(name)` | Remove its name and helper replacement tracking while allowing it to continue. |
+| `clear(false)` | Release all named entries without killing them. |
+| `clear()` | Kill and remove all named entries. |
+| `stop(target, property)` | Cancel helper effects on a target/property; omit property to stop all helper effects for that target. |
+| `stop_all()` | Kill named entries and other effects created by this instance. |
 
-The tutorials compare dedicated effects with equivalent custom() calls and explain owner choice in code comments. custom() handles writable, Tween-compatible properties; method() handles callback-driven values. It does not import arbitrary running Tweens. Each snippet has an embedded copy icon with copied feedback.
+Finished names are removed automatically, so the dictionary is a live registry rather than an animation archive. A completed Tween must be recreated to play again. External `kill()` calls are cleaned up lazily by `get_tween()` or `list_tweens()`. Direct dictionary writes are possible, but bypass `store()` validation, name replacement and automatic finished cleanup. Register through `store()` and read through the dictionary or safe lookup methods.
+
+Multiple names can refer to the same Tween. Killing it affects every handle to that object. To completely hand it back, release all its names. Clearing the registry is separate from freeing an owner: Node-bound Tweens follow Godot's lifetime rules.
+
+## Effects that create their own Tweens
+
+```gdscript
+var animate := Tweenimator.new()
+
+func feedback() -> void:
+    animate.move_left($MeshInstance3D, 2.0, 0.3)
+    animate.press($Button)
+    animate.store(&"fade", animate.fade_out($Panel))
+```
+
+No external Tween is required. Node-target effects infer their owner from the target when no default owner is supplied. `Tweenimator.new(self)` chooses a shared controller owner instead. The selected owner must be inside the scene tree when an effect starts. Resource-only effects (`shader_transition`) and callback-only effects (`method`) need a default owner because there is no Node target to infer. `create(name, owner)` can choose a different owner for a particular animation.
+
+| Effects | Targets and values |
+| --- | --- |
+| `move_left/right/up/down(target, distance, duration)` | Node2D, Node3D and Control; calculates the relative destination. |
+| `move_forward/back(target, distance, duration)` | Node3D; forward is -Z, back is +Z. |
+| `move_to(target, value, duration)` / `move_by(target, offset, duration)` | Vector2 for 2D/UI, Vector3 for 3D. |
+| `scale_to(target, value, duration)` | A uniform number, Vector2 or Vector3. |
+| `scale_up/down(target, amount, duration)` | Multiply the current scale by 1 +/- amount. |
+| `rotate_to(target, radians, duration)` / `rotate_degrees(target, degrees, duration)` | Absolute angle: number for 2D/UI, Vector3 for 3D. |
+| `press(target)` | Shrink and return to the captured rest scale; repeated presses preserve it. |
+| `wiggle(target, strength, duration, loops)` | Oscillate and restore the original rotation; Y axis in 3D. |
+| `fade_to/in/out` | CanvasItem (2D and UI), alpha clamped to 0-1. |
+| `resize_to(target, size, duration)` | Control. Container/minimum-size rules still apply. |
+| `set_volume(target, decibels, duration)` | AudioStreamPlayer, AudioStreamPlayer2D or AudioStreamPlayer3D. |
+| `shader_transition(material, parameter, value, duration)` | ShaderMaterial uniform. |
+| `method(callable, from, to, duration)` | Callback-driven values. |
+| `custom(target, property, value, duration, transition)` | Any writable Tween-compatible property. Creates its own Tween. |
+
+Direction helpers use the parent's coordinate axes, not the camera or the target's rotated axes. Up/down use -/+Y in 2D/UI and +/-Y in 3D. Relative destinations are sampled when called. Containers can override UI position/size.
+
+Reuse the helper so a new effect replaces its active effect on the same target/property. Other properties can continue together, such as movement and fading. An adopted external Tween has no inferred property channel; its name is what manages it. Replacing an effect cancels its entire returned Tween, including any appended steps. A canceled Tween does not emit finished.
+
+UI scale/rotation effects center `pivot_offset` automatically; set `auto_center_pivot = false` to preserve your pivot. Changing a pivot may shift an already transformed Control. Set `transition_type` and `ease_type` once to share easing; Sine / In-Out is the default. Stop operations leave properties at the current sampled value.
+
+## Native API and helper API
+
+Godot's Tween API is sufficient on its own. Tweenimator adds names, lookup, cleanup, directional calculations, effect sequences, pivot setup and replacement bookkeeping. Returned and stored values are regular Godot Tweens and work inside or outside the class. `custom()` is a property entry point, not a replacement for every Tween operation; use the returned Tween for advanced operations.
+
+The Setup tutorials pair both implementations on every step, explain owner choice and default easing, and include embedded copy icons. The visual, native-code and helper-code paths all cover the named registry.
+
+## Timeline resources
+
+The editor creates standard Godot Animation resources, independently of the runtime registry. Select a scene node, add a property track, and capture keys at different times. Save as `.tres`; play it through an AnimationLibrary on AnimationPlayer with paths rooted at the same scene root.
+
+The timeline previews value tracks for Node2D, Node3D and Control. It writes properties into the open scene; switch to the 2D/3D editor to observe playback. There is no embedded scene viewport, and preview leaves the last sampled values on the nodes. Existing Animation resources can be opened as `.tres`; non-value tracks are not edited or previewed by the value-track controls.
+
+The timeline does not yet provide key dragging, multi-track selection, undo integration, or an easing-curve editor. It does not import running Tweens or automatically reproduce procedural chains/easing. Runtime named Tween storage and Animation resources serve different workflows.
+
+## Compatibility
+
+`TweenAnimation` remains as a compatibility subclass of `Tweenimator`. Existing `TweenAnimation.new(self, transition)` calls continue to work. New code should use `Tweenimator`. Runtime source: `src/tweenimator.gd`; editor setup and timeline: `editor/`.

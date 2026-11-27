@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 6
+const UI_REVISION := 7
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -283,7 +283,7 @@ func _show_guide(index: int) -> void:
 		"    tween.tween_property(%s, \"%s\", %s, 1.0)\n\n" +
 		"# Or use the add-on's runtime helper (same property and target).\n" +
 		"func animate_with_helper() -> void:\n" +
-		"    var animator := TweenAnimation.new(self)\n" +
+		"    var animator := Tweenimator.new()\n" +
 		"    animator.custom(%s, ^\"%s\", %s, 1.0)\n") % [node_path, property, end_value, node_path, property, end_value]
 
 	timeline_example = code_view.text
@@ -293,6 +293,7 @@ func _show_guide(index: int) -> void:
 	steps.insert(2, _direction_lesson())
 	steps.insert(3, _press_lesson())
 	steps.insert(4, _owner_lesson(node_path, property, end_value))
+	steps.insert(5, _registry_lesson(node_path, property, end_value))
 	_attach_comparisons(node_path, property, end_value, start_value)
 	step_index = 0
 	_render_step()
@@ -384,7 +385,7 @@ func _property_lesson() -> Dictionary:
 	if selected_mode == 2 and lesson_path != 2:
 		code += "    target.pivot_offset = target.size / 2.0 # Center scaling and rotation\n"
 	if lesson_path == 2:
-		code += "    var animator := TweenAnimation.new(self)\n"
+		code += "    var animator := Tweenimator.new()\n"
 	else:
 		code += "    var tween := create_tween()\n"
 	for operation in operations:
@@ -399,7 +400,7 @@ func _property_lesson() -> Dictionary:
 
 func _build_code_lesson(node_path: String, property: String, end_value: String) -> void:
 	var header := "# Attach this script to the scene root. Adjust the child path.\nextends Node\n\n@onready var target = " + node_path + "\n\n"
-	var create := "var tween := create_tween()" if lesson_path == 1 else "var animator := TweenAnimation.new(self)"
+	var create := "var tween := create_tween()" if lesson_path == 1 else "var animator := Tweenimator.new()"
 	var animate := 'tween.tween_property(target, "%s", %s, 1.0)' % [property, end_value]
 	var helper := 'var tween := animator.move_to(target, %s, 1.0)' % end_value
 	if selected_mode == 0:
@@ -417,15 +418,15 @@ func _build_code_lesson(node_path: String, property: String, end_value: String) 
 	if lesson_path == 1:
 		cancel += '    active_tween = create_tween()\n    active_tween.tween_property(target, "%s", %s, 1.0)\n' % [property, end_value]
 	else:
-		cancel = header + "@onready var animator := TweenAnimation.new(self)\n\nfunc _ready() -> void:\n    animate()\n\nfunc animate() -> void:\n"
+		cancel = header + "@onready var animator := Tweenimator.new()\n\nfunc _ready() -> void:\n    animate()\n\nfunc animate() -> void:\n"
 		cancel += ('    animator.fade_to(target, %s, 1.0)\n' if selected_mode == 2 else '    animator.move_to(target, %s, 1.0)\n') % end_value
 
-	var api := "Godot's built-in Tween API" if lesson_path == 1 else "the add-on's TweenAnimation helper"
+	var api := "Godot's built-in Tween API" if lesson_path == 1 else "the add-on's Tweenimator helper"
 	steps = [
 		{"title": "A little motion, all in code", "body": "[b]This path uses %s.[/b]\n\nCreate the matching child node, attach this script to its parent, and adjust the child path. Run the scene: _ready() creates the animation. No timeline resource is needed.\n\nThe property name is %s; the destination is %s. Duration is 1 second. The Tween starts at the property's current value." % [api, property, end_value], "code": basic},
 		{"title": "Give the movement a feel", "body": "[b]Easing shapes the journey.[/b]\n\nSine easing makes the start and finish softer. Try a different transition, such as TRANS_BACK, and run again.\n\nNative defaults are linear. The helper defaults to Sine with Ease In/Out. Its custom() returns a Godot Tween; transition settings must be chosen before the property is added.", "code": eased},
 		{"title": "Make one thing follow another", "body": "[b]Move → wait → celebrate.[/b]\n\nTween operations are sequential by default. This example waits briefly after the motion, then runs a callback. The helper also returns a normal Tween, so the same chaining works.\n\nFor completion in an async function, use await tween.finished. To run properties together, configure parallel mode before appending those property operations.", "code": sequence},
-		{"title": "Handle another click gracefully", "body": "[b]One target, one active animation.[/b]\n\nNative code stores and kills its previous Tween. Reuse one TweenAnimation instance and it replaces the active effect on that target/property automatically. Connect an input action to animate() to try repeated triggers.\n\nCreate the helper with an owner inside the scene tree. Node.create_tween() binds the Tween lifetime to that owner. After a Tween finishes, create a new one to replay it.", "code": cancel}
+		{"title": "Handle another click gracefully", "body": "[b]One target, one active animation.[/b]\n\nNative code stores and kills its previous Tween. Reuse one Tweenimator instance and it replaces the active effect on that target/property automatically. Connect an input action to animate() to try repeated triggers.\n\nThe helper can be constructed first with no owner. Node-target effects create their Tween using the target unless you supply a default owner. After a Tween finishes, create a new one to replay it.", "code": cancel}
 	]
 
 
@@ -458,7 +459,7 @@ func _attach_comparisons(node_path: String, property: String, end_value: String,
 		if example_index >= 2:
 			benefit = "[b]Same Tween underneath:[/b] the helper returns a Godot Tween. Sequencing, callbacks, finished and kill() use Godot's existing API in both examples."
 		if example_index == 3:
-			benefit = "[b]Less repeat-input bookkeeping:[/b] native code stores and kills its previous Tween. A persistent TweenAnimation helper replaces only the matching target/property automatically; a simultaneous fade or scale can continue."
+			benefit = "[b]Less repeat-input bookkeeping:[/b] native code stores and kills its previous Tween. A persistent Tweenimator helper replaces only the matching target/property automatically; a simultaneous fade or scale can continue."
 		if title == "See what each property does":
 			steps[index]["native"] = native_properties["code"]
 			steps[index]["helper"] = helper_properties["code"]
@@ -477,7 +478,12 @@ func _attach_comparisons(node_path: String, property: String, end_value: String,
 			var pair := _owner_lesson(node_path, property, end_value)
 			steps[index]["native"] = pair["native"]
 			steps[index]["helper"] = pair["helper"]
-			benefit = "[b]Owner and target are separate:[/b] the owner creates and binds the Tween lifetime; the target receives the property changes. self is convenient, not mandatory."
+			benefit = "[b]Owner and target are separate:[/b] Node-target effects can infer the owner, or you can supply a controller. Creating the manager does not require a pre-existing Tween or a Node."
+		if title == "Name it. Find it. Control it.":
+			var pair := _registry_lesson(node_path, property, end_value)
+			steps[index]["native"] = pair["native"]
+			steps[index]["helper"] = pair["helper"]
+			benefit = "[b]An individual Tween registry:[/b] tweens maps names to live Godot Tween objects. Create an animation here or register one from anywhere. Access it through the dictionary or use name-based controls; release() hands it back without killing it."
 		if title == "Plant the first key":
 			for api in ["native", "helper"]:
 				steps[index][api] = str(steps[index][api]).replace("func _ready() -> void:\n", 'func _ready() -> void:\n    target.set_indexed(^"%s", %s) # Explicit starting value\n' % [property, start_value])
@@ -515,7 +521,7 @@ func _direction_lesson() -> Dictionary:
 	var vector := "Vector3.LEFT" if selected_mode == 1 else "Vector2.LEFT"
 	var header := "extends Node\n\n@onready var target = " + str(path) + "\n\n"
 	var native := header + "func _ready() -> void:\n    var tween := create_tween()\n    tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)\n    var destination = target.position + " + vector + " * " + distance + '\n    tween.tween_property(target, "position", destination, 0.3)\n'
-	var helper := header + "@onready var animate := TweenAnimation.new(self)\n\nfunc _ready() -> void:\n    animate.move_left(target, " + distance + ", 0.3)\n"
+	var helper := header + "@onready var animate := Tweenimator.new()\n\nfunc _ready() -> void:\n    animate.move_left(target, " + distance + ", 0.3)\n"
 	return {"title": "Move left without the vector math", "body": "[b]Say the direction, distance and duration.[/b]\n\nmove_left(), move_right(), move_up() and move_down() work on 2D, 3D and UI nodes. All directions use the parent's axes, not the camera or the target's rotated axes.\n\nUp is -Y for 2D/UI and +Y for 3D. In 3D, move_forward() uses -Z and move_back() uses +Z. Distances are pixels for normal 2D/UI layouts and scene units for 3D. Containers may override UI movement.", "native": native, "helper": helper}
 
 
@@ -524,7 +530,7 @@ func _press_lesson() -> Dictionary:
 	var header := "extends Node\n\n@onready var target = " + str(path) + "\n\n"
 	var pivot := "    target.pivot_offset = target.size / 2.0\n" if selected_mode == 2 else ""
 	var native := header + "func _ready() -> void:\n" + pivot + "    var rest = target.scale\n    var tween := create_tween()\n    tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)\n    tween.tween_property(target, ^\"scale\", rest * 0.95, 0.1)\n    tween.tween_property(target, ^\"scale\", rest, 0.2)\n"
-	var helper := header + "@onready var animate := TweenAnimation.new(self)\n\nfunc _ready() -> void:\n    animate.press(target)\n"
+	var helper := header + "@onready var animate := Tweenimator.new()\n\nfunc _ready() -> void:\n    animate.press(target)\n"
 	return {"title": "A press that returns to its starting size", "body": "[b]A whole effect in one call.[/b]\n\npress() shrinks by 5 percent, then returns to the target's original scale. It works on 2D, 3D and UI nodes. Reuse the helper for repeated triggers.\n\nFor UI, the pivot is centered automatically. Disable auto_center_pivot when you intentionally use a different pivot. scale_up(), scale_down() and wiggle() are also available.", "native": native, "helper": helper}
 
 
@@ -534,11 +540,11 @@ func _explain_code(source: String) -> String:
 		var trimmed := line.strip_edges()
 		var indent := line.substr(0, line.length() - line.lstrip(" \t").length())
 		if not trimmed.begins_with("#"):
-			if "TweenAnimation.new(self)" in line:
-				result += indent + "# self is the owner: its create_tween() binds the Tween lifetime.\n"
-				result += indent + "# Another live Node works too; the owner need not be the target.\n"
+			if "Tweenimator.new()" in line:
+				result += indent + "# No existing Tween is needed. Node-target effects use their target as owner.\n"
+				result += indent + "# Option: Tweenimator.new(self) binds created effects to this controller instead.\n"
 				result += indent + "# Reuse this helper so repeated effects can replace earlier ones.\n"
-			elif "TweenAnimation.new(target)" in line:
+			elif "Tweenimator.new(target)" in line:
 				result += indent + "# Here the animated node also owns the Tween. It must be in the tree.\n"
 			elif "create_tween()" in line:
 				result += indent + "# Implicitly self.create_tween(): Godot binds this Tween to this Node.\n"
@@ -551,8 +557,8 @@ func _explain_code(source: String) -> String:
 func _owner_lesson(node_path: String, property: String, end_value: String) -> Dictionary:
 	var native := 'extends Node\n\n@onready var target = %s\n\nfunc _ready() -> void:\n    var tween := create_tween()\n    tween.tween_property(target, "%s", %s, 1.0)\n' % [node_path, property, end_value]
 	var named := 'animate.fade_to(target, %s, 1.0)' % end_value if selected_mode == 2 else 'animate.move_to(target, %s, 1.0)' % end_value
-	var helper := 'extends Node\n\n@onready var target = %s\n@onready var animate := TweenAnimation.new(self)\n\nfunc _ready() -> void:\n    # Choose ONE approach. This example runs the named helper.\n    use_named_effect()\n\nfunc use_named_effect() -> void:\n    # The helper supplies the property name for a familiar action.\n    %s\n\nfunc use_custom_property() -> void:\n    # Same destination through the generic property API instead.\n    animate.custom(target, ^"%s", %s, 1.0)\n\nfunc use_target_as_owner() -> void:\n    var target_owned := TweenAnimation.new(target)\n    target_owned.custom(target, ^"%s", %s, 1.0)\n' % [node_path, named, property, end_value, property, end_value]
-	return {"title": "Who owns the Tween? Choose your entry point", "body": "[b]new(self) needs a Node, but it does not have to be this Node.[/b]\n\nTweenAnimation is a RefCounted helper, so it cannot call Node.create_tween() on itself. The Node you provide creates and owns its Tweens. Freeing that owner kills them; their pause behavior also follows the owner's processing state by default.\n\n[b]Option 1:[/b] use self to tie effects to the script's node. [b]Option 2:[/b] use the animated target Node, or another Node already in the scene tree, when that lifetime fits better. The owner and target may be different.\n\n[b]Dedicated effect:[/b] move_left(), press(), fade_to(), etc. express intent. [b]custom():[/b] animate any writable, Tween-compatible property using its path, destination and duration. It keeps shared easing and same-property replacement. Use method() for callback-driven values, or the returned Tween for intervals/callbacks and other advanced operations. custom() is a property entry point, not an importer for arbitrary Tween scripts.", "native": native, "helper": helper}
+	var helper := 'extends Node\n\n@onready var target = %s\nvar animate := Tweenimator.new()\n\nfunc _ready() -> void:\n    # Choose ONE approach. This example runs the named effect.\n    use_named_effect()\n\nfunc use_named_effect() -> void:\n    # Creates its own Tween, bound to the Node target.\n    %s\n\nfunc use_custom_property() -> void:\n    # Same property through the generic API. Also creates its own Tween.\n    animate.custom(target, ^"%s", %s, 1.0)\n\nfunc choose_controller_owner() -> void:\n    # Useful when the controller should determine the Tween lifetime.\n    var controller_owned := Tweenimator.new(self)\n    controller_owned.custom(target, ^"%s", %s, 1.0)\n' % [node_path, named, property, end_value, property, end_value]
+	return {"title": "Who owns the Tween? Choose your entry point", "body": "[b]A Tweenimator does not need an existing Tween, or an owner at construction.[/b]\n\nTweenimator.new() can create Node-target effects later: move_left(), press() and custom() create their own Tween and bind it to the target Node. Freeing that owner kills its Tweens.\n\nUse Tweenimator.new(self) or another controller when you want a shared lifetime instead. create(name, owner) can choose a specific owner for one named animation. ShaderMaterial and callback-only effects need an explicit default owner because there is no Node target to infer.\n\nDedicated effects express intent. custom() animates any writable Tween-compatible property. method() handles callback-driven values. Returned Tweens work with ordinary Godot chaining and awaiting. Existing external Tweens can be stored by name without changing their owner or operations.", "native": native, "helper": helper}
 
 
 func _snippet(parent: VBoxContainer, view: CodeEdit, caption: String) -> Button:
@@ -591,3 +597,9 @@ func _snippet(parent: VBoxContainer, view: CodeEdit, caption: String) -> Button:
 	)
 	body.add_child(view)
 	return copy
+
+
+func _registry_lesson(node_path: String, property: String, end_value: String) -> Dictionary:
+	var native := 'extends Node\n\n@onready var target = %s\nvar tweens: Dictionary[StringName, Tween] = {}\n\nfunc _ready() -> void:\n    var tween := create_tween()\n    tween.tween_property(target, "%s", %s, 1.0)\n    tweens[&"intro"] = tween\n    # Plain dictionaries need their own lifetime/replacement handling.\n    tween.finished.connect(func():\n        if tweens.get(&"intro") == tween:\n            tweens.erase(&"intro")\n    )\n    tweens[&"intro"].pause()\n    tweens[&"intro"].play()\n' % [node_path, property, end_value]
+	var helper := 'extends Node\n\n@onready var target = %s\nvar animate := Tweenimator.new()\n\nfunc _ready() -> void:\n    # Create a named animation here; append any Godot Tween operations.\n    var intro := animate.create(&"intro", self)\n    intro.tween_property(target, "%s", %s, 1.0)\n    intro.tween_interval(0.2)\n    # Direct dictionary access and the helper refer to the SAME Tween.\n    animate.tweens[&"intro"].pause()\n    animate.resume(&"intro")\n\nfunc register_external(external: Tween) -> void:\n    # Any valid Tween from other code can join the registry unchanged.\n    animate.store(&"external", external)\n    animate.pause(&"external")\n    animate.resume(&"external")\n\nfunc use_named_effect() -> void:\n    animate.store(&"slide", animate.move_left(target, %s, 0.3))\n\nfunc hand_back_to_other_code() -> Tween:\n    # Removes the name and replacement tracking, but does not kill it.\n    return animate.release(&"intro")\n\nfunc stop_one() -> void:\n    animate.stop_named(&"intro")\n' % [node_path, property, end_value, "2.0" if selected_mode == 1 else "100.0"]
+	return {"title": "Name it. Find it. Control it.", "body": "[b]Give each animation a name you can reach from anywhere that has this Tweenimator.[/b]\n\ncreate(name, owner) creates and stores a new Tween. store(name, tween) tracks any valid existing Tween without rebuilding it. Dedicated effects also create their own Tweens; store their return values when you want names.\n\nAccess tweens[&\"intro\"] directly, or use get_tween() to safely handle a missing name. pause(), resume() and stop_named() address individual entries. release() removes tracking without stopping the Tween, so outside code can keep using it.\n\nReusing a name replaces and kills its old Tween by default. Pass false to store() to reject a duplicate instead. Finished entries are removed automatically. External kill() calls are cleaned up lazily by get_tween()/list_tweens(). Tweens cannot be replayed after completion; create a fresh one. store() does not introspect operations or turn arbitrary scripts into editor tracks. Direct dictionary writes bypass the helper's validation and automatic finished cleanup.", "native": native, "helper": helper}
