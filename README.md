@@ -133,3 +133,10 @@ Open Tweenimation > Documentation for a searchable, category-filtered reference 
 Tutorial examples appear helper-first, followed by regular Godot Tweens. Setup starts with only useful variables/fields; no empty ready function is required. Subsequent snippets reuse the setup variables and run inside your existing methods; function definitions belong at script/class scope. C# examples use fields inside an existing Godot Node class (with using Godot;) and GodotObject.Call() to access the same GDScript runtime. Viewing C# samples does not need a .NET engine; executing them needs Godot .NET and an SDK. C# compilation was not validated in the current standard-engine environment.
 
 Documentation includes applicability badges and combinable target filters for 2D, 3D, UI, audio, shader resources and callbacks. Registry operations are target-independent and marked Any Tween. Main tabs are centered with icons and short labels. Reference examples use focused actions and event handlers rather than repeated whole scripts; their context is stated beside the snippet.
+
+
+## Shared content view
+
+A pinned top-right GDScript / C# / Visual Timeline selector controls both Tutorials and Documentation. It remains above scrolling content and across the three add-on tabs. Code views show the corresponding examples; C# accesses the same GDScript runtime through GodotObject.Call() and requires Godot .NET to execute. C# examples are reference content, not a separately compiled C# port.
+
+Visual Timeline mode contains no code panels. It offers six-step 2D/3D/UI editor tutorials and visual documentation for property tracks, key capture, preview/rewind, saving/opening clips, and playing saved resources through AnimationPlayer without scripts. Its documentation filters show visual guides and timeline controls rather than pretending runtime helper functions are timeline features. Switching views does not translate or modify your project's scripts.

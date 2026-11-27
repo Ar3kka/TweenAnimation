@@ -13,7 +13,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "private readonly GodotObject _tweenimator =\n    (GodotObject)GD.Load<GDScript>(\"res://addons/tween_animation/src/tweenimator.gd\").New();\n\n// Alternative, inside an existing method, to use this controller as owner:\nvar script = GD.Load<GDScript>(\"res://addons/tween_animation/src/tweenimator.gd\");\nvar controlled = (GodotObject)script.New(this);\n"
 	},
 	"guide_names": {
 		"group": "Start here",
@@ -26,7 +27,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "var slide = (Tween)_tweenimator.Call(\"move_left\", GetNode<Node2D>(\"Sprite2D\"), 100.0f, 0.3).AsGodotObject();\n_tweenimator.Call(\"store\", new StringName(\"slide\"), slide);\nvar found = _tweenimator.Call(\"get_tween\", new StringName(\"slide\")).AsGodotObject() as Tween;\nif (found != null) found.Pause();\n"
 	},
 	"guide_external": {
 		"group": "Start here",
@@ -39,7 +41,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "var external = CreateTween();\nexternal.TweenProperty(GetNode<Control>(\"Panel\"), \"modulate:a\", 0.0f, 0.5);\n_tweenimator.Call(\"store\", new StringName(\"external\"), external);\n"
 	},
 	"guide_chains": {
 		"group": "Start here",
@@ -52,7 +55,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "var intro = (Tween)_tweenimator.Call(\"create\", new StringName(\"intro\"), this).AsGodotObject();\nintro.SetParallel(true);\nintro.TweenProperty(GetNode<Control>(\"Panel\"), \"position:x\", 100.0f, 0.4);\nintro.TweenProperty(GetNode<Control>(\"Panel\"), \"modulate:a\", 1.0f, 0.4);\nintro.Chain().TweenInterval(0.2);\nintro.TweenCallback(Callable.From(() => GD.Print(\"Finished\")));\n"
 	},
 	"guide_replay": {
 		"group": "Start here",
@@ -65,7 +69,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "public void PlayIntro()\n{\n    var intro = (Tween)_tweenimator.Call(\"create\", new StringName(\"intro\"), this).AsGodotObject();\n    intro.TweenProperty(GetNode<Control>(\"Panel\"), \"modulate:a\", 0.3f, 0.5);\n    intro.TweenProperty(GetNode<Control>(\"Panel\"), \"modulate:a\", 1.0f, 0.5);\n}\n"
 	},
 	"guide_settings": {
 		"group": "Configuration",
@@ -78,7 +83,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "_tweenimator.Set(\"transition_type\", (int)Tween.TransitionType.Back);\n_tweenimator.Set(\"ease_type\", (int)Tween.EaseType.Out);\n_tweenimator.Set(\"auto_center_pivot\", false);\n_tweenimator.Call(\"scale_to\", GetNode<Control>(\"Panel\"), 1.1f, 0.2);\n"
 	},
 	"new": {
 		"group": "Setup",
@@ -94,7 +100,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "private readonly GodotObject _tweenimator =\n    (GodotObject)GD.Load<GDScript>(\"res://addons/tween_animation/src/tweenimator.gd\").New();\n\n// Alternative, inside an existing method, to use this controller as owner:\nvar script = GD.Load<GDScript>(\"res://addons/tween_animation/src/tweenimator.gd\");\nvar controlled = (GodotObject)script.New(this);\n"
 	},
 	"create": {
 		"group": "Named registry",
@@ -107,7 +114,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "var intro = (Tween)_tweenimator.Call(\"create\", new StringName(\"intro\"), this).AsGodotObject();\nintro.SetParallel(true);\nintro.TweenProperty(GetNode<Control>(\"Panel\"), \"position:x\", 100.0f, 0.4);\nintro.TweenProperty(GetNode<Control>(\"Panel\"), \"modulate:a\", 1.0f, 0.4);\nintro.Chain().TweenInterval(0.2);\nintro.TweenCallback(Callable.From(() => GD.Print(\"Finished\")));\n"
 	},
 	"store": {
 		"group": "Named registry",
@@ -122,7 +130,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "var external = CreateTween();\nexternal.TweenProperty(GetNode<Control>(\"Panel\"), \"modulate:a\", 0.0f, 0.5);\n_tweenimator.Call(\"store\", new StringName(\"external\"), external);\n"
 	},
 	"get_tween": {
 		"group": "Named registry",
@@ -135,7 +144,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "var slide = (Tween)_tweenimator.Call(\"move_left\", GetNode<Node2D>(\"Sprite2D\"), 100.0f, 0.3).AsGodotObject();\n_tweenimator.Call(\"store\", new StringName(\"slide\"), slide);\nvar found = _tweenimator.Call(\"get_tween\", new StringName(\"slide\")).AsGodotObject() as Tween;\nif (found != null) found.Pause();\n"
 	},
 	"has_tween": {
 		"group": "Named registry",
@@ -148,7 +158,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "var slide = (Tween)_tweenimator.Call(\"move_left\", GetNode<Node2D>(\"Sprite2D\"), 100.0f, 0.3).AsGodotObject();\n_tweenimator.Call(\"store\", new StringName(\"slide\"), slide);\nif (_tweenimator.Call(\"has_tween\", new StringName(\"slide\")).AsBool())\n    _tweenimator.Call(\"pause\", new StringName(\"slide\"));\n"
 	},
 	"list_tweens": {
 		"group": "Named registry",
@@ -161,7 +172,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "var slide = (Tween)_tweenimator.Call(\"move_left\", GetNode<Node2D>(\"Sprite2D\"), 100.0f, 0.3).AsGodotObject();\n_tweenimator.Call(\"store\", new StringName(\"slide\"), slide);\nvar names = _tweenimator.Call(\"list_tweens\").AsGodotArray();\nforeach (var name in names) GD.Print(name);\n"
 	},
 	"pause": {
 		"group": "Playback",
@@ -174,7 +186,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "_tweenimator.Call(\"pause\", new StringName(\"intro\"));\n"
 	},
 	"resume": {
 		"group": "Playback",
@@ -187,7 +200,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "_tweenimator.Call(\"resume\", new StringName(\"intro\"));\n"
 	},
 	"stop_named": {
 		"group": "Playback",
@@ -200,7 +214,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "_tweenimator.Call(\"stop_named\", new StringName(\"intro\"));\n"
 	},
 	"release": {
 		"group": "Named registry",
@@ -213,7 +228,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "var returned = _tweenimator.Call(\"release\", new StringName(\"slide\")).AsGodotObject() as Tween;\nif (returned != null) returned.TweenInterval(0.2);\n"
 	},
 	"clear": {
 		"group": "Playback",
@@ -228,7 +244,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "_tweenimator.Call(\"clear\", false); // Release names, keep playing.\n"
 	},
 	"stop": {
 		"group": "Playback",
@@ -243,7 +260,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "_tweenimator.Call(\"stop\", GetNode<Node2D>(\"Sprite2D\"), new NodePath(\"position\"));\n"
 	},
 	"stop_all": {
 		"group": "Playback",
@@ -256,7 +274,8 @@ const ITEMS := {
 		"targets": [
 			"Any Tween"
 		],
-		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
+		"csharp": "_tweenimator.Call(\"stop_all\");\n"
 	},
 	"custom": {
 		"group": "Advanced",
@@ -277,7 +296,8 @@ const ITEMS := {
 			"Audio",
 			"Shader resources"
 		],
-		"target_note": "Any writable Tween-compatible property with a matching destination type. Resource targets need a default owner."
+		"target_note": "Any writable Tween-compatible property with a matching destination type. Resource targets need a default owner.",
+		"csharp": "_tweenimator.Call(\"custom\", GetNode<Node2D>(\"Sprite2D\"), new NodePath(\"position:x\"), 100.0f, 0.5);\n"
 	},
 	"move_to": {
 		"group": "Movement",
@@ -294,7 +314,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"move_to\", GetNode<Node2D>(\"Sprite2D\"), new Vector2(100, 40), 0.3);\n"
 	},
 	"move_by": {
 		"group": "Movement",
@@ -311,7 +332,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"move_by\", GetNode<Node2D>(\"Sprite2D\"), new Vector2(-100, 0), 0.3);\n"
 	},
 	"move_left": {
 		"group": "Movement",
@@ -328,7 +350,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"move_left\", GetNode<Node2D>(\"Sprite2D\"), 100.0f, 0.3);\n"
 	},
 	"move_right": {
 		"group": "Movement",
@@ -345,7 +368,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"move_right\", GetNode<Node2D>(\"Sprite2D\"), 100.0f, 0.3);\n"
 	},
 	"move_up": {
 		"group": "Movement",
@@ -362,7 +386,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"move_up\", GetNode<Node2D>(\"Sprite2D\"), 100.0f, 0.3);\n"
 	},
 	"move_down": {
 		"group": "Movement",
@@ -379,7 +404,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"move_down\", GetNode<Node2D>(\"Sprite2D\"), 100.0f, 0.3);\n"
 	},
 	"move_forward": {
 		"group": "Movement",
@@ -394,7 +420,8 @@ const ITEMS := {
 		"targets": [
 			"3D"
 		],
-		"target_note": "Node3D only. Forward/back follow the parent Z axis, not the camera."
+		"target_note": "Node3D only. Forward/back follow the parent Z axis, not the camera.",
+		"csharp": "_tweenimator.Call(\"move_forward\", GetNode<Node3D>(\"MeshInstance3D\"), 2.0f, 0.3);\n"
 	},
 	"move_back": {
 		"group": "Movement",
@@ -409,7 +436,8 @@ const ITEMS := {
 		"targets": [
 			"3D"
 		],
-		"target_note": "Node3D only. Forward/back follow the parent Z axis, not the camera."
+		"target_note": "Node3D only. Forward/back follow the parent Z axis, not the camera.",
+		"csharp": "_tweenimator.Call(\"move_back\", GetNode<Node3D>(\"MeshInstance3D\"), 2.0f, 0.3);\n"
 	},
 	"scale_to": {
 		"group": "Transform",
@@ -426,7 +454,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"scale_to\", GetNode<Control>(\"Panel\"), 1.1f, 0.2);\n"
 	},
 	"scale_up": {
 		"group": "Transform",
@@ -443,7 +472,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"scale_up\", GetNode<Control>(\"Panel\"), 0.1f, 0.2);\n"
 	},
 	"scale_down": {
 		"group": "Transform",
@@ -460,7 +490,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"scale_down\", GetNode<Control>(\"Panel\"), 0.1f, 0.2);\n"
 	},
 	"rotate_to": {
 		"group": "Transform",
@@ -477,7 +508,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"rotate_to\", GetNode<Node2D>(\"Sprite2D\"), Mathf.Pi / 2.0f, 0.3);\n"
 	},
 	"rotate_degrees": {
 		"group": "Transform",
@@ -494,7 +526,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"rotate_degrees\", GetNode<Node3D>(\"MeshInstance3D\"), new Vector3(0, 90, 0), 0.3);\n"
 	},
 	"press": {
 		"group": "Effects",
@@ -513,7 +546,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"press\", GetNode<Button>(\"Button\"));\n"
 	},
 	"wiggle": {
 		"group": "Effects",
@@ -531,7 +565,8 @@ const ITEMS := {
 			"3D",
 			"UI"
 		],
-		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required.",
+		"csharp": "_tweenimator.Call(\"wiggle\", GetNode<Node2D>(\"Sprite2D\"), 0.15f, 0.4, 2);\n"
 	},
 	"fade_to": {
 		"group": "Effects",
@@ -547,7 +582,8 @@ const ITEMS := {
 			"2D",
 			"UI"
 		],
-		"target_note": "CanvasItem only. This does not control transparency on an arbitrary Node3D."
+		"target_note": "CanvasItem only. This does not control transparency on an arbitrary Node3D.",
+		"csharp": "_tweenimator.Call(\"fade_to\", GetNode<Control>(\"Panel\"), 0.3f, 0.5);\n"
 	},
 	"fade_in": {
 		"group": "Effects",
@@ -563,7 +599,8 @@ const ITEMS := {
 			"2D",
 			"UI"
 		],
-		"target_note": "CanvasItem only. This does not control transparency on an arbitrary Node3D."
+		"target_note": "CanvasItem only. This does not control transparency on an arbitrary Node3D.",
+		"csharp": "GetNode<Control>(\"Panel\").Modulate = new Color(1, 1, 1, 0);\n_tweenimator.Call(\"fade_in\", GetNode<Control>(\"Panel\"), 0.3);\n"
 	},
 	"fade_out": {
 		"group": "Effects",
@@ -579,7 +616,8 @@ const ITEMS := {
 			"2D",
 			"UI"
 		],
-		"target_note": "CanvasItem only. This does not control transparency on an arbitrary Node3D."
+		"target_note": "CanvasItem only. This does not control transparency on an arbitrary Node3D.",
+		"csharp": "_tweenimator.Call(\"fade_out\", GetNode<Control>(\"Panel\"), 0.3);\n"
 	},
 	"resize_to": {
 		"group": "Effects",
@@ -594,7 +632,8 @@ const ITEMS := {
 		"targets": [
 			"UI"
 		],
-		"target_note": "Control only. Containers and minimum size can override or constrain its layout."
+		"target_note": "Control only. Containers and minimum size can override or constrain its layout.",
+		"csharp": "_tweenimator.Call(\"resize_to\", GetNode<Control>(\"Panel\"), new Vector2(240, 100), 0.3);\n"
 	},
 	"set_volume": {
 		"group": "Advanced",
@@ -609,7 +648,8 @@ const ITEMS := {
 		"targets": [
 			"Audio"
 		],
-		"target_note": "AudioStreamPlayer, AudioStreamPlayer2D or AudioStreamPlayer3D. This changes volume, not a visual node property."
+		"target_note": "AudioStreamPlayer, AudioStreamPlayer2D or AudioStreamPlayer3D. This changes volume, not a visual node property.",
+		"csharp": "_tweenimator.Call(\"set_volume\", GetNode<AudioStreamPlayer>(\"AudioStreamPlayer\"), -12.0f, 0.5);\n"
 	},
 	"shader_transition": {
 		"group": "Advanced",
@@ -626,7 +666,8 @@ const ITEMS := {
 		"targets": [
 			"Shader resources"
 		],
-		"target_note": "ShaderMaterial uniform, not a spatial-node effect. Use an explicit owner Node for the manager."
+		"target_note": "ShaderMaterial uniform, not a spatial-node effect. Use an explicit owner Node for the manager.",
+		"csharp": "_tweenimator.Set(\"node\", this); // Resource effects need an owner.\nvar material = (ShaderMaterial)GetNode<Sprite2D>(\"Sprite2D\").Material;\n_tweenimator.Call(\"shader_transition\", material, \"dissolve\", 1.0f, 0.5); // Requires a default owner.\n"
 	},
 	"method": {
 		"group": "Advanced",
@@ -643,6 +684,154 @@ const ITEMS := {
 		"targets": [
 			"Callbacks"
 		],
-		"target_note": "Interpolates values into your Callable; no spatial target is assumed. Supply a default owner Node."
+		"target_note": "Interpolates values into your Callable; no spatial target is assumed. Supply a default owner Node.",
+		"csharp": "_tweenimator.Set(\"node\", this); // Callback effects need an owner.\nvar update = Callable.From<float>(value => GetNode<Label>(\"Label\").Text = $\"Score: {Mathf.RoundToInt(value)}\");\nvar counter = (Tween)_tweenimator.Call(\"method\", update, 0.0f, 100.0f, 1.0).AsGodotObject();\n_tweenimator.Call(\"store\", new StringName(\"score_counter\"), counter);\n"
+	}
+}
+
+const VISUAL := {
+	"guide_visual_start": {
+		"group": "Visual guides",
+		"title": "Create your first clip",
+		"summary": "Turn two scene poses into an animation.",
+		"steps": [
+			"Open a scene and select a Node2D, Node3D or Control in the Scene tree.",
+			"Open Tweenimation → Timeline. Choose a property such as position; for a UI fade use modulate:a.",
+			"Add track. At 0 seconds, leave Value empty and Capture key to record the current pose.",
+			"Move the playhead to 1 second. Change the property in the Inspector or scene view, then Capture key again.",
+			"Use Play preview, then Save the clip as an Animation .tres resource."
+		],
+		"notes": "Position uses Vector2 in 2D/UI and Vector3 in 3D. Container layout can override UI position and size. Preview writes into the open scene and leaves the last sampled values.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Uses the built-in Tweenimation timeline. No runtime helper or script required.",
+		"visual_only": true,
+		"params": {},
+		"returns": ""
+	},
+	"timeline_add_track": {
+		"group": "Timeline controls",
+		"title": "Add a property track",
+		"summary": "One track describes one property changing over time.",
+		"steps": [
+			"Select the scene node you want to animate.",
+			"In Node property, enter position, scale, rotation or another valid property. UI opacity is modulate:a.",
+			"Choose Add track. Use the active-track selector to choose the track you are editing."
+		],
+		"notes": "The timeline authors value tracks. It does not author specialized skeleton tracks, callbacks or arbitrary procedural Tween chains.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Uses the built-in Tweenimation timeline. No runtime helper or script required.",
+		"visual_only": true,
+		"params": {},
+		"returns": ""
+	},
+	"timeline_capture": {
+		"group": "Timeline controls",
+		"title": "Capture keyframes",
+		"summary": "Save the current node value at a chosen time.",
+		"steps": [
+			"Choose an active track.",
+			"Move the playhead to the time for your key.",
+			"Leave Value empty to capture the current node property, or enter a number/Vector2/Vector3 override.",
+			"Choose Capture key. Repeat at another time with a different value."
+		],
+		"notes": "Scrub to the desired time before changing the node, because scrubbing may sample the existing animation. Capturing at the same track/time replaces that key.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Uses the built-in Tweenimation timeline. No runtime helper or script required.",
+		"visual_only": true,
+		"params": {},
+		"returns": ""
+	},
+	"timeline_preview": {
+		"group": "Timeline controls",
+		"title": "Preview and rewind",
+		"summary": "See the interpolated movement in the scene editor.",
+		"steps": [
+			"Choose Play preview.",
+			"Switch to Godot’s 2D or 3D editor to watch the scene while playback continues.",
+			"Return to Tweenimation to pause. Rewind stops playback and samples the start."
+		],
+		"notes": "There is no embedded scene viewport. Preview affects the open scene; it does not automatically restore its original property values.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Uses the built-in Tweenimation timeline. No runtime helper or script required.",
+		"visual_only": true,
+		"params": {},
+		"returns": ""
+	},
+	"timeline_save": {
+		"group": "Timeline controls",
+		"title": "Save and open clips",
+		"summary": "Keep a reusable Godot Animation resource.",
+		"steps": [
+			"Choose Save or Save As and save a .tres Animation resource.",
+			"Choose Open to load a saved Animation resource.",
+			"Keep a scene open with node paths that match the clip’s tracks."
+		],
+		"notes": "A saved clip is an Animation resource. It is separate from the runtime Tweenimator named-Tween dictionary. Non-value tracks are not edited or previewed by the value-track controls.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Uses the built-in Tweenimation timeline. No runtime helper or script required.",
+		"visual_only": true,
+		"params": {},
+		"returns": ""
+	},
+	"guide_visual_player": {
+		"group": "Visual guides",
+		"title": "Play without writing code",
+		"summary": "Use Godot’s AnimationPlayer to play your saved clip.",
+		"steps": [
+			"Add an AnimationPlayer as a child of the scene root used when authoring.",
+			"In the Animation panel, create/select an AnimationLibrary and load your saved .tres Animation into it.",
+			"Keep the player’s Root Node pointed at the authored scene root (the default .. for this placement).",
+			"Use the Animation panel’s play control to preview it. Enable Autoplay on Load for the animation if it should run when the scene starts."
+		],
+		"notes": "Import your existing Animation resource rather than creating an empty replacement. Autoplay is a Godot AnimationPlayer editor feature; the runtime helper is not needed for this workflow.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Uses the built-in Tweenimation timeline. No runtime helper or script required.",
+		"visual_only": true,
+		"params": {},
+		"returns": ""
+	},
+	"guide_visual_existing": {
+		"group": "Visual guides",
+		"title": "Bring an existing animation",
+		"summary": "Reuse existing Animation resources in the timeline.",
+		"steps": [
+			"For an AnimationPlayer clip, save its Animation resource as .tres using the resource inspector.",
+			"In Tweenimation, use Open to choose that resource.",
+			"Select a matching scene and edit its value tracks."
+		],
+		"notes": "A running code-created Tween cannot be imported as a clip. Recreate its property values/timing as keys, or switch the top-right selector to a code view to learn how to manage the existing Tween.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Uses the built-in Tweenimation timeline. No runtime helper or script required.",
+		"visual_only": true,
+		"params": {},
+		"returns": ""
 	}
 }

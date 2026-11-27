@@ -15,6 +15,7 @@ var current_key := ""
 var kind_tabs: TabBar
 var visible_items: Array[int] = []
 var target_filter: OptionButton
+var content_mode := 0
 
 const PARAMETER_HELP := {
 	"name": "Non-empty StringName used as a key in this Tweenimator's registry.",
@@ -31,6 +32,7 @@ func build() -> void:
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	split_offset = 260
 	entries = DATA.ITEMS.duplicate(true)
+	entries.merge(DATA.VISUAL.duplicate(true))
 	_read_signatures()
 	var sidebar := VBoxContainer.new()
 	sidebar.custom_minimum_size.x = 220
@@ -106,6 +108,8 @@ func _filter() -> void:
 	var last_section := ""
 	for key in entries:
 		var item: Dictionary = entries[key]
+		if bool(item.get("visual_only", false)) != (content_mode == 2):
+			continue
 		var is_guide := str(key).begins_with("guide_")
 		var target_type := target_filter.get_item_text(target_filter.selected)
 		if target_filter.selected > 0 and not "Any Tween" in item["targets"] and not target_type in item["targets"]:
@@ -116,7 +120,7 @@ func _filter() -> void:
 			continue
 		if not query.is_empty() and not (str(key) + " " + str(item)).to_lower().contains(query):
 			continue
-		var section := "GUIDES · HOW TO" if is_guide else "FUNCTIONS · API"
+		var section := "GUIDES · HOW TO" if is_guide else ("CONTROLS · TIMELINE" if content_mode == 2 else "FUNCTIONS · API")
 		if section != last_section:
 			var heading := navigation.add_item(section, null, false)
 			navigation.set_item_disabled(heading, true)
@@ -125,7 +129,7 @@ func _filter() -> void:
 		var index := navigation.add_item(str(item["title"]), _kind_icon(is_guide))
 		navigation.set_item_icon_modulate(index, _kind_color(is_guide))
 		navigation.set_item_metadata(index, key)
-		navigation.set_item_tooltip(index, ("Workflow guide" if is_guide else "Function reference") + " · " + str(item["summary"]))
+		navigation.set_item_tooltip(index, ("Workflow guide" if is_guide else ("Timeline control" if content_mode == 2 else "Function reference")) + " · " + str(item["summary"]))
 		visible_items.append(index)
 	results.text = "%d entries" % visible_items.size()
 	if not visible_items.is_empty():
@@ -152,7 +156,8 @@ func _show_entry(key: String) -> void:
 	_clear_content()
 	var item: Dictionary = entries[key]
 	var is_guide := key.begins_with("guide_")
-	var badge := _label(("WORKFLOW GUIDE" if is_guide else "FUNCTION REFERENCE") + "  /  " + str(item["group"]).to_upper(), 12)
+	var kind := ("VISUAL GUIDE" if is_guide else "TIMELINE CONTROL") if content_mode == 2 else ("WORKFLOW GUIDE" if is_guide else "FUNCTION REFERENCE")
+	var badge := _label(kind + "  /  " + str(item["group"]).to_upper(), 12)
 	badge.modulate = _kind_color(is_guide)
 	content.add_child(badge)
 	var heading := HBoxContainer.new()
@@ -177,7 +182,25 @@ func _show_entry(key: String) -> void:
 	content.add_child(tags)
 	content.add_child(_label(str(item["target_note"]), 15))
 	content.add_child(_label(str(item["summary"]), 17))
+	if content_mode == 2:
+		var diagram := preload("res://addons/tween_animation/editor/tutorial_visual.gd").new()
+		diagram.custom_minimum_size.y = 170
+		diagram.mode = 1 if target_filter.get_item_text(target_filter.selected) == "3D" else (2 if target_filter.get_item_text(target_filter.selected) == "UI" else 0)
+		diagram.step = 3
+		diagram.caption = "SELECT  →  CAPTURE KEYS  →  PREVIEW"
+		diagram.tooltip_text = "Illustration only; this does not modify your scene."
+		content.add_child(diagram)
+		var number := 1
+		for instruction in item["steps"]:
+			content.add_child(_card(_label(str(number) + ".  " + str(instruction), 18), _kind_color(is_guide)))
+			number += 1
+		if not str(item["notes"]).is_empty():
+			content.add_child(_label(str(item["notes"]), 16))
+		scroll.scroll_vertical = 0
+		return
 	if item.has("signature"):
+		if content_mode == 1:
+			content.add_child(_label("RUNTIME SIGNATURE · Call this GDScript API through GodotObject.Call()", 13))
 		var signature := _label(str(item["signature"]), 15)
 		signature.add_theme_font_override("font", EditorInterface.get_base_control().get_theme_font("source", "EditorFonts"))
 		content.add_child(_card(signature))
@@ -208,7 +231,7 @@ func _show_entry(key: String) -> void:
 		content.add_child(_label(str(item["notes"]), 16))
 	content.add_child(HSeparator.new())
 	var examples := preload("res://addons/tween_animation/editor/tutorial_examples.gd")
-	_add_example(examples.documentation(str(item["code"]), key == "guide_setup" or key == "guide_external"))
+	_add_example(str(item["csharp"]) if content_mode == 1 else examples.documentation(str(item["code"]), key == "guide_setup" or key == "guide_external"))
 	scroll.scroll_vertical = 0
 
 
@@ -275,11 +298,14 @@ func _add_example(source: String) -> void:
 	syntax.number_color = Color("b6dba3") if dark else Color("35631d")
 	syntax.function_color = Color("92ccef") if dark else Color("145980")
 	syntax.add_color_region('"', '"', Color("edce96") if dark else Color("785109"))
-	syntax.add_color_region("#", "", Color("a5afbe") if dark else Color("546070"), true)
-	for keyword in ["extends", "var", "func", "await", "if", "for", "in", "return"]:
+	syntax.add_color_region("//" if content_mode == 1 else "#", "", Color("a5afbe") if dark else Color("546070"), true)
+	for keyword in ["extends", "var", "func", "await", "if", "for", "in", "return", "using", "public", "private", "partial", "readonly", "class", "void", "new", "null", "false", "true"]:
 		syntax.add_keyword_color(keyword, Color("d4b8f4") if dark else Color("663795"))
 	view.syntax_highlighter = syntax
-	body.add_child(_label("Use these lines in your existing Node script. Calls run inside a method; function definitions remain at script scope. Unless shown, tweenimator is a shared Tweenimator.new(self) instance. Adjust $node paths to your scene.", 14))
+	var context := "Use these lines in your existing Node script. Calls run inside a method; function definitions remain at script scope. Unless shown, tweenimator is a shared Tweenimator.new(self) instance. Adjust $node paths to your scene."
+	if content_mode == 1:
+		context = "C# requires Godot .NET and using Godot;. Add fields/methods inside an existing Node class. _tweenimator is a GodotObject loaded from tweenimator.gd; use the setup guide to initialize it. Call() accesses the same runtime, not a separate C# port."
+	body.add_child(_label(context, 14))
 	body.add_child(view)
 
 
@@ -294,3 +320,24 @@ func _kind_icon(is_guide: bool) -> Texture2D:
 	var editor := EditorInterface.get_base_control()
 	var name := "Help" if is_guide else "GDScript"
 	return editor.get_theme_icon(name if editor.has_theme_icon(name, "EditorIcons") else "Node", "EditorIcons")
+
+
+func set_content_mode(value: int) -> void:
+	var old_mode := content_mode
+	content_mode = clampi(value, 0, 2)
+	if (old_mode == 2) != (content_mode == 2):
+		category.clear()
+		category.add_item("All sections")
+		var groups := ["Visual guides", "Timeline controls"] if content_mode == 2 else ["Start here", "Configuration", "Setup", "Named registry", "Playback", "Movement", "Transform", "Effects", "Advanced"]
+		for group in groups:
+			category.add_item(group)
+		category.select(0)
+		target_filter.clear()
+		for target_type in (["All targets", "2D", "3D", "UI"] if content_mode == 2 else ["All targets", "2D", "3D", "UI", "Audio", "Shader resources", "Callbacks"]):
+			target_filter.add_item(target_type)
+		target_filter.select(0)
+		kind_tabs.set_tab_title(2, "Controls" if content_mode == 2 else "Functions")
+		kind_tabs.current_tab = 0
+		search.clear()
+		current_key = ""
+	_filter()

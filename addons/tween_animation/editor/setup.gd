@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 11
+const UI_REVISION := 12
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -33,6 +33,7 @@ var resource_view: CodeEdit
 var action_label: Label
 var language_picker: OptionButton
 var snippet_context: Label
+var content_mode := 0
 
 
 func build(logo_texture: Texture2D) -> void:
@@ -139,8 +140,10 @@ func build(logo_texture: Texture2D) -> void:
 	language_picker = OptionButton.new()
 	language_picker.add_item("GDScript")
 	language_picker.add_item("C# · Godot .NET")
+	language_picker.add_item("Visual Timeline")
 	language_picker.item_selected.connect(func(_index: int): _render_step())
 	body.add_child(language_picker)
+	language_picker.hide()
 	snippet_context = _text("", 14)
 	snippet_context.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(snippet_context)
@@ -228,7 +231,7 @@ func build(logo_texture: Texture2D) -> void:
 	next_button.custom_minimum_size = Vector2(150, 38)
 	next_button.pressed.connect(func():
 		if step_index == steps.size() - 1:
-			if lesson_path == 2:
+			if content_mode != 2 and lesson_path == 2:
 				show_menu()
 			else:
 				start_requested.emit(MODES[selected_mode])
@@ -261,6 +264,12 @@ func _show_guide(index: int) -> void:
 	selected_mode = index
 	menu.hide()
 	details.show()
+	lesson_picker.visible = content_mode != 2
+	if content_mode == 2:
+		steps = preload("res://addons/tween_animation/editor/visual_lessons.gd").lessons(index)
+		step_index = 0
+		_render_step()
+		return
 	var mode: String = MODES[index]
 	start_button.text = "Open " + mode + " timeline →"
 	var target := "Node2D (Sprite2D, CharacterBody2D, etc.)"
@@ -334,7 +343,7 @@ func _render_step() -> void:
 	for index in steps.size():
 		progress.text += "●  " if index <= step_index else "○  "
 	step_title.text = str(steps[step_index]["title"])
-	start_button.visible = lesson_path != 2
+	start_button.visible = content_mode == 2 or lesson_path != 2
 	action_label.text = str(steps[step_index].get("action", "Try it in your scene, then continue when you are ready."))
 	action_label.modulate = [Color("a1ccff"), Color("ffb4b5"), Color("ace8c5")][selected_mode]
 	guide.text = str(steps[step_index]["body"])
@@ -343,6 +352,18 @@ func _render_step() -> void:
 	visual.set("step", step_index)
 	visual.set("elapsed", 0.0)
 	card_style.border_color = [Color("78b9ff"), Color("ff8f91"), Color("8fdfb3")][selected_mode]
+	var visual_only := content_mode == 2
+	code_view.get_parent().get_parent().visible = not visual_only
+	helper_view.get_parent().get_parent().visible = not visual_only
+	snippet_context.visible = not visual_only
+	if visual_only:
+		comparison.hide()
+		resource_view.get_parent().get_parent().hide()
+		reuse_button.visible = step_index == steps.size() - 1
+		previous.disabled = step_index == 0
+		next_button.text = "Open timeline →" if step_index == steps.size() - 1 else "Next step →"
+		details.scroll_vertical = 0
+		return
 	var examples := preload("res://addons/tween_animation/editor/tutorial_examples.gd")
 	var title := str(steps[step_index]["title"])
 	if language_picker.selected == 0:
@@ -646,3 +667,18 @@ func _prioritize_setup() -> void:
 	for lesson in advanced:
 		if (lesson_path == 1 and lesson["title"] in timeline_titles) or (lesson_path == 2 and lesson["title"] in effect_titles):
 			steps.append(lesson)
+
+
+func set_content_mode(value: int) -> void:
+	_ensure_ui()
+	var was_menu := menu.visible
+	var previous_step := step_index
+	var old_mode := content_mode
+	content_mode = clampi(value, 0, 2)
+	language_picker.select(content_mode)
+	_show_guide(selected_mode)
+	if old_mode != 2 and content_mode != 2:
+		step_index = clampi(previous_step, 0, steps.size() - 1)
+		_render_step()
+	if was_menu:
+		show_menu()

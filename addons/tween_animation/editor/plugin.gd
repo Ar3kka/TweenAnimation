@@ -11,6 +11,8 @@ var page: VBoxContainer
 var frame: MarginContainer
 var tabs: TabContainer
 var setup_mode := ""
+var content_mode := 0
+var content_mode_buttons: Array[Button] = []
 var animation: Animation
 var animation_path := ""
 var duration: SpinBox
@@ -74,11 +76,31 @@ func _build_ui() -> void:
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
 		frame.add_theme_constant_override("margin_" + side, 16)
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 8)
+	frame.add_child(layout)
+	var view_bar := HBoxContainer.new()
+	view_bar.alignment = BoxContainer.ALIGNMENT_END
+	view_bar.add_theme_constant_override("separation", 4)
+	layout.add_child(view_bar)
+	var label := _label("CONTENT", 12)
+	view_bar.add_child(label)
+	var group := ButtonGroup.new()
+	content_mode_buttons.clear()
+	for index in range(3):
+		var button := Button.new()
+		button.text = ["GDScript", "C#", "Visual Timeline"][index]
+		button.toggle_mode = true
+		button.button_group = group
+		button.tooltip_text = "Show " + button.text + " content in Tutorials and Documentation"
+		button.pressed.connect(_set_content_mode.bind(index))
+		content_mode_buttons.append(button)
+		view_bar.add_child(button)
 	tabs = TabContainer.new()
 	tabs.tab_alignment = TabBar.ALIGNMENT_CENTER
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	frame.add_child(tabs)
+	layout.add_child(tabs)
 	var setup := SETUP_SCREEN.new()
 	setup.build(HEADER_LOGO)
 	setup.start_requested.connect(_start_setup)
@@ -223,6 +245,7 @@ func _build_ui() -> void:
 	page.move_child(status, 2)
 	_new_animation()
 	tabs.current_tab = 0
+	_set_content_mode(content_mode)
 
 
 func _start_setup(mode: String) -> void:
@@ -587,3 +610,12 @@ func _label(text: String, font_size: int) -> Label:
 func _set_status(message: String) -> void:
 	if is_instance_valid(status):
 		status.text = message
+
+
+func _set_content_mode(index: int) -> void:
+	content_mode = clampi(index, 0, 2)
+	for item in content_mode_buttons.size():
+		content_mode_buttons[item].set_pressed_no_signal(item == content_mode)
+	if tabs.get_tab_count() == 3:
+		tabs.get_child(0).call("set_content_mode", content_mode)
+		tabs.get_child(2).call("set_content_mode", content_mode)
