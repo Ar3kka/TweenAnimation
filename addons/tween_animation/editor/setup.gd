@@ -12,6 +12,14 @@ var details: ScrollContainer
 var guide: RichTextLabel
 var code_view: CodeEdit
 var start_button: Button
+var step_index := 0
+var progress: Label
+var step_title: Label
+var previous: Button
+var next_button: Button
+var reuse_button: Button
+var visual: Control
+var steps: Array[Dictionary] = []
 
 
 func build(logo_texture: Texture2D) -> void:
@@ -101,18 +109,62 @@ func build(logo_texture: Texture2D) -> void:
 	start_button.custom_minimum_size.y = 36
 	start_button.pressed.connect(func(): start_requested.emit(MODES[selected_mode]))
 	actions.add_child(start_button)
+	progress = _text("", 13)
+	body.add_child(progress)
+	var progress_style := StyleBoxFlat.new()
+	progress_style.bg_color = Color(0.16, 0.18, 0.21)
+	progress_style.content_margin_left = 20
+	progress_style.content_margin_right = 20
+	progress_style.content_margin_top = 16
+	progress_style.content_margin_bottom = 16
+	progress_style.set_corner_radius_all(12)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", progress_style)
+	body.add_child(card)
+	var card_body := VBoxContainer.new()
+	card_body.add_theme_constant_override("separation", 14)
+	card.add_child(card_body)
+	step_title = _text("", 24)
+	card_body.add_child(step_title)
+	visual = preload("res://addons/tween_animation/editor/tutorial_visual.gd").new()
+	visual.custom_minimum_size.y = 170
+	card_body.add_child(visual)
 	guide = RichTextLabel.new()
 	guide.bbcode_enabled = true
 	guide.fit_content = true
 	guide.scroll_active = false
 	guide.selection_enabled = true
-	body.add_child(guide)
-	body.add_child(_text("CODE EXAMPLES · Select and copy", 14))
+	card_body.add_child(guide)
+	
 	code_view = CodeEdit.new()
 	code_view.editable = false
 	code_view.custom_minimum_size.y = 250
 	code_view.gutters_draw_line_numbers = true
-	body.add_child(code_view)
+	card_body.add_child(code_view)
+	reuse_button = Button.new()
+	reuse_button.text = "Open an existing .tres animation…"
+	reuse_button.pressed.connect(func(): open_requested.emit())
+	card_body.add_child(reuse_button)
+	var navigation := HBoxContainer.new()
+	navigation.add_theme_constant_override("separation", 12)
+	body.add_child(navigation)
+	previous = Button.new()
+	previous.text = "← Back"
+	previous.custom_minimum_size = Vector2(110, 38)
+	previous.pressed.connect(func(): _change_step(-1))
+	navigation.add_child(previous)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	navigation.add_child(spacer)
+	next_button = Button.new()
+	next_button.custom_minimum_size = Vector2(150, 38)
+	next_button.pressed.connect(func():
+		if step_index == steps.size() - 1:
+			start_requested.emit(MODES[selected_mode])
+		else:
+			_change_step(1)
+	)
+	navigation.add_child(next_button)
 	show_menu()
 
 
@@ -154,23 +206,15 @@ func _show_guide(index: int) -> void:
 		start_value = "0.0"
 		end_value = "1.0"
 		node_path = "$Panel"
-	guide.text = ("[b]%s · Target and differences[/b]\n%s\n%s\n\n" +
-		"[b]Create your first animation[/b]\n" +
-		"1. Open a scene and select a %s node.\n" +
-		"2. Choose Set up above. In Timeline, add the property [code]%s[/code].\n" +
-		"3. At 0 seconds, type [code]%s[/code] and Capture key.\n" +
-		"4. Scrub to 1 second, type [code]%s[/code] and Capture key again.\n" +
-		"5. Play preview, then Save as a .tres resource. Blank Value captures the node's current value.\n\n" +
-		"[b]See the preview[/b]\n" +
-		"Preview writes properties into the open scene. Switch to Godot's 2D/3D view while playback continues to see it; return here to pause. There is no embedded scene viewport. Preview currently leaves the last sampled values on the nodes.\n\n" +
-		"[b]Use the saved animation in code[/b]\n" +
-		"Add an AnimationPlayer under the same scene root used when authoring. Its default root_node (..) resolves tracks from that root. The first example below loads your saved resource into an AnimationLibrary. Adjust paths to your scene.\n\n" +
-		"[b]Connect existing work[/b]\n" +
-		"• Existing .tres Animation: use Open above; its node paths must resolve from the open scene root. Value tracks are supported for editing and preview.\n" +
-		"• AnimationPlayer animation: save that Animation resource as .tres from Godot's resource inspector, then Open it here.\n" +
-		"• Existing create_tween()/tween_property() code: keep using that code, or recreate its property, start/end values and duration as timeline keys. Running Tweens cannot be imported or linked as tracks.\n" +
-		"• TweenAnimation helper: custom() accepts 2D, 3D and UI properties. move/scale/rotate/wiggle shortcuts currently accept Node2D; fade helpers accept CanvasItem.\n\n" +
-		"[b]Timeline scope[/b]\nSaved output is a standard Godot Animation. Runtime Tween easing and chained/parallel calls are not automatically copied into it.\n") % [mode, target, differences, mode, property, start_value, end_value]
+	steps = [
+		{"title": "Meet your animation target", "body": "[b]Mission: pick something to bring to life.[/b]\n\nOpen a scene and select a [b]%s[/b] in the Scene tree.\n\n%s" % [target, differences]},
+		{"title": "Give it a property to play with", "body": "[b]A track = one property changing over time.[/b]\n\nOpen the timeline, enter [code]%s[/code], then choose [b]Add track[/b].\n\nThink of a track as a lane; its keys are the stops along the way. Return to Setup to continue this guide." % property},
+		{"title": "Plant the first key", "body": "[b]This is where the journey begins. ◆[/b]\n\nAt [b]0 seconds[/b], enter [code]%s[/code] in Value and press [b]Capture key[/b].\n\nTip: an empty Value field captures what the selected node already has." % start_value},
+		{"title": "Choose the destination", "body": "[b]Two keys. One little journey. ◆ ━━━ ◆[/b]\n\nMove the playhead to [b]1 second[/b], enter [code]%s[/code], then [b]Capture key[/b] again.\n\nScrub between them: Godot fills in the values along the way." % end_value},
+		{"title": "Bring it to life", "body": "[b]Press Play preview, then take a look![/b]\n\nSwitch to Godot's [b]%s view[/b] while playback continues; return to Timeline to pause. Then [b]Save[/b] your animation as a .tres file.\n\nPreview changes the open scene's properties and leaves the last sampled values on its nodes. The animation illustrated here is only a demonstration." % ("3D" if mode == "3D" else "2D")},
+		{"title": "Let your game press Play", "body": "[b]Your animation is ready for code.[/b]\n\nAdd an [b]AnimationPlayer[/b] as a child of the scene root used when authoring. Keep its default root_node (..).\n\nThe example loads your saved Animation into a library. Replace the file path with yours. The other two functions show direct Tween and helper alternatives."},
+		{"title": "Bring your existing work along", "body": "[b]Already made an animation? Give it a home here.[/b]\n\n[b].tres Animation[/b] → Open it below. Its track paths must match the open scene.\n\n[b]AnimationPlayer[/b] → Save its Animation resource as .tres, then Open it.\n\n[b]Tween code[/b] → Keep running it, or recreate its property, values and duration as keys. Running Tweens cannot be imported.\n\nValue tracks are supported. Script easing, chained and parallel Tween calls are not automatically converted. The helper's custom() works across 2D, 3D and UI; its movement shortcuts currently accept Node2D."}
+	]
 	code_view.text = ("# Attach to the scene root; add AnimationPlayer as a child.\n" +
 		"func _ready() -> void:\n" +
 		"    var clip := load(\"res://animations/my_animation.tres\") as Animation\n" +
@@ -186,3 +230,27 @@ func _show_guide(index: int) -> void:
 		"func animate_with_helper() -> void:\n" +
 		"    var animator := TweenAnimation.new(self)\n" +
 		"    animator.custom(%s, ^\"%s\", %s, 1.0)\n") % [node_path, property, end_value, node_path, property, end_value]
+
+	step_index = 0
+	_render_step()
+
+
+func _change_step(direction: int) -> void:
+	step_index = clampi(step_index + direction, 0, steps.size() - 1)
+	_render_step()
+
+
+func _render_step() -> void:
+	progress.text = MODES[selected_mode] + " QUEST   ·   STEP %d OF %d   " % [step_index + 1, steps.size()]
+	for index in steps.size():
+		progress.text += "●  " if index <= step_index else "○  "
+	step_title.text = str(steps[step_index]["title"])
+	guide.text = str(steps[step_index]["body"])
+	visual.set("mode", selected_mode)
+	visual.set("step", step_index)
+	visual.set("elapsed", 0.0)
+	code_view.visible = step_index == 5
+	reuse_button.visible = step_index == 6
+	previous.disabled = step_index == 0
+	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
+	details.scroll_vertical = 0
