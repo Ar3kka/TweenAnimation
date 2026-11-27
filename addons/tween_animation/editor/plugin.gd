@@ -63,6 +63,8 @@ func _process(delta: float) -> void:
 
 func _build_ui() -> void:
 	frame = MarginContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	frame.theme = get_editor_interface().get_base_control().theme
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
