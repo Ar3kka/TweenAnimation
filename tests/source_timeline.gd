@@ -77,6 +77,14 @@ func dynamic(seconds: float) -> void:
  check(registry_doc.operations[1].verified and registry_doc.operations[1].start==null,"Registry lookup timing remains runtime")
  var spoof := MODEL.analyze("extends Node2D\nfunc unrelated():\n var something = Object.new()\n something.tween_property($Actor, \"rotation\", 1.0, 0.2)\n", "res://spoof.gd", owner,sprite)
  check(not spoof.operations[0].verified,"Unknown receiver cannot be visually rewritten")
+ for side in ["before", "after"]:
+  var occupied: Dictionary = doc.methods[0].statements[1]
+  var inserted := WRITER.insert_property(source,doc.methods[0],{"kind":side,"start":occupied.start},sprite,"rotation",{"mode":"constant","value":0.5},duration,interval,"own")
+  check(inserted.ok and WRITER.validate(inserted.source,"gd").ok,"Occupied-line insertion compiles: " + side)
+  check(str(inserted.source).count(str(occupied.text))==1,"Occupied statement is preserved exactly once: " + side)
+  var original_offset: int = str(inserted.source).find(str(occupied.text))
+  var added_offset: int = str(inserted.source).find('tweenimation_step.tween_property')
+  check(added_offset < original_offset if side=="before" else added_offset > original_offset,"Insertion pushes existing code in the chosen direction: " + side)
  var stale := WRITER.patch_arguments(source + "#changed", doc.operations[0], {"duration":"1.0"})
  check(not stale.ok,"Stale source rejected")
  var helper_edit := WRITER.patch_arguments(source,doc.operations[4],{"interval":"0.5"})

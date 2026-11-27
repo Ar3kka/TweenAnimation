@@ -14,7 +14,7 @@ In **Timeline > Code Tweens**, select a scene node. Tweenimation detects 2D, 3D 
 
 **Visual Timeline mode requires no code entry:**
 
-1. Choose **Add key**, a method, and placement before/after a statement or at a method boundary. Methods on parent scene nodes can animate a selected child without giving that child a script.
+1. Choose **Add key**, a method, then click a line in the read-only source preview. Choose **Before** or **After**: an insertion arrow marks the gap and existing code moves down. Multiline statements stay intact. **Quick locations** also offers method boundaries. Methods on parent scene nodes can animate a selected child without giving that child a script.
 2. Choose an animatable property and a destination: a fixed value, offset from the current value, method parameter, or selected node property. Numeric/vector fields accept data directly. Runtime expressions already in the source are preserved by default.
 3. Choose duration, optional trailing wait and whether to join an earlier Tween or start independently. Creation generates native Tween calls at the chosen location. A node with no available scene script can create a GDScript through a file picker.
 4. Select a key to edit parameters or move its statement within the same method. Apply updates only changed arguments; keys regenerate from source. Godot Undo restores the previous script. Save existing script-editor buffers before applying; stale or unsaved edits are rejected.

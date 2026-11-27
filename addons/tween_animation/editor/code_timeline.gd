@@ -32,6 +32,7 @@ var _source_dirty := false
 var _busy := false
 var _last_write_ok := false
 var _span := 1.0
+var _new_placement
 var _new_dialog: ConfirmationDialog
 var _new_fields: Dictionary = {}
 var _new_method_picker: OptionButton
@@ -272,7 +273,7 @@ func _select_operation(index: int) -> void:
 	_fields.clear()
 	_clear(inspector)
 	jump_button.disabled = false
-	inspector.add_child(_label(str(_operation.api) + "()", 22))
+	_section(inspector, "Key", "TWEEN DETAILS", str(_operation.api) + "()")
 	inspector.add_child(_label(_operation.path.get_file() + " · " + str(_operation.method.name) + "() · line " + str(_operation.line), 13))
 	inspector.add_child(_label(("Tracked property: " + str(_operation.property)) if not str(_operation.property).is_empty() else "Callback/control operation · original target preserved", 14))
 	if not _operation.relevant and not _operation.get("related_sequence", false):
@@ -341,22 +342,37 @@ func _apply_parameters() -> void:
 func _open_move() -> void:
 	if _operation.is_empty():
 		return
+	var operation := _operation.duplicate()
 	var dialog := ConfirmationDialog.new()
-	dialog.title = "Move call · " + str(_operation.method.name)
+	dialog.title = "Move Tween · " + str(operation.method.name)
+	dialog.dialog_hide_on_ok = false
+	dialog.get_ok_button().text = "Move Tween"
+	var body := VBoxContainer.new()
+	body.custom_minimum_size.x = 650
+	body.add_theme_constant_override("separation", 12)
+	dialog.add_child(body)
+	_section(body, "MoveUp", "CHOOSE A GAP", "Move the call; keep the surrounding code")
 	var picker := OptionButton.new()
-	var anchors := _anchors(_operation.method)
+	picker.fit_to_longest_item = false
+	var anchors := _anchors(operation.method)
 	for anchor in anchors:
 		picker.add_item(anchor.label)
-	dialog.add_child(picker)
+	body.add_child(picker)
+	var placement = preload("res://addons/tween_animation/editor/placement_picker.gd").new()
+	placement.build()
+	body.add_child(placement)
+	placement.configure(_document_source(operation.path), operation.method, anchors, 0)
+	placement.placement_selected.connect(func(index: int): picker.select(index))
+	picker.item_selected.connect(placement.select_anchor)
 	dialog.confirmed.connect(func():
-		var original := _document_source(_operation.path)
-		var result := WRITER.move_statement(original, _operation, _operation.method, anchors[picker.selected])
-		_commit_result(_operation.path, original, result, "Move Tween call")
-		dialog.queue_free()
+		var original := _document_source(operation.path)
+		var result := WRITER.move_statement(original, operation, operation.method, anchors[picker.selected])
+		if _commit_result(operation.path, original, result, "Move Tween call"):
+			dialog.queue_free()
 	)
 	dialog.canceled.connect(dialog.queue_free)
 	add_child(dialog)
-	dialog.popup_centered(Vector2i(500, 100))
+	dialog.popup_centered_clamped(Vector2i(740, 530), 0.9)
 
 
 func _anchors(method: Dictionary) -> Array[Dictionary]:
@@ -390,16 +406,20 @@ func _open_new_key() -> void:
 	_new_dialog = ConfirmationDialog.new()
 	_new_dialog.title = "New Tween key · data and method placement"
 	_new_dialog.dialog_hide_on_ok = false
-	var body := VBoxContainer.new()
-	body.custom_minimum_size.x = 490
-	body.add_theme_constant_override("separation", 8)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(510, 540)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_new_dialog.add_child(scroll)
-	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(body)
-	body.add_child(_label("Run inside method", 14))
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 18)
+	_new_dialog.add_child(body)
+	var location := VBoxContainer.new()
+	location.custom_minimum_size.x = 400
+	location.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	location.add_theme_constant_override("separation", 10)
+	var location_scroll := ScrollContainer.new()
+	location_scroll.custom_minimum_size = Vector2(430, 540)
+	location_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	location_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.add_child(location_scroll)
+	location_scroll.add_child(location)
+	_section(location, "Script", "01 · PLACE IT", "Choose when your game runs this Tween")
 	_new_method_picker = OptionButton.new()
 	_new_method_picker.fit_to_longest_item = false
 	for document in eligible:
@@ -407,17 +427,42 @@ func _open_new_key() -> void:
 			if not method.static:
 				_new_method_picker.add_item(str(method.owner.name) + " / " + str(method.name) + "() · L" + str(method.line))
 				_new_method_picker.set_item_metadata(_new_method_picker.item_count - 1, method)
-	body.add_child(_new_method_picker)
-	body.add_child(_label("Placement in that method", 14))
+	location.add_child(_new_method_picker)
+	var placement_modes := TabBar.new()
+	placement_modes.add_tab("Pick a code line", _icon("Script"))
+	placement_modes.add_tab("Quick locations", _icon("ListSelect"))
+	location.add_child(placement_modes)
 	_new_place_picker = OptionButton.new()
 	_new_place_picker.fit_to_longest_item = false
-	body.add_child(_new_place_picker)
-	body.add_child(_label("Property on " + str(selected_node.name), 14))
+	location.add_child(_new_place_picker)
+	_new_place_picker.hide()
+	_new_placement = preload("res://addons/tween_animation/editor/placement_picker.gd").new()
+	_new_placement.build()
+	_new_placement.editor.custom_minimum_size.y = 220
+	location.add_child(_new_placement)
+	_new_placement.placement_selected.connect(func(index: int): _new_place_picker.select(index))
+	_new_place_picker.item_selected.connect(_new_placement.select_anchor)
+	placement_modes.tab_changed.connect(func(index: int): _new_placement.visible = index == 0; _new_place_picker.visible = index == 1)
+	var location_hint := _label("Read-only preview · choose a line, then Before or After. Complete statements stay together.", 13)
+	location_hint.custom_minimum_size.x = 320
+	location.add_child(location_hint)
+	var divider := VSeparator.new()
+	body.add_child(divider)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(330, 540)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.add_child(scroll)
+	var settings := VBoxContainer.new()
+	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settings.add_theme_constant_override("separation", 10)
+	scroll.add_child(settings)
+	_section(settings, "Key", "02 · SHAPE IT", "Animate " + str(selected_node.name))
 	_new_property_picker = OptionButton.new()
 	_new_property_picker.fit_to_longest_item = false
 	for property in OPTIONS.properties(selected_node):
 		_new_property_picker.add_item(property)
-	body.add_child(_new_property_picker)
+	settings.add_child(_new_property_picker)
 	var position_index := 0
 	for index in _new_property_picker.item_count:
 		if _new_property_picker.get_item_text(index) == ("modulate:a" if selected_node is Control else "position"):
@@ -426,28 +471,33 @@ func _open_new_key() -> void:
 	_new_sequence_picker = OptionButton.new()
 	_new_sequence_picker.add_item("Join earlier top-level Tween if available")
 	_new_sequence_picker.add_item("Create an independent Tween")
-	body.add_child(_new_sequence_picker)
+	_new_sequence_picker.fit_to_longest_item = false
+	settings.add_child(_new_sequence_picker)
 	var fields := VBoxContainer.new()
-	body.add_child(fields)
+	fields.add_theme_constant_override("separation", 14)
+	settings.add_child(fields)
 	_new_method_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
 	_new_property_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
 	_new_key_fields(fields)
-	_new_dialog.get_ok_button().text = "Create code-backed key"
+	_new_dialog.get_ok_button().text = "Add Tween"
 	_new_dialog.confirmed.connect(_create_key)
 	_new_dialog.canceled.connect(_new_dialog.queue_free)
 	add_child(_new_dialog)
-	_new_dialog.popup_centered(Vector2i(530, 630))
+	_new_dialog.popup_centered_clamped(Vector2i(960, 660), 0.9)
 
 
 func _new_key_fields(container: VBoxContainer) -> void:
 	_clear(container)
 	_new_fields.clear()
-	_new_method = _new_method_picker.get_item_metadata(_new_method_picker.selected)
+	var chosen: Dictionary = _new_method_picker.get_item_metadata(_new_method_picker.selected)
+	var old_selection := _new_place_picker.selected if chosen.get("id") == _new_method.get("id") and chosen.get("path") == _new_method.get("path") else -1
+	_new_method = chosen
 	_new_anchors = _anchors(_new_method)
 	_new_place_picker.clear()
 	for anchor in _new_anchors:
 		_new_place_picker.add_item(anchor.label)
-	_new_place_picker.select(_new_place_picker.item_count - 1)
+	_new_place_picker.select(old_selection if old_selection >= 0 else _new_place_picker.item_count - 1)
+	_new_placement.configure(_document_source(_new_method.path), _new_method, _new_anchors, _new_place_picker.selected)
 	var property := _new_property_picker.get_item_text(_new_property_picker.selected)
 	var sample: Variant = selected_node.get_indexed(NodePath(property))
 	for name in ["value", "duration", "interval"]:
@@ -693,3 +743,32 @@ func _button(parent: Node, text: String, icon: String, action: Callable) -> Butt
 func _icon(name: String) -> Texture2D:
 	var editor := EditorInterface.get_base_control()
 	return editor.get_theme_icon(name if editor.has_theme_icon(name, "EditorIcons") else "Node", "EditorIcons")
+
+
+func _section(parent: Node, icon_name: String, eyebrow: String, title: String) -> void:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(12)
+	panel.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var icon := TextureRect.new()
+	icon.texture = _icon(icon_name)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(28, 28)
+	row.add_child(icon)
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.custom_minimum_size.x = 220
+	row.add_child(text)
+	var badge := _label(eyebrow, 12)
+	badge.modulate = EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
+	text.add_child(badge)
+	var title_label := _label(title, 16)
+	title_label.custom_minimum_size.x = 220
+	text.add_child(title_label)
+	parent.add_child(panel)

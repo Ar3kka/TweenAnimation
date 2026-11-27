@@ -7,7 +7,7 @@ signal code_start_requested
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 21
+const UI_REVISION := 22
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -749,7 +749,7 @@ func set_content_mode(value: int) -> void:
 func _source_lessons() -> Array[Dictionary]:
 	return [
 		{"title": "Choose who moves", "action": "Try selecting the practice node below.", "body": "[b]Selection gives the timeline its target.[/b] Choose a scene node in your project. Tweenimation detects 2D, 3D or UI and reads recognizable Tween calls from scripts attached to the open scene. This practice selection does not unlock or block Next."},
-		{"title": "Choose when your game asks it to move", "action": "Try a method and a placement in the sample controls.", "body": "[b]A code key is an animation call, not a recorded pose.[/b] Add key lets you select an existing method and a position before or after a statement. If the node has no script, a file picker can create a GDScript entry point. You enter data and locations; the addon writes the call."},
+		{"title": "Choose when your game asks it to move", "action": "Click a sample code line, then choose Before or After.", "body": "[b]A code key is an animation call, not a recorded pose.[/b] Add key shows the existing method as a read-only preview. Click a line to pick a gap before or after its statement. Existing code moves down; nothing is replaced. If the node has no script, a file picker can create a GDScript entry point. You enter data and locations; the addon writes the call."},
 		{"title": "Let the destination change", "action": "Try Offset, Value or Method parameter below.", "body": "[b]This is where Tweens shine.[/b] Offset reads the current property each time the call runs. Move a character, then call the same animation again: its starting position can be different. A method parameter supplies a destination chosen by gameplay. The fields stay visual."},
 		{"title": "Give motion a rhythm", "action": "Try a duration, a wait and a sequence choice.", "body": "[b]Duration moves; interval waits afterwards.[/b] Join an earlier Tween to append a step, or create an independent Tween that runs alongside it. The map shows known timing within each method invocation. Different methods are not one shared playback sequence."},
 		{"title": "A key you can understand", "action": "Click the sample key to reveal its details.", "body": "[b]Select a real key to see its source method, line and editable parameters.[/b] Apply writes only changed arguments. Original runtime expressions are kept until you choose a replacement. Move this call changes placement inside its method; Source line is optional for coders."},

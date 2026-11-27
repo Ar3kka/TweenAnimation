@@ -904,7 +904,7 @@ const SOURCE := {
 		"summary": "Enter data and choose a method location; no source typing required.",
 		"steps": [
 			"Select a scene node and choose Code Tweens > Add key.",
-			"Choose an instance method and placement before/after a statement, or at a method boundary. A node without a script can create one through the file picker.",
+			"Choose an instance method, then click a line in the read-only code preview. Select Before or After; existing code moves down. Quick locations also offers method boundaries. A node without a script can create one through the file picker.",
 			"Choose a property, destination binding, duration and optional wait. Offset reads current state when called; Method parameter uses gameplay input.",
 			"Join an earlier top-level Tween or create an independent one, then Create code-backed key."
 		],
@@ -918,7 +918,7 @@ const SOURCE := {
 		"visual_only": false,
 		"params": {},
 		"returns": "",
-		"source_phase": 2,
+		"source_phase": 1,
 		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
 		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
 	},
@@ -928,7 +928,7 @@ const SOURCE := {
 		"summary": "Enter data and choose a method location; no source typing required.",
 		"steps": [
 			"Select a scene node and choose Code Tweens > Add key.",
-			"Choose an instance method and placement before/after a statement, or at a method boundary. A node without a script can create one through the file picker.",
+			"Choose an instance method, then click a line in the read-only code preview. Select Before or After; existing code moves down. Quick locations also offers method boundaries. A node without a script can create one through the file picker.",
 			"Choose a property, destination binding, duration and optional wait. Offset reads current state when called; Method parameter uses gameplay input.",
 			"Join an earlier top-level Tween or create an independent one, then Create code-backed key."
 		],
@@ -942,7 +942,7 @@ const SOURCE := {
 		"visual_only": true,
 		"params": {},
 		"returns": "",
-		"source_phase": 2,
+		"source_phase": 1,
 		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
 		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
 	},
