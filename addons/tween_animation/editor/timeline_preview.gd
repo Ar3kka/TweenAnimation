@@ -23,6 +23,8 @@ var reset_button: Button
 var rewind_button: Button
 var sample_host: Node
 var sample_target: Node
+var interval_row: HBoxContainer
+var interval_input: SpinBox
 var mode := 0
 var phase := 0
 var selected := false
@@ -62,6 +64,21 @@ func build() -> void:
 	save_button.text = "Save"
 	save_button.pressed.connect(func(): feedback.text = "Practice clip ready. In the real Timeline, Save opens a file dialog for your .tres resource. This preview writes no files.")
 	toolbar.add_child(save_button)
+	interval_row = HBoxContainer.new()
+	interval_row.add_theme_constant_override("separation", 8)
+	var interval_label := _text("After-effect interval", 0)
+	interval_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	interval_row.add_child(interval_label)
+	interval_input = SpinBox.new()
+	interval_input.custom_minimum_size.x = 90
+	interval_input.min_value = 0.0
+	interval_input.max_value = 10.0
+	interval_input.step = 0.1
+	interval_input.suffix = "s"
+	interval_input.tooltip_text = "Optional wait after the 1-second sample effect. Zero adds no wait; a positive value holds the final pose."
+	interval_input.value_changed.connect(_set_interval)
+	interval_row.add_child(interval_input)
+	toolbar.add_child(interval_row)
 	sample_stage = Control.new()
 	sample_stage.custom_minimum_size.y = 110
 	sample_stage.draw.connect(_draw_sample)
@@ -100,7 +117,7 @@ func build() -> void:
 	controls.draw_requested.connect(func(): controls.paint(clip))
 	controls.timeline_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			_seek(clampf(event.position.x / maxf(controls.timeline.size.x, 1.0), 0.0, 1.0))
+			_seek(clip.length * clampf(event.position.x / maxf(controls.timeline.size.x, 1.0), 0.0, 1.0))
 	)
 	controls.track_selected.connect(func(_index: int): _refresh_keys())
 	controls.key_selected.connect(func(index: int): _seek(clip.track_get_key_time(controls.track_picker.selected, index)))
@@ -116,6 +133,8 @@ func configure(target_mode: int, step: int) -> void:
 	play_button.visible = phase == 4
 	rewind_button.visible = phase == 4
 	save_button.visible = phase == 5
+	interval_row.visible = phase == 4
+	interval_input.set_value_no_signal(0.0)
 	sample_stage.visible = phase == 4
 	controls.visible = phase in [1, 2, 3, 4]
 	controls.focus_lesson(phase)
@@ -137,6 +156,7 @@ func configure(target_mode: int, step: int) -> void:
 	controls.target_label.text = "Tutorial track target: %s · %s" % [sample_target.name, "modulate:a" if mode == 2 else "position"]
 	clip = Animation.new()
 	clip.length = 1.0
+	controls.time_slider.max_value = 1.0
 	scene_tree.clear()
 	var root := scene_tree.create_item()
 	root.set_text(0, "PreviewScene")
@@ -324,9 +344,22 @@ func _toggle_play() -> void:
 	play_button.text = "Pause preview" if playing else "Play preview"
 
 
+func _set_interval(seconds: float) -> void:
+	if phase != 4 or clip == null or clip.get_track_count() == 0:
+		return
+	while clip.track_get_key_count(0) > 2:
+		clip.track_remove_key(0, clip.track_get_key_count(0) - 1)
+	clip.length = 1.0 + seconds
+	if seconds > 0.0:
+		clip.track_insert_key(0, clip.length, clip.track_get_key_value(0, 1))
+	controls.time_slider.max_value = clip.length
+	_refresh_keys()
+	feedback.text = "Effect: 1.0 s · interval: %.1f s · total: %.1f s. The extra key holds the final pose; the next loop starts after the wait." % [seconds, clip.length]
+
+
 func _process(delta: float) -> void:
 	if playing and is_visible_in_tree():
-		var next_time: float = fmod(controls.time_slider.value + delta, 1.0)
+		var next_time: float = fmod(controls.time_slider.value + delta, clip.length)
 		_seek(next_time)
 
 

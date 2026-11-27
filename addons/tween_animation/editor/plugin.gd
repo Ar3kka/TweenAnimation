@@ -296,11 +296,17 @@ func _action_template(action: String) -> void:
 	seconds.step = 0.01
 	seconds.value = maxf(animation.length - time_slider.value, 0.3)
 	body.add_child(seconds)
-	var hint := _label("Value-track templates use linear interpolation. Runtime helper easing and automatic Control pivot changes are not applied.", 0)
+	body.add_child(_label("After-effect interval · seconds (optional)", 0))
+	var interval := SpinBox.new()
+	interval.min_value = 0.0
+	interval.max_value = 3600
+	interval.step = 0.01
+	body.add_child(interval)
+	var hint := _label("Interval adds a hold at the final value after the effect. Templates use linear interpolation; runtime easing and automatic Control pivot changes are not applied.", 0)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(hint)
 	dialog.confirmed.connect(func():
-		if _commit_template(target, action, _parse_value(parameter.text.strip_edges()), seconds.value):
+		if _commit_template(target, action, _parse_value(parameter.text.strip_edges()), seconds.value, interval.value):
 			dialog.queue_free()
 		else:
 			hint.text = "Check the value type and selected scene. Use a number, Vector2(x, y), or Vector3(x, y, z) as appropriate."
@@ -310,23 +316,25 @@ func _action_template(action: String) -> void:
 	dialog.popup_centered()
 
 
-func _commit_template(target: Node, action: String, value: Variant, seconds: float) -> bool:
+func _commit_template(target: Node, action: String, value: Variant, seconds: float, interval: float = 0.0) -> bool:
 	var root := get_editor_interface().get_edited_scene_root()
 	if not is_instance_valid(target) or root == null or (root != target and not root.is_ancestor_of(target)):
 		return false
 	var options := preload("res://addons/tween_animation/editor/timeline_options.gd")
-	if not action in options.actions(target) or seconds <= 0 or not is_finite(seconds):
+	if not action in options.actions(target) or seconds <= 0 or not is_finite(seconds) or interval < 0 or not is_finite(interval):
 		return false
 	var keys: Array = options.keys(target, action, value)
 	if keys.is_empty():
 		return false
+	if interval > 0.0:
+		keys.append([1.0 + interval / seconds, keys[-1][1]])
 	var property: String = options.describe(target, action).property
 	var track := animation.add_track(Animation.TYPE_VALUE)
 	animation.track_set_path(track, NodePath(str(root.get_path_to(target)) + ":" + property))
 	var start_time := time_slider.value
 	for key in keys:
 		animation.track_insert_key(track, start_time + float(key[0]) * seconds, key[1])
-	animation.length = maxf(animation.length, start_time + seconds)
+	animation.length = maxf(animation.length, start_time + seconds + interval)
 	duration.set_value_no_signal(animation.length)
 	time_slider.max_value = animation.length
 	property_path.text = property

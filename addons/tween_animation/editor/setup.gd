@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 17
+const UI_REVISION := 18
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -503,7 +503,8 @@ func _build_code_lesson(node_path: String, property: String, end_value: String) 
 		eased += "    tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)\n    " + animate + "\n"
 	else:
 		eased += '    animator.transition_type = Tween.TRANS_SINE\n    ' + helper + "\n"
-	var sequence := basic + '    tween.tween_interval(0.2)\n    tween.tween_callback(func(): print("Animation finished!"))\n'
+	var sequence := basic + '    tween.tween_interval(0.2)\n' if lesson_path == 1 else basic.replace(helper, helper.trim_suffix(")") + ", 0.2)")
+	sequence += '    tween.tween_callback(func(): print("Movement and wait complete"))\n'
 	var cancel := header + "var active_tween: Tween\n\nfunc _ready() -> void:\n    animate()\n\nfunc animate() -> void:\n    if active_tween and active_tween.is_running():\n        active_tween.kill()\n"
 	if lesson_path == 1:
 		cancel += '    active_tween = create_tween()\n    active_tween.tween_property(target, "%s", %s, 1.0)\n' % [property, end_value]
@@ -515,7 +516,7 @@ func _build_code_lesson(node_path: String, property: String, end_value: String) 
 	steps = [
 		{"title": "A little motion, all in code", "body": "[b]This path uses %s.[/b]\n\nCreate the matching child node, attach this script to its parent, and adjust the child path. Run the scene: _ready() creates the animation. No timeline resource is needed.\n\nThe property name is %s; the destination is %s. Duration is 1 second. The Tween starts at the property's current value." % [api, property, end_value], "code": basic},
 		{"title": "Give the movement a feel", "body": "[b]Easing shapes the journey.[/b]\n\nSine easing makes the start and finish softer. Try a different transition, such as TRANS_BACK, and run again.\n\nNative defaults are linear. The helper defaults to Sine with Ease In/Out. Its custom() returns a Godot Tween; transition settings must be chosen before the property is added.", "code": eased},
-		{"title": "Make one thing follow another", "body": "[b]Move → wait → celebrate.[/b]\n\nTween operations are sequential by default. This example waits briefly after the motion, then runs a callback. The helper also returns a normal Tween, so the same chaining works.\n\nFor completion in an async function, use await tween.finished. To run properties together, configure parallel mode before appending those property operations.", "code": sequence},
+		{"title": "Make one thing follow another", "body": "[b]Move → wait → celebrate.[/b]\n\nPass interval as the helper's optional final argument: the effect runs, waits 0.2 seconds, then reaches the callback. Omit interval or use 0.0 for no wait. Native Godot adds the same wait with tween_interval(0.2).\n\nThe interval belongs to the returned Tween. await tween.finished waits for it, and named entries stay live until it ends. press/wiggle wait after all of their stages. You can still append tween_interval() elsewhere in a longer sequence.", "code": sequence},
 		{"title": "Handle another click gracefully", "body": "[b]One target, one active animation.[/b]\n\nNative code stores and kills its previous Tween. Reuse one Tweenimator instance and it replaces the active effect on that target/property automatically. Connect an input action to animate() to try repeated triggers.\n\nThe helper can be constructed first with no owner. Node-target effects create their Tween using the target unless you supply a default owner. After a Tween finishes, create a new one to replay it.", "code": cancel}
 	]
 

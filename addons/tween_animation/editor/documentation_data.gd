@@ -58,6 +58,20 @@ const ITEMS := {
 		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI.",
 		"csharp": "var intro = (Tween)_tweenimator.Call(\"create\", new StringName(\"intro\"), this).AsGodotObject();\nintro.SetParallel(true);\nintro.TweenProperty(GetNode<Control>(\"Panel\"), \"position:x\", 100.0f, 0.4);\nintro.TweenProperty(GetNode<Control>(\"Panel\"), \"modulate:a\", 1.0f, 0.4);\nintro.Chain().TweenInterval(0.2);\nintro.TweenCallback(Callable.From(() => GD.Print(\"Finished\")));\n"
 	},
+	"guide_intervals": {
+		"group": "Start here",
+		"title": "Move, then wait · optional interval",
+		"summary": "An optional final interval argument adds a wait to the same returned Tween after the whole helper effect. Default 0.0 keeps existing calls unchanged.",
+		"code": "# Choose one function to run; both move for 0.4s and wait for 0.2s.\nfunc play_with_helper() -> void:\n    var slide := tweenimator.move_left($Sprite2D, 100, 0.4, 0.2)\n    tweenimator.store(&\"slide\", slide)\n    await slide.finished\n    print(\"Movement and wait complete\")\n\nfunc play_with_godot() -> void:\n    var slide := create_tween()\n    slide.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\n    slide.tween_interval(0.2)\n    await slide.finished\n    print(\"Movement and wait complete\")\n\n# Optional arguments keep their existing positions:\n# press(target, amount, duration_down, duration_up, interval)\nfunc play_press() -> void:\n    tweenimator.press($Button, 0.05, 0.1, 0.2, 0.4)\n\n# custom(target, property, value, duration, transition, interval)\nfunc play_custom() -> void:\n    tweenimator.custom($Panel, ^\"modulate:a\", 1.0, 0.5, -1, 0.2)\n",
+		"returns": "Each animation helper still returns an ordinary Godot Tween.",
+		"notes": "duration controls the animation itself; interval adds a finite, non-negative wait afterward. interval defaults to 0.0 and adds no extra step when omitted. Sequential callbacks, finished and named cleanup occur after the wait. Pause/resume also control the wait. Replacing or killing the Tween cancels it, including its pending wait. press/wiggle wait once after all stages/loops, not after every segment. custom() keeps transition before interval; use -1 to inherit the default curve. Factory/registry operations such as create() and store() do not take interval. Existing/external Tweens can still use tween_interval().",
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Available on every animation-producing helper for 2D, 3D, UI, audio, shader properties and callback values. Normal sequential Tween chaining includes the wait.",
+		"csharp": "// Add these methods to the class from the setup guide; call either one.\npublic async void PlayWithHelper()\n{\n    var slide = (Tween)_tweenimator.Call(\"move_left\", GetNode<Node2D>(\"Sprite2D\"), 100.0f, 0.4, 0.2).AsGodotObject();\n    _tweenimator.Call(\"store\", new StringName(\"slide\"), slide);\n    await ToSignal(slide, Tween.SignalName.Finished);\n    GD.Print(\"Movement and wait complete\");\n}\n\npublic async void PlayWithGodot()\n{\n    var target = GetNode<Node2D>(\"Sprite2D\");\n    var slide = CreateTween();\n    slide.TweenProperty(target, \"position\", target.Position + Vector2.Left * 100, 0.4);\n    slide.TweenInterval(0.2);\n    await ToSignal(slide, Tween.SignalName.Finished);\n    GD.Print(\"Movement and wait complete\");\n}\n\npublic void PlayPress()\n{\n    _tweenimator.Call(\"press\", GetNode<Button>(\"Button\"), 0.05, 0.1, 0.2, 0.4);\n}\n\npublic void PlayCustom()\n{\n    _tweenimator.Call(\"custom\", GetNode<Control>(\"Panel\"), new NodePath(\"modulate:a\"), 1.0f, 0.5, -1, 0.2);\n}"
+	},
 	"guide_replay": {
 		"group": "Start here",
 		"title": "Pause, stop and replay",

@@ -274,6 +274,8 @@ func focus_lesson(phase: int) -> void:
 	action_menu.hide()
 	value_row.visible = phase in [2, 3]
 	key_value_card.visible = phase in [2, 3, 4]
+	example_row.visible = phase in [2, 3]
+	capture_hint.visible = phase in [2, 3]
 	separator.visible = phase in [2, 3, 4]
 	timeline_row.visible = phase in [2, 3, 4]
 	timeline.visible = phase in [2, 3, 4]

@@ -3,6 +3,7 @@ extends RefCounted
 ## Intent-first effects based on the original Tween Animator implementation.
 ## All effects return ordinary Godot Tweens for chaining and awaiting.
 ## A new effect replaces an active effect on the same target/property only.
+## Animation helpers accept an optional final interval in seconds, after the whole effect.
 
 ## Optional default owner. Node-target effects can use the target instead.
 var node: Node
@@ -184,11 +185,28 @@ func stop_all() -> void:
 	_origins.clear()
 
 
-func custom(target: Object, property: NodePath, value: Variant, duration: float = 0.5, transition: int = -1) -> Tween:
+## Reject invalid waits before replacing any existing effect or changing a UI pivot.
+func _valid_interval(interval: float) -> bool:
+	if not is_finite(interval) or interval < 0.0:
+		push_error("Tweenimator interval must be finite and non-negative (seconds).")
+		return false
+	return true
+
+
+## Append exactly one wait after all stages. Zero adds no empty step.
+func _finish_effect(tween: Tween, interval: float) -> Tween:
+	if tween and interval > 0.0:
+		tween.tween_interval(interval)
+	return tween
+
+
+func custom(target: Object, property: NodePath, value: Variant, duration: float = 0.5, transition: int = -1, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	var tween := _effect(target, property, duration, transition)
 	if tween:
 		tween.tween_property(target, property, value, duration)
-	return tween
+	return _finish_effect(tween, interval)
 
 
 func _spatial(target: Node) -> bool:
@@ -212,50 +230,68 @@ func _pivot(target: Node) -> void:
 		target.pivot_offset = target.size * 0.5
 
 
-func move_to(target: Node, value: Variant, duration: float = 0.2) -> Tween:
+func move_to(target: Node, value: Variant, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if not _vector(target, value):
 		return null
-	return custom(target, ^"position", value, duration)
+	return custom(target, ^"position", value, duration, -1, interval)
 
 
-func move_by(target: Node, offset: Variant, duration: float = 0.2) -> Tween:
+func move_by(target: Node, offset: Variant, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if not _vector(target, offset):
 		return null
-	return move_to(target, target.get("position") + offset, duration)
+	return move_to(target, target.get("position") + offset, duration, interval)
 
 
-func _direction(target: Node, direction: Vector3, distance: float, duration: float) -> Tween:
+func _direction(target: Node, direction: Vector3, distance: float, duration: float, interval: float) -> Tween:
 	if not _spatial(target):
 		return null
 	var offset: Variant = direction * distance if target is Node3D else Vector2(direction.x, -direction.y) * distance
-	return move_by(target, offset, duration)
+	return move_by(target, offset, duration, interval)
 
 
-func move_left(target: Node, distance: float = 1.0, duration: float = 0.2) -> Tween:
-	return _direction(target, Vector3.LEFT, distance, duration)
+func move_left(target: Node, distance: float = 1.0, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return _direction(target, Vector3.LEFT, distance, duration, interval)
 
 
-func move_right(target: Node, distance: float = 1.0, duration: float = 0.2) -> Tween:
-	return _direction(target, Vector3.RIGHT, distance, duration)
+func move_right(target: Node, distance: float = 1.0, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return _direction(target, Vector3.RIGHT, distance, duration, interval)
 
 
-func move_up(target: Node, distance: float = 1.0, duration: float = 0.2) -> Tween:
-	return _direction(target, Vector3.UP, distance, duration)
+func move_up(target: Node, distance: float = 1.0, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return _direction(target, Vector3.UP, distance, duration, interval)
 
 
-func move_down(target: Node, distance: float = 1.0, duration: float = 0.2) -> Tween:
-	return _direction(target, Vector3.DOWN, distance, duration)
+func move_down(target: Node, distance: float = 1.0, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return _direction(target, Vector3.DOWN, distance, duration, interval)
 
 
-func move_forward(target: Node3D, distance: float = 1.0, duration: float = 0.2) -> Tween:
-	return _direction(target, Vector3.FORWARD, distance, duration)
+func move_forward(target: Node3D, distance: float = 1.0, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return _direction(target, Vector3.FORWARD, distance, duration, interval)
 
 
-func move_back(target: Node3D, distance: float = 1.0, duration: float = 0.2) -> Tween:
-	return _direction(target, Vector3.BACK, distance, duration)
+func move_back(target: Node3D, distance: float = 1.0, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return _direction(target, Vector3.BACK, distance, duration, interval)
 
 
-func scale_to(target: Node, value: Variant, duration: float = 0.2) -> Tween:
+func scale_to(target: Node, value: Variant, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if not _spatial(target):
 		return null
 	var final_value: Variant = value
@@ -264,39 +300,49 @@ func scale_to(target: Node, value: Variant, duration: float = 0.2) -> Tween:
 	if not _vector(target, final_value):
 		return null
 	_pivot(target)
-	return custom(target, ^"scale", final_value, duration)
+	return custom(target, ^"scale", final_value, duration, -1, interval)
 
 
-func scale_up(target: Node, amount: float = 0.1, duration: float = 0.2) -> Tween:
+func scale_up(target: Node, amount: float = 0.1, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if not _spatial(target):
 		return null
-	return scale_to(target, target.get("scale") * (1.0 + amount), duration)
+	return scale_to(target, target.get("scale") * (1.0 + amount), duration, interval)
 
 
-func scale_down(target: Node, amount: float = 0.1, duration: float = 0.2) -> Tween:
-	return scale_up(target, -clampf(amount, 0.0, 1.0), duration)
+func scale_down(target: Node, amount: float = 0.1, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return scale_up(target, -clampf(amount, 0.0, 1.0), duration, interval)
 
 
-func rotate_to(target: Node, radians: Variant, duration: float = 0.2) -> Tween:
+func rotate_to(target: Node, radians: Variant, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if not _spatial(target):
 		return null
 	if (target is Node3D and not radians is Vector3) or (not target is Node3D and not (radians is float or radians is int)):
 		push_error("Use Vector3 radians for 3D and a numeric angle for 2D/UI.")
 		return null
 	_pivot(target)
-	return custom(target, ^"rotation", radians, duration)
+	return custom(target, ^"rotation", radians, duration, -1, interval)
 
 
-func rotate_degrees(target: Node, degrees: Variant, duration: float = 0.2) -> Tween:
+func rotate_degrees(target: Node, degrees: Variant, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if degrees is Vector3:
-		return rotate_to(target, Vector3(deg_to_rad(degrees.x), deg_to_rad(degrees.y), deg_to_rad(degrees.z)), duration)
+		return rotate_to(target, Vector3(deg_to_rad(degrees.x), deg_to_rad(degrees.y), deg_to_rad(degrees.z)), duration, interval)
 	if degrees is float or degrees is int:
-		return rotate_to(target, deg_to_rad(float(degrees)), duration)
+		return rotate_to(target, deg_to_rad(float(degrees)), duration, interval)
 	push_error("Use Vector3 degrees for 3D and a numeric angle for 2D/UI.")
 	return null
 
 
-func press(target: Node, amount: float = 0.05, duration_down: float = 0.1, duration_up: float = 0.2) -> Tween:
+func press(target: Node, amount: float = 0.05, duration_down: float = 0.1, duration_up: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if not _spatial(target) or duration_up < 0.0 or not is_finite(duration_up):
 		return null
 	_pivot(target)
@@ -307,10 +353,12 @@ func press(target: Node, amount: float = 0.05, duration_down: float = 0.1, durat
 		_origins[key] = origin
 		tween.tween_property(target, ^"scale", origin * (1.0 - clampf(amount, 0.0, 1.0)), duration_down)
 		tween.tween_property(target, ^"scale", origin, duration_up)
-	return tween
+	return _finish_effect(tween, interval)
 
 
-func wiggle(target: Node, strength: float = 0.15, duration: float = 0.4, loops: int = 1) -> Tween:
+func wiggle(target: Node, strength: float = 0.15, duration: float = 0.4, loops: int = 1, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if not _spatial(target) or loops < 1:
 		return null
 	_pivot(target)
@@ -326,37 +374,51 @@ func wiggle(target: Node, strength: float = 0.15, duration: float = 0.4, loops: 
 			tween.tween_property(target, ^"rotation", origin, segment)
 			tween.tween_property(target, ^"rotation", origin + offset, segment)
 			tween.tween_property(target, ^"rotation", origin, segment)
-	return tween
+	return _finish_effect(tween, interval)
 
 
-func fade_to(target: CanvasItem, alpha: float, duration: float = 0.5) -> Tween:
-	return custom(target, ^"modulate:a", clampf(alpha, 0.0, 1.0), duration)
+func fade_to(target: CanvasItem, alpha: float, duration: float = 0.5, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return custom(target, ^"modulate:a", clampf(alpha, 0.0, 1.0), duration, -1, interval)
 
 
-func fade_in(target: CanvasItem, duration: float = 0.5) -> Tween:
-	return fade_to(target, 1.0, duration)
+func fade_in(target: CanvasItem, duration: float = 0.5, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return fade_to(target, 1.0, duration, interval)
 
 
-func fade_out(target: CanvasItem, duration: float = 0.5) -> Tween:
-	return fade_to(target, 0.0, duration)
+func fade_out(target: CanvasItem, duration: float = 0.5, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return fade_to(target, 0.0, duration, interval)
 
 
-func resize_to(target: Control, value: Vector2, duration: float = 0.2) -> Tween:
-	return custom(target, ^"size", value, duration)
+func resize_to(target: Control, value: Vector2, duration: float = 0.2, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return custom(target, ^"size", value, duration, -1, interval)
 
 
-func set_volume(target: Node, decibels: float = 0.0, duration: float = 0.5) -> Tween:
+func set_volume(target: Node, decibels: float = 0.0, duration: float = 0.5, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if not is_instance_valid(target) or not (target is AudioStreamPlayer or target is AudioStreamPlayer2D or target is AudioStreamPlayer3D):
 		push_error("set_volume needs an AudioStreamPlayer, AudioStreamPlayer2D or AudioStreamPlayer3D.")
 		return null
-	return custom(target, ^"volume_db", decibels, duration)
+	return custom(target, ^"volume_db", decibels, duration, -1, interval)
 
 
-func shader_transition(material: ShaderMaterial, parameter: String, value: Variant = 1.0, duration: float = 0.5) -> Tween:
-	return custom(material, NodePath("shader_parameter/" + parameter), value, duration)
+func shader_transition(material: ShaderMaterial, parameter: String, value: Variant = 1.0, duration: float = 0.5, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
+	return custom(material, NodePath("shader_parameter/" + parameter), value, duration, -1, interval)
 
 
-func method(callback: Callable, from: Variant, to: Variant, duration: float = 0.5) -> Tween:
+func method(callback: Callable, from: Variant, to: Variant, duration: float = 0.5, interval: float = 0.0) -> Tween:
+	if not _valid_interval(interval):
+		return null
 	if not callback.is_valid() or duration < 0.0 or not is_finite(duration):
 		return null
 	var tween := _new_tween()
@@ -365,4 +427,4 @@ func method(callback: Callable, from: Variant, to: Variant, duration: float = 0.
 		_active[key] = tween
 		tween.finished.connect(_forget.bind(key, tween.get_instance_id()), CONNECT_ONE_SHOT)
 		tween.tween_method(callback, from, to, duration)
-	return tween
+	return _finish_effect(tween, interval)

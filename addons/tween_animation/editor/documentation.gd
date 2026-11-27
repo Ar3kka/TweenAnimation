@@ -22,7 +22,8 @@ const PARAMETER_HELP := {
 	"owner": "Optional Node owner; it must be in the tree when creating a Tween. create() uses this explicit owner or the manager default.",
 	"tween": "A valid Godot Tween, whether created here or in external code.",
 	"target": "The object receiving the effect. Spatial effects accept Node2D, Node3D or Control; see the signature and notes for narrower target types.",
-	"duration": "Duration in seconds. Must be finite and non-negative; the signature shows this effect's default. For wiggle this is the total duration."
+	"duration": "Duration in seconds. Must be finite and non-negative; the signature shows this effect's default. For wiggle this is the total duration.",
+	"interval": "Optional wait in seconds after the entire effect. Defaults to 0.0 (no wait). Must be finite and non-negative. It belongs to the returned Tween, so sequential callbacks, finished, and named cleanup wait for it too."
 }
 
 

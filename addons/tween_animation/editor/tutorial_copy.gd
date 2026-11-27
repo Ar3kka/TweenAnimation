@@ -12,7 +12,7 @@ const CSHARP := {
 	],
 	"Keep the Tween you just made": [
 		"Call the async PlaySlide() method.",
-		"Keep the returned [b]Tween[/b] in slide, register it with Call(\"store\", ...), then append an interval. Both variables refer to the same object.\n\nC# waits for completion with [b]await ToSignal(slide, Tween.SignalName.Finished)[/b]. Do not use GDScript signal-await syntax here."
+		"The final 0.2 in Call(\"move_left\", _target, distance, 0.4, 0.2) is an optional [b]interval[/b]: move for 0.4 seconds, then wait 0.2 seconds on the same Tween. Omit it for no wait. The native example appends TweenInterval(0.2) instead.\n\nKeep slide and register its name. [b]await ToSignal(slide, Tween.SignalName.Finished)[/b] completes after the movement and wait; the registry entry remains live during both."
 	],
 	"Build a named animation": [
 		"Connect a button or input action to PlayIntro().",
@@ -68,7 +68,7 @@ const CSHARP := {
 	],
 	"Make one thing follow another": [
 		"Call PlayExample() and watch the callback run after the motion.",
-		"Tween operations run sequentially by default. TweenInterval() adds a delay, and TweenCallback(Callable.From(...)) runs the final action.\n\nThe helper returns a normal Godot Tween, so these C# operations work on either implementation."
+		"The helper's final interval argument adds a 0.2-second wait after the motion; the native example appends TweenInterval(0.2). The following TweenCallback(Callable.From(...)) runs after both.\n\ninterval defaults to 0.0. It is not a start delay or a pause of the whole game. press/wiggle wait after the complete multi-part effect. You can still append TweenInterval() anywhere in a custom sequence."
 	]
 }
 

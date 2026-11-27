@@ -54,8 +54,17 @@ const NATIVE_NAMES := {
 	"AddAnimation": "add_animation", "AddAnimationLibrary": "add_animation_library",
 }
 
+static var _interval_methods: Dictionary = {}
+
 
 static func prepare(source: String, csharp: bool = false) -> String:
+	if _interval_methods.is_empty():
+		var runtime: Script = preload("res://addons/tween_animation/src/tweenimator.gd")
+		for method in runtime.get_script_method_list():
+			if not str(method.name).begins_with("_"):
+				for argument in method.args:
+					if argument.name == "interval":
+						_interval_methods[str(method.name)] = true
 	var marker := "// Arguments: " if csharp else "# Arguments: "
 	var continuation := "//   " if csharp else "#   "
 	var calls := RegEx.new()
@@ -77,7 +86,10 @@ static func prepare(source: String, csharp: bool = false) -> String:
 				var method_name: String = call.get_string(1) if not call.get_string(1).is_empty() else call.get_string(2)
 				method_name = NATIVE_NAMES.get(method_name, method_name)
 				if ARGUMENTS.has(method_name) and not seen.has(method_name):
-					_append_note(lines, indent, marker, continuation, method_name + " — " + str(ARGUMENTS[method_name]))
+					var description := str(ARGUMENTS[method_name])
+					if _interval_methods.has(method_name):
+						description += " Optional final interval = seconds to wait after the whole effect (default 0, no wait)."
+					_append_note(lines, indent, marker, continuation, method_name + " — " + description)
 					seen[method_name] = true
 		if trimmed.is_empty() and not lines.is_empty() and lines[-1].strip_edges() == "{":
 			continue

@@ -17,15 +17,38 @@ var animate := Tweenimator.new()
 
 func _ready() -> void:
     # This effect creates its own Tween, bound to the target Node.
-    animate.store(&"slide", animate.move_left($Sprite2D, 100, 0.3))
+    animate.store(&"slide", animate.move_left($Sprite2D, 100, 0.3, 0.2))
     # The dictionary and the local handle refer to the exact same Tween.
     var slide: Tween = animate.tweens[&"slide"]
-    slide.tween_interval(0.2)
+    # The effect already includes its optional 0.2-second trailing interval.
     animate.pause(&"slide")
     animate.resume(&"slide")
 ```
 
 Names belong to a particular Tweenimator instance. Share that instance with the scripts that should access its animations; separate instances have separate registries.
+
+## Optional wait after an effect
+
+All 23 animation helpers accept an optional final `interval: float = 0.0`, in seconds. It appends a wait after the **entire effect** on the same returned Tween. Existing calls keep their argument order and behavior; zero adds no extra step.
+
+```gdscript
+# target, distance, movement duration, trailing interval
+var slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)
+slide.tween_callback(func(): print("Movement and wait complete"))
+# await slide.finished also waits for both the 0.4s movement and 0.2s interval.
+
+# Equivalent native Godot sequence:
+var native := create_tween()
+native.tween_property($Sprite2D, "position", $Sprite2D.position + Vector2.LEFT * 100, 0.4)
+native.tween_interval(0.2)
+# Use one implementation at a time on a given property.
+```
+
+`interval` must be finite and non-negative. It is not a start delay and does not stop the game. Named entries and replacement channels remain active during the wait; pause/resume affect it, and killing/replacing the Tween cancels it. For `press()` and `wiggle()`, the interval runs once after all animation stages/loops. Factory and registry methods (`create`, `store`, etc.) do not take an interval; native `tween_interval()` remains available for external Tweens and custom sequences.
+
+Optional arguments retain their positions: `press(target, amount, duration_down, duration_up, interval)`, `wiggle(target, strength, duration, loops, interval)`, and `custom(target, property, value, duration, transition, interval)`. Pass `-1` for custom's transition to inherit the manager's curve while specifying its interval.
+
+C# reaches the same parameter through the bridge, for example `_tweenimator.Call("move_left", target, 100.0f, 0.4, 0.2)`. Visual action templates represent the interval with an extra final hold key and extended animation length. The visual preview tutorial has an After-effect interval control to demonstrate it.
 
 ## Create here or bring an existing Tween
 

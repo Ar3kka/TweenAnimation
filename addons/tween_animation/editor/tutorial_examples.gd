@@ -45,8 +45,10 @@ static func csharp(mode: int, title: String, helper: bool) -> String:
 		"Make your first move", "Move left without the vector math":
 			text = '_tweenimator.Call("move_left", _target, ' + distance + ', 0.4);' if helper else native_move
 		"Keep the Tween you just made":
-			text = "var slide = " + move + ';\n    _tweenimator.Call("store", new StringName("slide"), slide);' if helper else 'var slide = CreateTween();\n    slide.TweenProperty(_target, "position", _target.Position + ' + vector + '.Left * ' + distance + ', 0.4);'
-			text += '\n    slide.TweenInterval(0.2);\n    await ToSignal(slide, Tween.SignalName.Finished);\n    GD.Print("Slide complete");'
+			text = "var slide = " + move.replace(", 0.4)", ", 0.4, 0.2)") + ';\n    _tweenimator.Call("store", new StringName("slide"), slide);' if helper else 'var slide = CreateTween();\n    slide.TweenProperty(_target, "position", _target.Position + ' + vector + '.Left * ' + distance + ', 0.4);'
+			if not helper:
+				text += '\n    slide.TweenInterval(0.2);'
+			text += '\n    await ToSignal(slide, Tween.SignalName.Finished);\n    GD.Print("Movement and wait complete");'
 			return "public async void PlaySlide()\n{\n    " + text + "\n}\n"
 		"Build a named animation":
 			if helper:
@@ -98,8 +100,10 @@ static func csharp(mode: int, title: String, helper: bool) -> String:
 		"Give the movement a feel":
 			text = '_tweenimator.Set("transition_type", (int)Tween.TransitionType.Back);\n    _tweenimator.Set("ease_type", (int)Tween.EaseType.Out);\n    var tween = ' + move + ';' if helper else 'var tween = CreateTween();\n    tween.SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);\n    tween.TweenProperty(_target, "position", _target.Position + ' + vector + '.Left * ' + distance + ', 0.4);'
 		"Make one thing follow another":
-			text = "var tween = " + move + ";" if helper else native_move
-			text += '\n    tween.TweenInterval(0.2);\n    tween.TweenCallback(Callable.From(() => GD.Print("Finished")));'
+			text = "var tween = " + move.replace(", 0.4)", ", 0.4, 0.2)") + ";" if helper else native_move
+			if not helper:
+				text += '\n    tween.TweenInterval(0.2);'
+			text += '\n    tween.TweenCallback(Callable.From(() => GD.Print("Movement and wait complete")));'
 		_:
 			text = "var tween = " + move + ";" if helper else native_move
 	return "public void PlayExample()\n{\n    " + text + "\n}\n"
