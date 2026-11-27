@@ -55,3 +55,9 @@ scale_to(target, 1.2) selects Vector2 or Vector3 automatically. scale_up/down mu
 Set animate.transition_type and animate.ease_type once to share easing between calls. Sine / In-Out is the default. stop() and stop_all() leave properties at their current sampled values. stop_all() also cancels method() effects. custom() remains available for advanced properties; it is not needed for ordinary directional movement or named effects.
 
 The editor still saves Animation resources independently of the runtime helper. Godot's Tween API remains available and sufficient on its own; the helper removes repeated coordinate calculations, effect sequences, pivot setup, easing configuration and replacement bookkeeping.
+
+## Why pass self?
+
+TweenAnimation is a RefCounted helper rather than a Node. It needs an owner Node to call create_tween() and bind the Tween lifetime. self is a convenient choice, not a requirement: TweenAnimation.new(target_node) or another controller Node works too. The owner must be inside the scene tree when starting an effect; it can differ from the animated target. Reuse the helper for same-property replacement across repeated calls.
+
+The tutorials compare dedicated effects with equivalent custom() calls and explain owner choice in code comments. custom() handles writable, Tween-compatible properties; method() handles callback-driven values. It does not import arbitrary running Tweens. Each snippet has an embedded copy icon with copied feedback.

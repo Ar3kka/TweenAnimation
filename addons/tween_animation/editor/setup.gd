@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 5
+const UI_REVISION := 6
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -169,28 +169,13 @@ func build(logo_texture: Texture2D) -> void:
 	code_view.custom_minimum_size.y = 250
 	code_view.gutters_draw_line_numbers = true
 	_style_code(code_view)
-	card_body.add_child(_text("GODOT TWEEN · Built into Godot", 14))
-	card_body.add_child(code_view)
-	copy_button = Button.new()
-	copy_button.text = "Copy example"
-	copy_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	copy_button.pressed.connect(func():
-		DisplayServer.clipboard_set(code_view.text)
-		copy_button.text = "Copied!"
-	)
-	card_body.add_child(copy_button)
-	card_body.add_child(_text("TWEENIMATION · Optional convenience helper", 14))
+	copy_button = _snippet(card_body, code_view, "GODOT TWEEN")
 	helper_view = CodeEdit.new()
 	helper_view.editable = false
 	helper_view.custom_minimum_size.y = 230
 	helper_view.gutters_draw_line_numbers = true
 	_style_code(helper_view)
-	card_body.add_child(helper_view)
-	var copy_helper := Button.new()
-	copy_helper.text = "Copy helper example"
-	copy_helper.size_flags_horizontal = Control.SIZE_SHRINK_END
-	copy_helper.pressed.connect(func(): DisplayServer.clipboard_set(helper_view.text))
-	card_body.add_child(copy_helper)
+	_snippet(card_body, helper_view, "TWEENIMATION HELPER")
 	comparison = RichTextLabel.new()
 	comparison.bbcode_enabled = true
 	comparison.fit_content = true
@@ -202,7 +187,7 @@ func build(logo_texture: Texture2D) -> void:
 	resource_view.custom_minimum_size.y = 230
 	resource_view.gutters_draw_line_numbers = true
 	_style_code(resource_view)
-	card_body.add_child(resource_view)
+	_snippet(card_body, resource_view, "PLAY A SAVED TIMELINE")
 	reuse_button = Button.new()
 	reuse_button.text = "Open an existing .tres animation…"
 	reuse_button.pressed.connect(func(): open_requested.emit())
@@ -307,6 +292,7 @@ func _show_guide(index: int) -> void:
 	steps.insert(1, _property_lesson())
 	steps.insert(2, _direction_lesson())
 	steps.insert(3, _press_lesson())
+	steps.insert(4, _owner_lesson(node_path, property, end_value))
 	_attach_comparisons(node_path, property, end_value, start_value)
 	step_index = 0
 	_render_step()
@@ -336,11 +322,11 @@ func _render_step() -> void:
 	code_view.show()
 	helper_view.show()
 	copy_button.show()
-	copy_button.text = "Copy Godot example"
+	copy_button.tooltip_text = "Copy Godot example"
 	comparison.text = str(steps[step_index]["comparison"])
-	resource_view.visible = lesson_path == 0 and step_index == 8
+	resource_view.get_parent().get_parent().visible = lesson_path == 0 and steps[step_index]["title"] == "Let your game press Play"
 	resource_view.text = "# Play the saved .tres timeline with AnimationPlayer.\n" + timeline_example
-	reuse_button.visible = lesson_path == 0 and step_index == 9
+	reuse_button.visible = lesson_path == 0 and steps[step_index]["title"] == "Bring your existing work along"
 	previous.disabled = step_index == 0
 	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
 	if lesson_path > 0 and step_index == steps.size() - 1:
@@ -487,9 +473,16 @@ func _attach_comparisons(node_path: String, property: String, end_value: String,
 			steps[index]["native"] = pair["native"]
 			steps[index]["helper"] = pair["helper"]
 			benefit = "[b]A complete effect:[/b] press() captures the starting scale, builds both phases, centers Control pivots, and preserves the original rest scale across repeated presses."
+		if title == "Who owns the Tween? Choose your entry point":
+			var pair := _owner_lesson(node_path, property, end_value)
+			steps[index]["native"] = pair["native"]
+			steps[index]["helper"] = pair["helper"]
+			benefit = "[b]Owner and target are separate:[/b] the owner creates and binds the Tween lifetime; the target receives the property changes. self is convenient, not mandatory."
 		if title == "Plant the first key":
 			for api in ["native", "helper"]:
 				steps[index][api] = str(steps[index][api]).replace("func _ready() -> void:\n", 'func _ready() -> void:\n    target.set_indexed(^"%s", %s) # Explicit starting value\n' % [property, start_value])
+		steps[index]["native"] = _explain_code(str(steps[index]["native"]))
+		steps[index]["helper"] = _explain_code(str(steps[index]["helper"]))
 		steps[index]["comparison"] = benefit + "\n\n[b]Defaults:[/b] native Tween uses Linear / In-Out; Tweenimation uses Sine / In-Out. Set native transition/ease before tween_property() to match the helper. Both scripts are alternatives; run one at a time."
 
 
@@ -533,3 +526,68 @@ func _press_lesson() -> Dictionary:
 	var native := header + "func _ready() -> void:\n" + pivot + "    var rest = target.scale\n    var tween := create_tween()\n    tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)\n    tween.tween_property(target, ^\"scale\", rest * 0.95, 0.1)\n    tween.tween_property(target, ^\"scale\", rest, 0.2)\n"
 	var helper := header + "@onready var animate := TweenAnimation.new(self)\n\nfunc _ready() -> void:\n    animate.press(target)\n"
 	return {"title": "A press that returns to its starting size", "body": "[b]A whole effect in one call.[/b]\n\npress() shrinks by 5 percent, then returns to the target's original scale. It works on 2D, 3D and UI nodes. Reuse the helper for repeated triggers.\n\nFor UI, the pivot is centered automatically. Disable auto_center_pivot when you intentionally use a different pivot. scale_up(), scale_down() and wiggle() are also available.", "native": native, "helper": helper}
+
+
+func _explain_code(source: String) -> String:
+	var result := ""
+	for line in source.split("\n"):
+		var trimmed := line.strip_edges()
+		var indent := line.substr(0, line.length() - line.lstrip(" \t").length())
+		if not trimmed.begins_with("#"):
+			if "TweenAnimation.new(self)" in line:
+				result += indent + "# self is the owner: its create_tween() binds the Tween lifetime.\n"
+				result += indent + "# Another live Node works too; the owner need not be the target.\n"
+				result += indent + "# Reuse this helper so repeated effects can replace earlier ones.\n"
+			elif "TweenAnimation.new(target)" in line:
+				result += indent + "# Here the animated node also owns the Tween. It must be in the tree.\n"
+			elif "create_tween()" in line:
+				result += indent + "# Implicitly self.create_tween(): Godot binds this Tween to this Node.\n"
+			if trimmed.begins_with("@onready") and "var target" in line:
+				result += "# Wait until children are available before resolving the target path.\n"
+		result += line + "\n"
+	return result
+
+
+func _owner_lesson(node_path: String, property: String, end_value: String) -> Dictionary:
+	var native := 'extends Node\n\n@onready var target = %s\n\nfunc _ready() -> void:\n    var tween := create_tween()\n    tween.tween_property(target, "%s", %s, 1.0)\n' % [node_path, property, end_value]
+	var named := 'animate.fade_to(target, %s, 1.0)' % end_value if selected_mode == 2 else 'animate.move_to(target, %s, 1.0)' % end_value
+	var helper := 'extends Node\n\n@onready var target = %s\n@onready var animate := TweenAnimation.new(self)\n\nfunc _ready() -> void:\n    # Choose ONE approach. This example runs the named helper.\n    use_named_effect()\n\nfunc use_named_effect() -> void:\n    # The helper supplies the property name for a familiar action.\n    %s\n\nfunc use_custom_property() -> void:\n    # Same destination through the generic property API instead.\n    animate.custom(target, ^"%s", %s, 1.0)\n\nfunc use_target_as_owner() -> void:\n    var target_owned := TweenAnimation.new(target)\n    target_owned.custom(target, ^"%s", %s, 1.0)\n' % [node_path, named, property, end_value, property, end_value]
+	return {"title": "Who owns the Tween? Choose your entry point", "body": "[b]new(self) needs a Node, but it does not have to be this Node.[/b]\n\nTweenAnimation is a RefCounted helper, so it cannot call Node.create_tween() on itself. The Node you provide creates and owns its Tweens. Freeing that owner kills them; their pause behavior also follows the owner's processing state by default.\n\n[b]Option 1:[/b] use self to tie effects to the script's node. [b]Option 2:[/b] use the animated target Node, or another Node already in the scene tree, when that lifetime fits better. The owner and target may be different.\n\n[b]Dedicated effect:[/b] move_left(), press(), fade_to(), etc. express intent. [b]custom():[/b] animate any writable, Tween-compatible property using its path, destination and duration. It keeps shared easing and same-property replacement. Use method() for callback-driven values, or the returned Tween for intervals/callbacks and other advanced operations. custom() is a property entry point, not an importer for arbitrary Tween scripts.", "native": native, "helper": helper}
+
+
+func _snippet(parent: VBoxContainer, view: CodeEdit, caption: String) -> Button:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = view.get_theme_color("background_color")
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 6
+	style.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", style)
+	parent.add_child(panel)
+	var body := VBoxContainer.new()
+	panel.add_child(body)
+	var header := HBoxContainer.new()
+	body.add_child(header)
+	var label := _text(caption, 12)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.modulate.a = 0.75
+	header.add_child(label)
+	var copy := Button.new()
+	copy.flat = true
+	copy.icon = EditorInterface.get_base_control().get_theme_icon("ActionCopy", "EditorIcons")
+	copy.tooltip_text = "Copy " + caption.to_lower() + " example"
+	copy.custom_minimum_size = Vector2(30, 30)
+	copy.pressed.connect(func():
+		DisplayServer.clipboard_set(view.text)
+		copy.icon = EditorInterface.get_base_control().get_theme_icon("StatusSuccess", "EditorIcons")
+		copy.tooltip_text = "Copied!"
+	)
+	header.add_child(copy)
+	view.text_changed.connect(func():
+		copy.icon = EditorInterface.get_base_control().get_theme_icon("ActionCopy", "EditorIcons")
+		copy.tooltip_text = "Copy " + caption.to_lower() + " example"
+	)
+	body.add_child(view)
+	return copy

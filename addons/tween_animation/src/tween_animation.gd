@@ -14,6 +14,9 @@ var _active: Dictionary = {}
 var _origins: Dictionary = {}
 
 
+## This RefCounted helper needs a Node to call create_tween() and bind lifetime.
+## Pass self, the animated node, or another controller Node; owner and target
+## need not match. The owner must be inside the tree when an effect starts.
 func _init(owner: Node, transition: Tween.TransitionType = Tween.TRANS_SINE) -> void:
 	assert(owner != null, "TweenAnimation needs an owner node.")
 	node = owner
