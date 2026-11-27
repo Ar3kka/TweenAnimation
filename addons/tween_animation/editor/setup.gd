@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 16
+const UI_REVISION := 17
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer

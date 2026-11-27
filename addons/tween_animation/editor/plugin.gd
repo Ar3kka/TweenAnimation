@@ -30,6 +30,7 @@ var status: Label
 var play_button: Button
 var playing := false
 var playback_time := 0.0
+var value_refresh_elapsed := 0.0
 
 
 func _enter_tree() -> void:
@@ -64,9 +65,15 @@ func _get_plugin_icon() -> Texture2D:
 func _make_visible(visible: bool) -> void:
 	if is_instance_valid(frame):
 		frame.visible = visible
+		if visible and is_instance_valid(timeline_controls):
+			_selection_changed()
 
 
 func _process(delta: float) -> void:
+	value_refresh_elapsed += delta
+	if is_instance_valid(frame) and frame.visible and value_refresh_elapsed >= 0.15:
+		value_refresh_elapsed = 0.0
+		_refresh_value_context()
 	if not playing or animation == null:
 		return
 	playback_time += delta
@@ -342,19 +349,38 @@ func _capture_key() -> void:
 	if target == null:
 		_set_status("The node for this track is not in the edited scene.")
 		return
-	var property_name := str(track_path.get_concatenated_subnames())
-	var value: Variant
-	if value_input.text.strip_edges().is_empty():
-		value = target.get_indexed(NodePath(property_name))
-	else:
-		value = _parse_value(value_input.text.strip_edges())
-	if value == null:
-		_set_status("Could not read that property value. Enter a valid value or select its node.")
+	_refresh_value_context()
+	var result: Dictionary = timeline_controls.capture_value()
+	if not result.ok:
+		_set_status(str(result.error))
 		return
-	animation.track_insert_key(track, time_slider.value, value)
+	animation.track_insert_key(track, time_slider.value, result.value)
 	_refresh_keys(track)
 	_redraw_timeline()
 	_set_status("Keyframe added at %.2fs." % time_slider.value)
+
+
+func _refresh_value_context() -> void:
+	var track := track_picker.selected
+	var root := get_editor_interface().get_edited_scene_root()
+	if animation == null or track < 0 or track >= animation.get_track_count() or root == null or animation.track_get_type(track) != Animation.TYPE_VALUE:
+		timeline_controls.set_value_context("", null)
+		return
+	var path := animation.track_get_path(track)
+	var target := root.get_node_or_null(NodePath(path.get_concatenated_names()))
+	var property := str(path.get_concatenated_subnames())
+	if target == null or not _has_property(target, property):
+		timeline_controls.set_value_context(str(path), null)
+		return
+	var saved: Variant = null
+	var has_key := false
+	for key in animation.track_get_key_count(track):
+		if is_equal_approx(animation.track_get_key_time(track, key), time_slider.value):
+			saved = animation.track_get_key_value(track, key)
+			has_key = true
+			break
+	var info := preload("res://addons/tween_animation/editor/key_values.gd").property_info(target, property)
+	timeline_controls.set_value_context(str(path), target.get_indexed(NodePath(property)), info, saved, has_key, time_slider.value, "Current node value")
 
 
 func _preview_tracks(at_time: float) -> void:
@@ -447,6 +473,7 @@ func _refresh_tracks(select: int = -1) -> void:
 		track_picker.select(-1)
 		key_list.clear()
 	_redraw_timeline()
+	_refresh_value_context()
 
 
 func _refresh_keys(track: int) -> void:
@@ -456,7 +483,8 @@ func _refresh_keys(track: int) -> void:
 	for key in animation.track_get_key_count(track):
 		var time := animation.track_get_key_time(track, key)
 		var value := animation.track_get_key_value(track, key)
-		key_list.add_item("%.2fs   %s" % [time, value])
+		key_list.add_item("%.2fs   %s" % [time, var_to_str(value)])
+	_refresh_value_context()
 
 
 func _select_track(index: int) -> void:
@@ -485,6 +513,7 @@ func _on_time_changed(value: float) -> void:
 	_redraw_timeline()
 	if not playing:
 		_preview_tracks(value)
+	_refresh_value_context()
 
 
 func _set_time(value: float) -> void:

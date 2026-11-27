@@ -10,6 +10,7 @@ signal key_selected(index: int)
 signal draw_requested
 signal timeline_input(event: InputEvent)
 signal action_requested(action: String)
+signal override_changed
 
 const DEFAULT_LENGTH := 1.0
 var track_picker: OptionButton
@@ -34,6 +35,17 @@ var property_search: LineEdit
 var property_list: ItemList
 var available_properties := PackedStringArray()
 var available_actions := PackedStringArray()
+var key_value_card: PanelContainer
+var key_context: Label
+var current_value_label: Label
+var saved_value_label: Label
+var accepted_values_label: Label
+var capture_hint: Label
+var example_row: HFlowContainer
+var use_current_button: Button
+var _current_value: Variant = null
+var _property_name := ""
+var _example_signature := ""
 
 
 func build() -> void:
@@ -69,15 +81,48 @@ func build() -> void:
 	action_menu.get_popup().id_pressed.connect(func(index: int): action_requested.emit(available_actions[index]))
 	property_row.add_child(action_menu)
 	add_track_button = _button(property_row, "Add track", add_track_requested.emit)
+	key_value_card = PanelContainer.new()
+	var card_style := StyleBoxFlat.new()
+	card_style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_2", "Editor")
+	card_style.set_content_margin_all(12)
+	card_style.set_corner_radius_all(5)
+	key_value_card.add_theme_stylebox_override("panel", card_style)
+	workspace.add_child(key_value_card)
+	var key_body := VBoxContainer.new()
+	key_body.add_theme_constant_override("separation", 8)
+	key_value_card.add_child(key_body)
+	key_context = _text("KEY VALUE · Select a property track", 13)
+	key_context.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	key_body.add_child(key_context)
+	current_value_label = _text("Current value: unavailable", 15)
+	current_value_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	current_value_label.add_theme_font_override("font", EditorInterface.get_base_control().get_theme_font("source", "EditorFonts"))
+	key_body.add_child(current_value_label)
 	value_row = HBoxContainer.new()
-	track_tools.add_child(value_row)
+	key_body.add_child(value_row)
 	value_row.add_theme_constant_override("separation", 4)
 	value_input = LineEdit.new()
-	value_input.placeholder_text = "Value: current"
-	value_input.tooltip_text = "Leave empty to capture the node's current value. Override with a number, Vector2(100, 50), or Vector3(0, 1, 0)."
-	value_input.custom_minimum_size.x = 160
+	value_input.placeholder_text = "Override (optional) · empty uses current value"
+	value_input.tooltip_text = "Type a value using the examples below, or leave empty to capture the displayed current value."
+	value_input.custom_minimum_size.x = 240
+	value_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value_input.text_changed.connect(func(_text: String): _validate_value(); override_changed.emit())
 	value_row.add_child(value_input)
 	capture_key_button = _button(value_row, "Capture key", capture_key_requested.emit)
+	use_current_button = _button(value_row, "Use current", func(): value_input.clear(); _validate_value(); override_changed.emit())
+	use_current_button.tooltip_text = "Clear the override. Capture key will read the current value shown above."
+	accepted_values_label = _text("", 14)
+	accepted_values_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	key_body.add_child(accepted_values_label)
+	example_row = HFlowContainer.new()
+	example_row.add_theme_constant_override("h_separation", 6)
+	key_body.add_child(example_row)
+	capture_hint = _text("", 14)
+	capture_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	key_body.add_child(capture_hint)
+	saved_value_label = _text("", 13)
+	saved_value_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	key_body.add_child(saved_value_label)
 	separator = HSeparator.new()
 	workspace.add_child(separator)
 
@@ -110,6 +155,59 @@ func build() -> void:
 	workspace.add_child(key_list)
 	_build_property_browser()
 	set_target(null)
+	set_value_context("", null)
+
+
+func set_value_context(property: String, current: Variant, info: Dictionary = {}, saved: Variant = null, has_key: bool = false, at_time: float = 0.0, source: String = "Node value") -> void:
+	if _property_name != property:
+		value_input.clear()
+	_current_value = current
+	_property_name = property
+	key_context.text = "KEY VALUE · " + (property if not property.is_empty() else "Select a property track")
+	current_value_label.text = "%s: %s" % [source, var_to_str(current) if current != null else "unavailable"]
+	current_value_label.tooltip_text = "This is the tracked property's current value. Selecting another node does not retarget an existing track."
+	saved_value_label.text = "At %.2f s · %s" % [at_time, "saved key: " + var_to_str(saved) if has_key else "no key at this exact time"]
+	var details := preload("res://addons/tween_animation/editor/key_values.gd").describe(current, property, info)
+	accepted_values_label.text = "Accepts " + str(details.accepted) if current != null else "Choose a value track whose target exists in the current scene."
+	var signature := str(details)
+	if signature != _example_signature:
+		_example_signature = signature
+		for child in example_row.get_children():
+			example_row.remove_child(child)
+			child.queue_free()
+		if not details.examples.is_empty():
+			example_row.add_child(_text("Try a value:", 0))
+		for example in details.examples:
+			var button := Button.new()
+			button.text = example
+			button.tooltip_text = "Use " + example + " as the key value override."
+			button.pressed.connect(func():
+				value_input.text = example
+				_validate_value()
+				override_changed.emit()
+			)
+			example_row.add_child(button)
+	_validate_value()
+
+
+func capture_value() -> Dictionary:
+	return preload("res://addons/tween_animation/editor/key_values.gd").parse(value_input.text, _current_value)
+
+
+func _validate_value() -> void:
+	if not is_instance_valid(capture_hint):
+		return
+	var result := capture_value()
+	capture_key_button.disabled = not result.ok
+	use_current_button.disabled = _current_value == null or value_input.text.is_empty()
+	var editor := EditorInterface.get_base_control()
+	capture_hint.modulate = editor.get_theme_color("font_color", "Editor") if result.ok else editor.get_theme_color("error_color", "Editor")
+	if not result.ok:
+		capture_hint.text = str(result.error)
+	elif value_input.text.strip_edges().is_empty():
+		capture_hint.text = "Capture key will record the current value shown above."
+	else:
+		capture_hint.text = "Capture key will record your override: " + var_to_str(result.value)
 
 
 func _build_property_browser() -> void:
@@ -175,6 +273,7 @@ func focus_lesson(phase: int) -> void:
 	property_row.visible = phase == 1
 	action_menu.hide()
 	value_row.visible = phase in [2, 3]
+	key_value_card.visible = phase in [2, 3, 4]
 	separator.visible = phase in [2, 3, 4]
 	timeline_row.visible = phase in [2, 3, 4]
 	timeline.visible = phase in [2, 3, 4]
@@ -222,7 +321,7 @@ func _button(parent: Control, caption: String, action: Callable) -> Button:
 	button.text = caption
 	button.custom_minimum_size = Vector2(80, 34)
 	button.pressed.connect(action)
-	var icon_name: String = {"Add track": "Add", "Capture key": "Key", "Properties…": "Search"}.get(caption, "Add")
+	var icon_name: String = {"Add track": "Add", "Capture key": "Key", "Properties…": "Search", "Use current": "Reload"}.get(caption, "Add")
 	button.icon = EditorInterface.get_base_control().get_theme_icon(icon_name, "EditorIcons")
 	button.tooltip_text = "Add the selected node property as a track." if caption == "Add track" else "Capture a property value at the playhead time."
 	parent.add_child(button)

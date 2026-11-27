@@ -95,6 +95,7 @@ func build() -> void:
 	body.add_child(controls)
 	controls.add_track_requested.connect(_add_track)
 	controls.capture_key_requested.connect(_capture)
+	controls.override_changed.connect(_override_changed)
 	controls.time_changed.connect(_seek)
 	controls.draw_requested.connect(func(): controls.paint(clip))
 	controls.timeline_input.connect(func(event: InputEvent):
@@ -155,6 +156,8 @@ func configure(target_mode: int, step: int) -> void:
 	controls.value_input.clear()
 	controls.key_list.clear()
 	for index in range(3):
+		property_values[index].min_value = 0.0 if mode == 2 else -10000.0
+		property_values[index].max_value = 1.0 if mode == 2 else 10000.0
 		property_values[index].visible = phase in [2, 3] and (index == 0 or (mode != 2 and (index == 1 or mode == 1)))
 		property_values[index].prefix = "Alpha" if mode == 2 else ["X", "Y", "Z"][index]
 		property_values[index].set_value_no_signal(0.0)
@@ -217,6 +220,7 @@ func _add_track() -> void:
 		callout.text = "Track created for %s. Next, record its starting value." % scene_item.get_text(0)
 		feedback.text = "The track binds this node to this property. Continue to Save the opening pose to capture its first key."
 	controls.timeline.queue_redraw()
+	_update_key_value()
 
 
 func _pose() -> Variant:
@@ -232,14 +236,12 @@ func _capture() -> void:
 	if phase == 3 and not is_equal_approx(controls.time_slider.value, 1.0):
 		feedback.text = "Set the time slider to 1.00 s first. The opening key is already at 0.00 s."
 		return
-	var value: Variant = _pose()
-	var entered: String = controls.value_input.text.strip_edges()
-	if not entered.is_empty():
-		value = entered.to_float() if entered.is_valid_float() else str_to_var(entered)
-		if not ((mode == 2 and (value is float or value is int)) or (mode == 1 and value is Vector3) or (mode == 0 and value is Vector2)):
-			feedback.text = "Use a number for UI alpha, Vector2 for 2D, or Vector3 for 3D; leave empty to capture the sample Inspector."
-			return
-	clip.track_insert_key(0, controls.time_slider.value, value)
+	_update_key_value()
+	var result: Dictionary = controls.capture_value()
+	if not result.ok:
+		feedback.text = str(result.error)
+		return
+	clip.track_insert_key(0, controls.time_slider.value, result.value)
 	_refresh_keys()
 	feedback.text = "Captured key at %.2f s. Scrub or play to sample it." % controls.time_slider.value
 	if phase in [2, 3]:
@@ -252,8 +254,9 @@ func _refresh_keys() -> void:
 	sample_stage.queue_redraw()
 	if clip.get_track_count() > 0:
 		for index in clip.track_get_key_count(0):
-			controls.key_list.add_item("%.2f s · %s" % [clip.track_get_key_time(0, index), clip.track_get_key_value(0, index)])
+			controls.key_list.add_item("%.2f s · %s" % [clip.track_get_key_time(0, index), var_to_str(clip.track_get_key_value(0, index))])
 	controls.timeline.queue_redraw()
+	_update_key_value()
 
 
 func _seek(value: float) -> void:
@@ -271,10 +274,42 @@ func _seek(value: float) -> void:
 			_highlight(controls.time_slider)
 	if clip.get_track_count() > 0 and clip.track_get_key_count(0) > 0:
 		feedback.text = "Sample at %.2f s: %s" % [value, clip.value_track_interpolate(0, value)]
+	_update_key_value()
+
+
+func _update_key_value() -> void:
+	if clip == null:
+		return
+	if clip.get_track_count() == 0:
+		controls.set_value_context("", null)
+		return
+	var current: Variant = _pose()
+	if phase == 4 and clip.track_get_key_count(0) > 0:
+		current = clip.value_track_interpolate(0, controls.time_slider.value)
+	var saved: Variant = null
+	var has_key := false
+	for key in clip.track_get_key_count(0):
+		if is_equal_approx(clip.track_get_key_time(0, key), controls.time_slider.value):
+			saved = clip.track_get_key_value(0, key)
+			has_key = true
+			break
+	controls.set_value_context(str(clip.track_get_path(0)), current, {}, saved, has_key, controls.time_slider.value, "Preview value" if phase == 4 else "Sample Inspector value")
+
+
+func _override_changed() -> void:
+	if phase == 3 and is_equal_approx(controls.time_slider.value, 1.0):
+		_clear_attention()
+		if controls.capture_value().ok:
+			callout.text = "3 · Capture key will record the value described in the key panel below."
+			_highlight(controls.capture_key_button)
+		else:
+			callout.text = "Use a value matching the accepted type. Click an example to try it."
+			_highlight(controls.value_input)
 
 
 func _inspector_changed(_value: float) -> void:
 	sample_stage.queue_redraw()
+	_update_key_value()
 	if phase == 3 and is_equal_approx(controls.time_slider.value, 1.0):
 		_clear_attention()
 		callout.text = "3 · Press the outlined Capture key button to save this destination."
