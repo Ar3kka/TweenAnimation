@@ -4,6 +4,7 @@ extends EditorPlugin
 const ADDON_ICON := preload("res://addons/tween_animation/icon.svg")
 const HEADER_LOGO := preload("res://addons/tween_animation/header_logo.svg")
 const SETUP_SCREEN := preload("res://addons/tween_animation/editor/setup.gd")
+const DOCUMENTATION_SCREEN := preload("res://addons/tween_animation/editor/documentation.gd")
 const DEFAULT_LENGTH := 1.0
 
 var page: VBoxContainer
@@ -89,6 +90,9 @@ func _build_ui() -> void:
 	timeline_scroll.name = "Timeline"
 	timeline_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	tabs.add_child(timeline_scroll)
+	var documentation := DOCUMENTATION_SCREEN.new()
+	documentation.build()
+	tabs.add_child(documentation)
 	page = VBoxContainer.new()
 	page.name = "Timeline"
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL

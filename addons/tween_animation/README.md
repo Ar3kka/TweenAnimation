@@ -125,3 +125,7 @@ The timeline does not yet provide key dragging, multi-track selection, undo inte
 ## Start here
 
 The default Setup guide is a seven-step quick start: create the manager; run an effect without supplying a Tween; keep its returned handle; build a named animation function; register an external Tween; look up/control names; and release a handle back to outside code. Each step has a large action headline, a small diagram, and runnable native/helper examples. Additional timeline and effects paths build on that same setup flow. Next/Back navigate the guide rather than modifying your scene.
+
+## In-editor documentation
+
+Open Tweenimation > Documentation for a searchable, category-filtered reference to all 36 public runtime functions. Each function has its current signature and defaults, parameter explanations, return values, behavior notes and a copyable example. Signatures are read from the runtime source. Start-here pages cover owner choices, named storage, existing external Tweens, chains/parallel groups, completion, playback/replay and public configuration fields.
