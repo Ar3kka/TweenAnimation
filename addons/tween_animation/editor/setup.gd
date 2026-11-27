@@ -135,7 +135,7 @@ func build(logo_texture: Texture2D) -> void:
 	guide.scroll_active = false
 	guide.selection_enabled = true
 	card_body.add_child(guide)
-	
+
 	code_view = CodeEdit.new()
 	code_view.editable = false
 	code_view.custom_minimum_size.y = 250
