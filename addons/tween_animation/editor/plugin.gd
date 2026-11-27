@@ -183,7 +183,6 @@ func _build_ui() -> void:
 	timeline_controls.time_changed.connect(_on_time_changed)
 	timeline_controls.key_selected.connect(_select_key)
 	timeline_controls.draw_requested.connect(_draw_timeline)
-	timeline_controls.timeline_input.connect(_timeline_input)
 	timeline_controls.action_requested.connect(_action_template)
 	status = _label("Create an animation, select a node, then add a property track.", 0)
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -233,42 +232,46 @@ func _new_animation() -> void:
 
 
 func _add_track() -> void:
-	var selected := get_editor_interface().get_selection().get_selected_nodes()
-	if selected.is_empty():
-		_set_status("Select a node in the Scene tree first.")
-		return
+	var target := _track_target()
 	var root := get_editor_interface().get_edited_scene_root()
-	if root == null or (root != selected[0] and not root.is_ancestor_of(selected[0])):
-		_set_status("Select a node inside the currently edited scene.")
+	if target == null or root == null:
+		_set_status("Select a scene node or an existing track first.")
 		return
 	var property_name := property_path.text.strip_edges()
-	if property_name.is_empty() or not _has_property(selected[0], property_name):
+	if property_name.is_empty() or not _has_property(target, property_name):
 		_set_status("Enter a valid property name for the selected node.")
 		return
 	var track := animation.add_track(Animation.TYPE_VALUE)
-	var node_path := root.get_path_to(selected[0])
+	var node_path := root.get_path_to(target)
 	animation.track_set_path(track, NodePath(str(node_path) + ":" + property_name))
-	if typeof(selected[0].get_indexed(NodePath(property_name))) in [TYPE_BOOL, TYPE_STRING, TYPE_STRING_NAME]:
+	if typeof(target.get_indexed(NodePath(property_name))) in [TYPE_BOOL, TYPE_STRING, TYPE_STRING_NAME]:
 		animation.value_track_set_update_mode(track, Animation.UPDATE_DISCRETE)
 	_refresh_tracks(track)
 	_set_status("Track added: %s:%s" % [node_path, property_name])
 
 
-func _selection_changed() -> void:
-	var nodes := get_editor_interface().get_selection().get_selected_nodes()
+func _track_target() -> Node:
 	var root := get_editor_interface().get_edited_scene_root()
-	var target: Node = nodes[0] if not nodes.is_empty() else null
-	if target == null or root == null or (target != root and not root.is_ancestor_of(target)):
-		target = null
-	timeline_controls.set_target(target)
+	if root == null:
+		return null
+	for target in get_editor_interface().get_selection().get_selected_nodes():
+		if target == root or root.is_ancestor_of(target):
+			return target
+	var index := track_picker.selected
+	if animation != null and index >= 0 and index < animation.get_track_count():
+		return root.get_node_or_null(NodePath(animation.track_get_path(index).get_concatenated_names()))
+	return null
+
+
+func _selection_changed() -> void:
+	timeline_controls.set_target(_track_target())
 
 
 func _action_template(action: String) -> void:
-	var nodes := get_editor_interface().get_selection().get_selected_nodes()
-	if nodes.is_empty():
-		_set_status("Select the node to animate first.")
+	var target := _track_target()
+	if target == null:
+		_set_status("Select a scene node or an existing track first.")
 		return
-	var target: Node = nodes[0]
 	var options := preload("res://addons/tween_animation/editor/timeline_options.gd")
 	if not action in options.actions(target):
 		_set_status("That template is not available for the selected node.")
@@ -474,7 +477,15 @@ func _open_animation() -> void:
 func _refresh_tracks(select: int = -1) -> void:
 	track_picker.clear()
 	for index in animation.get_track_count():
-		track_picker.add_item(str(animation.track_get_path(index)))
+		var path := animation.track_get_path(index)
+		var text := str(path)
+		var root := get_editor_interface().get_edited_scene_root()
+		var target := root.get_node_or_null(NodePath(path.get_concatenated_names())) if root else null
+		if path.get_concatenated_names() == "." and target:
+			text = str(target.name) + ":" + str(path.get_concatenated_subnames())
+		track_picker.add_icon_item(_editor_icon(target.get_class()) if target else null, text)
+		track_picker.set_item_metadata(index, str(path))
+		track_picker.set_item_tooltip(index, str(path))
 	if animation.get_track_count() > 0:
 		track_picker.select(clampi(select, 0, animation.get_track_count() - 1))
 		_refresh_keys(track_picker.selected)
@@ -486,6 +497,8 @@ func _refresh_tracks(select: int = -1) -> void:
 	_redraw_timeline()
 	_refresh_value_context()
 
+	_selection_changed()
+
 
 func _refresh_keys(track: int) -> void:
 	key_list.clear()
@@ -494,13 +507,14 @@ func _refresh_keys(track: int) -> void:
 	for key in animation.track_get_key_count(track):
 		var time := animation.track_get_key_time(track, key)
 		var value := animation.track_get_key_value(track, key)
-		key_list.add_item("%.2fs   %s" % [time, var_to_str(value)])
+		key_list.add_item("%.3fs   %s" % [time, var_to_str(value)])
 	_refresh_value_context()
 
 
 func _select_track(index: int) -> void:
 	_refresh_keys(index)
 	_redraw_timeline()
+	_selection_changed()
 
 
 func _select_key(index: int) -> void:
@@ -554,11 +568,6 @@ func _toggle_play() -> void:
 
 func _draw_timeline() -> void:
 	timeline_controls.paint(animation)
-
-
-func _timeline_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_set_time(animation.length * clampf(event.position.x / timeline.size.x, 0.0, 1.0))
 
 
 func _redraw_timeline() -> void:

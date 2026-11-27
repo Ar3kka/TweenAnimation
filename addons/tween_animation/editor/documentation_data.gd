@@ -732,7 +732,7 @@ const VISUAL := {
 		"summary": "One track describes one property changing over time.",
 		"steps": [
 			"Select the scene node you want to animate.",
-			"In Node property, enter position, scale, rotation or another valid property. UI opacity is modulate:a.",
+			"Press + Track. Pick a property from the selected node or type its path in the dialog. UI opacity is modulate:a.",
 			"Choose Add track. Use the active-track selector to choose the track you are editing."
 		],
 		"notes": "The timeline authors value tracks. It does not author specialized skeleton tracks, callbacks or arbitrary procedural Tween chains.",
@@ -752,9 +752,9 @@ const VISUAL := {
 		"summary": "Save the current node value at a chosen time.",
 		"steps": [
 			"Choose an active track.",
-			"Move the playhead to the time for your key.",
-			"Leave Value empty to capture the current node property, or enter a number/Vector2/Vector3 override.",
-			"Choose Capture key. Repeat at another time with a different value."
+			"Click and drag directly on the timeline to position the playhead. Release to stop scrubbing.",
+			"Current shows the tracked node’s live value. Choose Override to edit the same X/Y/Z or scalar fields for this key without changing the node.",
+			"Choose Capture. Drag the playhead directly along the timeline and repeat at another time with a different value."
 		],
 		"notes": "Scrub to the desired time before changing the node, because scrubbing may sample the existing animation. Capturing at the same track/time replaces that key.",
 		"targets": [

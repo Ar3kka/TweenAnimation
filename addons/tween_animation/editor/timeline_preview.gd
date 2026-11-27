@@ -9,14 +9,12 @@ var controls
 var clip: Animation
 var scene_tree: Tree
 var scene_item: TreeItem
-var property_values: Array[SpinBox] = []
 var feedback: Label
 var callout: Label
 var play_button: Button
 var save_button: Button
 var sample_stage: Control
 var toolbar: HFlowContainer
-var inspector_title: Label
 var sidebar: VBoxContainer
 var scene_title: Label
 var reset_button: Button
@@ -95,17 +93,6 @@ func build() -> void:
 	scene_tree.custom_minimum_size.y = 92
 	scene_tree.item_selected.connect(_select_target)
 	sidebar.add_child(scene_tree)
-	inspector_title = _text("SAMPLE INSPECTOR", 12)
-	sidebar.add_child(inspector_title)
-	for index in range(3):
-		var spinner := SpinBox.new()
-		spinner.min_value = -10000
-		spinner.max_value = 10000
-		spinner.step = 0.1
-		spinner.prefix = ["X", "Y", "Z"][index]
-		spinner.value_changed.connect(_inspector_changed)
-		property_values.append(spinner)
-		sidebar.add_child(spinner)
 	controls = preload("res://addons/tween_animation/editor/timeline_controls.gd").new()
 	controls.build()
 	controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -115,10 +102,6 @@ func build() -> void:
 	controls.override_changed.connect(_override_changed)
 	controls.time_changed.connect(_seek)
 	controls.draw_requested.connect(func(): controls.paint(clip))
-	controls.timeline_input.connect(func(event: InputEvent):
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			_seek(clip.length * clampf(event.position.x / maxf(controls.timeline.size.x, 1.0), 0.0, 1.0))
-	)
 	controls.track_selected.connect(func(_index: int): _refresh_keys())
 	controls.key_selected.connect(func(index: int): _seek(clip.track_get_key_time(controls.track_picker.selected, index)))
 	feedback = _text("Use the highlighted controls here, then try the same steps in the Timeline tab.", 14)
@@ -138,8 +121,7 @@ func configure(target_mode: int, step: int) -> void:
 	sample_stage.visible = phase == 4
 	controls.visible = phase in [1, 2, 3, 4]
 	controls.focus_lesson(phase)
-	sidebar.visible = phase in [0, 2, 3]
-	inspector_title.visible = phase in [2, 3]
+	sidebar.visible = phase == 0
 	scene_title.visible = phase == 0
 	scene_tree.visible = phase == 0
 	sidebar.custom_minimum_size.x = 280 if phase == 0 else 180
@@ -152,6 +134,8 @@ func configure(target_mode: int, step: int) -> void:
 	sample_target = Node3D.new() if mode == 1 else (Control.new() if mode == 2 else Node2D.new())
 	sample_target.name = ["Sprite2D", "MeshInstance3D", "Panel"][mode]
 	sample_host.add_child(sample_target)
+	if mode == 2:
+		sample_target.set_indexed(^"modulate:a", 0.0)
 	controls.set_target(sample_target)
 	controls.target_label.text = "Tutorial track target: %s · %s" % [sample_target.name, "modulate:a" if mode == 2 else "position"]
 	clip = Animation.new()
@@ -175,22 +159,15 @@ func configure(target_mode: int, step: int) -> void:
 	controls.property_path.text = "modulate:a" if mode == 2 else "position"
 	controls.value_input.clear()
 	controls.key_list.clear()
-	for index in range(3):
-		property_values[index].min_value = 0.0 if mode == 2 else -10000.0
-		property_values[index].max_value = 1.0 if mode == 2 else 10000.0
-		property_values[index].visible = phase in [2, 3] and (index == 0 or (mode != 2 and (index == 1 or mode == 1)))
-		property_values[index].prefix = "Alpha" if mode == 2 else ["X", "Y", "Z"][index]
-		property_values[index].set_value_no_signal(0.0)
 	if phase >= 2:
 		_add_track()
 	if phase >= 3:
 		clip.track_insert_key(0, 0.0, _pose())
 	if phase >= 4:
-		property_values[0].set_value_no_signal(1.0 if mode == 2 else (2.0 if mode == 1 else 100.0))
-		clip.track_insert_key(0, 1.0, _pose())
+		clip.track_insert_key(0, 1.0, 1.0 if mode == 2 else (Vector3(2, 0, 0) if mode == 1 else Vector2(100, 0)))
 	_seek(0.0)
 	_refresh_keys()
-	var messages := ["Choose an animation target.", "Choose the property, then press Add track in the outlined row.", "The playhead is at 0 seconds. Press the outlined Capture key button to record the starting value.", "1 · Drag the outlined time slider all the way right to 1 second.", "Press the outlined Play preview button to watch the sample.", "Press the outlined Save button to learn what is saved."]
+	var messages := ["Choose an animation target.", "Press + Track, choose a property in the picker, then Add track.", "The playhead is at 0 seconds. Press the outlined Capture key button to record the starting value.", "1 · Drag the outlined timeline playhead to the right edge at 1 second.", "Press the outlined Play preview button to watch the sample.", "Press the outlined Save button to learn what is saved."]
 	callout.text = messages[phase]
 	if phase == 0:
 		callout.text = "↓ Select %s as the target for a new track." % scene_item.get_text(0)
@@ -198,10 +175,10 @@ func configure(target_mode: int, step: int) -> void:
 	match phase:
 		0: _highlight(scene_tree)
 		1:
-			_highlight(controls.property_row)
+			_highlight(controls.new_track_button)
 		2: _highlight(controls.capture_key_button)
 		3:
-			_highlight(controls.time_slider)
+			_highlight(controls.timeline)
 		4: _highlight(play_button)
 		5: _highlight(save_button)
 	feedback.text = "Practice only: controls edit this sample clip, not your scene. Use Timeline in the top bar for your project."
@@ -234,7 +211,7 @@ func _add_track() -> void:
 	controls.track_picker.clear()
 	controls.track_picker.add_item(str(clip.track_get_path(0)))
 	controls.track_picker.select(0)
-	feedback.text = "Track added. Choose a time, set the sample Inspector value, then Capture key."
+	feedback.text = "Track added. Choose a time, edit the Override fields, then Capture."
 	if phase == 1:
 		_clear_attention()
 		callout.text = "Track created for %s. Next, record its starting value." % scene_item.get_text(0)
@@ -244,9 +221,7 @@ func _add_track() -> void:
 
 
 func _pose() -> Variant:
-	if mode == 2:
-		return clampf(property_values[0].value, 0.0, 1.0)
-	return Vector3(property_values[0].value, property_values[1].value, property_values[2].value) if mode == 1 else Vector2(property_values[0].value, property_values[1].value)
+	return sample_target.get_indexed(^"modulate:a" if mode == 2 else ^"position")
 
 
 func _capture() -> void:
@@ -254,7 +229,7 @@ func _capture() -> void:
 		feedback.text = "Add a track first."
 		return
 	if phase == 3 and not is_equal_approx(controls.time_slider.value, 1.0):
-		feedback.text = "Set the time slider to 1.00 s first. The opening key is already at 0.00 s."
+		feedback.text = "Drag the playhead to 1.00 s first. The opening key is already at 0.00 s."
 		return
 	_update_key_value()
 	var result: Dictionary = controls.capture_value()
@@ -274,7 +249,7 @@ func _refresh_keys() -> void:
 	sample_stage.queue_redraw()
 	if clip.get_track_count() > 0:
 		for index in clip.track_get_key_count(0):
-			controls.key_list.add_item("%.2f s · %s" % [clip.track_get_key_time(0, index), var_to_str(clip.track_get_key_value(0, index))])
+			controls.key_list.add_item("%.3f s · %s" % [clip.track_get_key_time(0, index), var_to_str(clip.track_get_key_value(0, index))])
 	controls.timeline.queue_redraw()
 	_update_key_value()
 
@@ -287,11 +262,11 @@ func _seek(value: float) -> void:
 	if phase == 3:
 		_clear_attention()
 		if is_equal_approx(value, 1.0):
-			callout.text = "2 · Set %s to %s in the outlined sample Inspector." % ["Alpha" if mode == 2 else "X", "1" if mode == 2 else ("2" if mode == 1 else "100")]
-			_highlight(sidebar)
+			callout.text = "2 · Choose Override to unlock the value fields."
+			_highlight(controls.mode_switch)
 		else:
-			callout.text = "1 · Drag the outlined time slider all the way right to 1 second."
-			_highlight(controls.time_slider)
+			callout.text = "1 · Drag the outlined timeline playhead to the right edge at 1 second."
+			_highlight(controls.timeline)
 	if clip.get_track_count() > 0 and clip.track_get_key_count(0) > 0:
 		feedback.text = "Sample at %.2f s: %s" % [value, clip.value_track_interpolate(0, value)]
 	_update_key_value()
@@ -313,27 +288,24 @@ func _update_key_value() -> void:
 			saved = clip.track_get_key_value(0, key)
 			has_key = true
 			break
-	controls.set_value_context(str(clip.track_get_path(0)), current, {}, saved, has_key, controls.time_slider.value, "Preview value" if phase == 4 else "Sample Inspector value")
+	controls.set_value_context(str(clip.track_get_path(0)), current, {}, saved, has_key, controls.time_slider.value, "Preview value" if phase == 4 else "Tutorial node value")
 
 
 func _override_changed() -> void:
 	if phase == 3 and is_equal_approx(controls.time_slider.value, 1.0):
 		_clear_attention()
-		if controls.capture_value().ok:
-			callout.text = "3 · Capture key will record the value described in the key panel below."
+		if not controls._override_requested:
+			callout.text = "2 · Choose Override to unlock the value fields."
+			_highlight(controls.mode_switch)
+		elif controls.capture_value().value == _pose():
+			callout.text = "3 · Change %s to %s in the outlined fields." % ["value" if mode == 2 else "X", "1" if mode == 2 else ("2" if mode == 1 else "100")]
+			_highlight(controls.value_readout)
+		elif controls.capture_value().ok:
+			callout.text = "4 · Capture saves these fields as the destination key."
 			_highlight(controls.capture_key_button)
 		else:
-			callout.text = "Use a value matching the accepted type. Click an example to try it."
-			_highlight(controls.value_input)
-
-
-func _inspector_changed(_value: float) -> void:
-	sample_stage.queue_redraw()
-	_update_key_value()
-	if phase == 3 and is_equal_approx(controls.time_slider.value, 1.0):
-		_clear_attention()
-		callout.text = "3 · Press the outlined Capture key button to save this destination."
-		_highlight(controls.capture_key_button)
+			callout.text = "Enter a valid value in the outlined fields."
+			_highlight(controls.value_readout)
 
 
 func _toggle_play() -> void:

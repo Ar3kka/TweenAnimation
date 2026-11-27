@@ -8,7 +8,6 @@ signal track_selected(index: int)
 signal time_changed(value: float)
 signal key_selected(index: int)
 signal draw_requested
-signal timeline_input(event: InputEvent)
 signal action_requested(action: String)
 signal override_changed
 
@@ -36,23 +35,28 @@ var property_list: ItemList
 var available_properties := PackedStringArray()
 var available_actions := PackedStringArray()
 var key_value_card: PanelContainer
-var key_context: Label
 var accepted_values_label: Label
 var capture_hint: Label
 var example_row: HFlowContainer
 var use_current_button: Button
-var type_badge: Button
 var mode_switch: HBoxContainer
 var override_mode_button: Button
 var examples_button: Button
 var format_popup: PopupPanel
-var value_readout: HFlowContainer
+var value_readout: HBoxContainer
 var saved_state: Label
 var saved_icon: TextureRect
 var _readout_type := -1
-var _component_labels: Array[Label] = []
+var component_inputs: Array[SpinBox] = []
+var boolean_input: CheckButton
+var text_input: LineEdit
+var new_track_button: Button
+var property_error: Label
+var _override_value: Variant = null
+var _scrubbing := false
 var _editing_enabled := true
 var _override_requested := false
+var _show_values := true
 var _current_value: Variant = null
 var _property_name := ""
 var _example_signature := ""
@@ -61,38 +65,23 @@ var _example_signature := ""
 func build() -> void:
 	add_theme_constant_override("separation", 8)
 	var workspace: VBoxContainer = self
-	workspace.add_child(_text("TRACKS", 12))
-	target_label = _text("Select a node in Godot's Scene tree to browse its properties and actions.", 0)
-	target_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	target_label = _text("", 0)
 	workspace.add_child(target_label)
-	var track_tools := HFlowContainer.new()
-	track_tools.add_theme_constant_override("h_separation", 8)
-	track_tools.add_theme_constant_override("v_separation", 6)
-	workspace.add_child(track_tools)
+	target_label.hide()
 	track_picker = OptionButton.new()
 	track_picker.custom_minimum_size.x = 180
 	track_picker.fit_to_longest_item = false
 	track_picker.item_selected.connect(track_selected.emit)
-	track_picker.tooltip_text = "Select a track to view and capture its keyframes."
-	track_tools.add_child(track_picker)
-	property_row = HBoxContainer.new()
-	track_tools.add_child(property_row)
-	property_row.add_theme_constant_override("separation", 4)
-	property_path = LineEdit.new()
-	property_path.placeholder_text = "Property: position"
-	property_path.custom_minimum_size.x = 160
-	property_path.tooltip_text = "Select a scene node, then enter a property such as position, scale or modulate:a."
-	property_row.add_child(property_path)
-	property_browser = _button(property_row, "Properties…", _open_properties)
-	property_browser.text = ""
-	property_browser.custom_minimum_size = Vector2(34, 34)
-	property_browser.tooltip_text = "Search writable value-track properties on the selected node. You can also type a property path."
+	track_picker.tooltip_text = "Active track: its node and property."
+	new_track_button = Button.new()
+	new_track_button.text = "Track"
+	new_track_button.icon = EditorInterface.get_base_control().get_theme_icon("Add", "EditorIcons")
+	new_track_button.pressed.connect(_open_properties)
+	property_browser = new_track_button
 	action_menu = MenuButton.new()
 	action_menu.text = "Actions"
-	action_menu.tooltip_text = "Create editable keys inspired by Tweenimator effects. These are value-track templates, not runtime Tween calls."
+	action_menu.icon = EditorInterface.get_base_control().get_theme_icon("Animation", "EditorIcons")
 	action_menu.get_popup().id_pressed.connect(func(index: int): action_requested.emit(available_actions[index]))
-	property_row.add_child(action_menu)
-	add_track_button = _button(property_row, "Add track", add_track_requested.emit)
 	_build_key_editor(workspace)
 	separator = HSeparator.new()
 	workspace.add_child(separator)
@@ -105,17 +94,19 @@ func build() -> void:
 	time_slider = HSlider.new()
 	time_slider.min_value = 0.0
 	time_slider.max_value = DEFAULT_LENGTH
-	time_slider.step = 0.01
+	time_slider.step = 0.0
 	time_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	time_slider.value_changed.connect(time_changed.emit)
 	timeline_row.add_child(time_slider)
 
 	timeline = Control.new()
 	timeline.custom_minimum_size = Vector2(0, 200)
-	timeline.tooltip_text = "Click to scrub. Gold markers show keyframes on the active track."
+	timeline.tooltip_text = "Drag anywhere on the timeline to move the playhead continuously. Key markers show recorded values."
+	timeline.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+	timeline.focus_mode = Control.FOCUS_ALL
 	timeline.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	timeline.draw.connect(draw_requested.emit)
-	timeline.gui_input.connect(timeline_input.emit)
+	timeline.gui_input.connect(_scrub_timeline)
 	workspace.add_child(timeline)
 
 	key_heading = _text("KEYFRAMES  ·  Select a key to jump to its time", 12)
@@ -127,6 +118,7 @@ func build() -> void:
 	_build_property_browser()
 	set_target(null)
 	set_value_context("", null)
+	timeline_row.hide()
 
 
 func _build_key_editor(workspace: VBoxContainer) -> void:
@@ -141,25 +133,17 @@ func _build_key_editor(workspace: VBoxContainer) -> void:
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 8)
 	key_value_card.add_child(body)
+	value_row = HBoxContainer.new()
+	value_row.add_theme_constant_override("separation", 8)
+	body.add_child(value_row)
 	var header := HFlowContainer.new()
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_theme_constant_override("h_separation", 8)
 	header.add_theme_constant_override("v_separation", 6)
-	body.add_child(header)
-	var key_icon := TextureRect.new()
-	key_icon.texture = editor.get_theme_icon("Key", "EditorIcons")
-	key_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	key_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	key_icon.custom_minimum_size = Vector2(18, 30)
-	header.add_child(key_icon)
-	key_context = _text("Select a track", 14)
-	key_context.clip_text = true
-	key_context.custom_minimum_size.x = 140
-	key_context.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	header.add_child(key_context)
-	type_badge = Button.new()
-	type_badge.flat = true
-	type_badge.pressed.connect(_open_value_help)
-	header.add_child(type_badge)
+	value_row.add_child(header)
+	header.add_child(track_picker)
+	header.add_child(new_track_button)
+	header.add_child(action_menu)
 	mode_switch = HBoxContainer.new()
 	mode_switch.add_theme_constant_override("separation", 0)
 	header.add_child(mode_switch)
@@ -168,10 +152,12 @@ func _build_key_editor(workspace: VBoxContainer) -> void:
 	use_current_button.text = "Current"
 	use_current_button.toggle_mode = true
 	use_current_button.button_group = modes
-	use_current_button.tooltip_text = "Capture the live property value. Clears any typed override."
+	use_current_button.tooltip_text = "Read the tracked node’s live property value. Discards the override."
 	use_current_button.pressed.connect(func():
 		_override_requested = false
+		_override_value = null
 		value_input.clear()
+		_update_readout(_current_value)
 		_validate_value()
 		override_changed.emit()
 	)
@@ -180,13 +166,13 @@ func _build_key_editor(workspace: VBoxContainer) -> void:
 	override_mode_button.text = "Override"
 	override_mode_button.toggle_mode = true
 	override_mode_button.button_group = modes
-	override_mode_button.tooltip_text = "Type a different value to capture without changing the scene first."
+	override_mode_button.tooltip_text = "Edit these same value fields for the key without changing the scene node."
 	override_mode_button.pressed.connect(func():
 		_override_requested = true
-		value_input.text = var_to_str(_current_value)
+		_override_value = _current_value
+		value_input.text = var_to_str(_override_value)
+		_update_readout(_override_value)
 		_validate_value()
-		value_input.grab_focus()
-		value_input.select_all()
 		override_changed.emit()
 	)
 	mode_switch.add_child(override_mode_button)
@@ -200,12 +186,18 @@ func _build_key_editor(workspace: VBoxContainer) -> void:
 		pressed.content_margin_top = 6
 		pressed.content_margin_bottom = 6
 		button.add_theme_stylebox_override("pressed", pressed)
+	value_readout = HBoxContainer.new()
+	value_readout.add_theme_constant_override("separation", 6)
+	header.add_child(value_readout)
+	value_input = LineEdit.new()
+	value_input.custom_minimum_size.x = 200
+	value_input.text_changed.connect(func(_text: String): _validate_value(); override_changed.emit())
+	header.add_child(value_input)
 	examples_button = Button.new()
-	examples_button.text = "Examples"
 	examples_button.flat = true
 	examples_button.icon = editor.get_theme_icon("Help", "EditorIcons")
+	examples_button.tooltip_text = "Value help and presets"
 	examples_button.pressed.connect(_open_value_help)
-	header.add_child(examples_button)
 	var saved := HBoxContainer.new()
 	saved.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(saved)
@@ -217,20 +209,15 @@ func _build_key_editor(workspace: VBoxContainer) -> void:
 	saved.add_child(saved_icon)
 	saved_state = _text("", 13)
 	saved.add_child(saved_state)
-	value_row = HBoxContainer.new()
-	value_row.add_theme_constant_override("separation", 10)
-	body.add_child(value_row)
-	value_readout = HFlowContainer.new()
-	value_readout.add_theme_constant_override("h_separation", 6)
-	value_readout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	value_row.add_child(value_readout)
-	value_input = LineEdit.new()
-	value_input.placeholder_text = "Empty = current value"
-	value_input.custom_minimum_size.x = 220
-	value_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	value_input.text_changed.connect(func(_text: String): _validate_value(); override_changed.emit())
-	value_row.add_child(value_input)
-	capture_key_button = _button(value_row, "Capture key", capture_key_requested.emit)
+	header.add_child(examples_button)
+	capture_key_button = _button(header, "Capture", capture_key_requested.emit)
+	var capture_style := StyleBoxFlat.new()
+	capture_style.bg_color = editor.get_theme_color("accent_color", "Editor") * Color(1, 1, 1, 0.18)
+	capture_style.border_color = editor.get_theme_color("accent_color", "Editor")
+	capture_style.set_border_width_all(1)
+	capture_style.set_corner_radius_all(4)
+	capture_style.set_content_margin_all(8)
+	capture_key_button.add_theme_stylebox_override("normal", capture_style)
 	capture_hint = _text("", 13)
 	capture_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(capture_hint)
@@ -263,25 +250,22 @@ func _open_value_help() -> void:
 
 
 func set_value_context(property: String, current: Variant, info: Dictionary = {}, saved: Variant = null, has_key: bool = false, at_time: float = 0.0, source: String = "Node value") -> void:
-	if _property_name != property:
+	if _property_name != property or typeof(_current_value) != typeof(current):
 		_override_requested = false
+		_override_value = null
 		value_input.clear()
 	_current_value = current
 	_property_name = property
-	key_context.text = property.substr(property.find(":") + 1) if ":" in property else (property if not property.is_empty() else "Select a track")
-	key_context.tooltip_text = property
 	value_readout.tooltip_text = source + ": " + var_to_str(current)
 	use_current_button.tooltip_text = source + ": " + var_to_str(current) + "\nCapture this live value; clears the override."
-	saved_state.text = "%.2f s · %s" % [at_time, "Key" if has_key else "Empty"]
+	saved_state.text = "%.3f s · %s" % [at_time, "Key" if has_key else "Empty"]
 	saved_state.tooltip_text = "Saved key: " + var_to_str(saved) if has_key else "No key at this exact time. Capture key to record a value here."
 	saved_icon.tooltip_text = saved_state.tooltip_text
 	saved_icon.modulate.a = 1.0 if has_key else 0.35
 	var details := preload("res://addons/tween_animation/editor/key_values.gd").describe(current, property, info)
 	accepted_values_label.text = "Accepts " + str(details.accepted) if current != null else "Choose a property track whose target exists in the current scene."
-	type_badge.text = type_string(typeof(current)) if current != null else "—"
-	type_badge.tooltip_text = accepted_values_label.text
 	value_input.tooltip_text = accepted_values_label.text
-	_update_readout(current)
+	_update_readout(_override_value if _override_requested else current)
 	var signature := str(details)
 	if signature != _example_signature:
 		_example_signature = signature
@@ -290,11 +274,14 @@ func set_value_context(property: String, current: Variant, info: Dictionary = {}
 			child.queue_free()
 		for example in details.examples:
 			var button := Button.new()
-			button.text = example
+			var parsed: Dictionary = preload("res://addons/tween_animation/editor/key_values.gd").parse(example, current)
+			button.text = _value_caption(parsed.value) if parsed.ok else example
 			button.tooltip_text = "Use this as the key override."
 			button.pressed.connect(func():
 				_override_requested = true
-				value_input.text = example
+				_override_value = parsed.value
+				value_input.text = var_to_str(_override_value)
+				_update_readout(_override_value)
 				_validate_value()
 				format_popup.hide()
 				override_changed.emit()
@@ -303,39 +290,93 @@ func set_value_context(property: String, current: Variant, info: Dictionary = {}
 	_validate_value()
 
 
+func _value_caption(value: Variant) -> String:
+	var axes := _axes(typeof(value))
+	if axes.is_empty():
+		return str(value)
+	var parts := PackedStringArray()
+	for index in axes.size():
+		parts.append("%s %s" % [axes[index], value[index]])
+	return " · ".join(parts)
+
+
+func _axes(type: int) -> PackedStringArray:
+	match type:
+		TYPE_VECTOR2, TYPE_VECTOR2I: return ["X", "Y"]
+		TYPE_VECTOR3, TYPE_VECTOR3I: return ["X", "Y", "Z"]
+		TYPE_VECTOR4, TYPE_VECTOR4I, TYPE_QUATERNION: return ["X", "Y", "Z", "W"]
+		TYPE_COLOR: return ["R", "G", "B", "A"]
+	return []
+
+
 func _update_readout(value: Variant) -> void:
 	var type := typeof(value)
 	if type != _readout_type:
 		_readout_type = type
-		_component_labels.clear()
+		component_inputs.clear()
+		boolean_input = null
+		text_input = null
 		for child in value_readout.get_children():
 			value_readout.remove_child(child)
 			child.queue_free()
-		var axes := "XYZW".left(2 if type in [TYPE_VECTOR2, TYPE_VECTOR2I] else (3 if type in [TYPE_VECTOR3, TYPE_VECTOR3I] else 4)) if type in [TYPE_VECTOR2, TYPE_VECTOR2I, TYPE_VECTOR3, TYPE_VECTOR3I, TYPE_VECTOR4, TYPE_VECTOR4I] else ("RGBA" if type == TYPE_COLOR else "")
+		var axes := _axes(type)
 		var colors := [Color("ef7979"), Color("8dca85"), Color("7aa8ef"), Color("b9a3de")]
-		for index in maxi(axes.length(), 1):
-			var chip := PanelContainer.new()
-			var style := StyleBoxFlat.new()
-			style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
-			style.set_content_margin_all(6)
-			style.set_corner_radius_all(3)
-			chip.add_theme_stylebox_override("panel", style)
-			value_readout.add_child(chip)
-			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 9)
-			chip.add_child(row)
-			if not axes.is_empty():
-				var axis := _text(axes[index], 13)
-				axis.modulate = colors[index]
-				row.add_child(axis)
-			var number := _text("", 14)
-			number.add_theme_font_override("font", EditorInterface.get_base_control().get_theme_font("source", "EditorFonts"))
-			row.add_child(number)
-			_component_labels.append(number)
-	for index in _component_labels.size():
-		var text := var_to_str(value[index]) if _component_labels.size() > 1 else (var_to_str(value) if value != null else "No value")
-		_component_labels[index].text = text.left(49) + "…" if text.length() > 52 else text
-		_component_labels[index].tooltip_text = text
+		if not axes.is_empty() or type in [TYPE_INT, TYPE_FLOAT]:
+			for index in maxi(axes.size(), 1):
+				var row := HBoxContainer.new()
+				row.add_theme_constant_override("separation", 3)
+				value_readout.add_child(row)
+				if not axes.is_empty():
+					var axis := _text(axes[index], 13)
+					axis.modulate = colors[index]
+					axis.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+					row.add_child(axis)
+				var input := SpinBox.new()
+				input.custom_minimum_size.x = 78
+				input.allow_greater = true
+				input.allow_lesser = true
+				input.step = 1.0 if type in [TYPE_INT, TYPE_VECTOR2I, TYPE_VECTOR3I, TYPE_VECTOR4I] else 0.001
+				input.value_changed.connect(_component_changed.bind(index))
+				row.add_child(input)
+				component_inputs.append(input)
+		elif type == TYPE_BOOL:
+			boolean_input = CheckButton.new()
+			boolean_input.text = "Enabled"
+			boolean_input.toggled.connect(func(enabled: bool): _set_override(enabled))
+			value_readout.add_child(boolean_input)
+		elif type in [TYPE_STRING, TYPE_STRING_NAME]:
+			text_input = LineEdit.new()
+			text_input.custom_minimum_size.x = 150
+			text_input.text_changed.connect(func(text: String): _set_override(StringName(text) if type == TYPE_STRING_NAME else text))
+			value_readout.add_child(text_input)
+		else:
+			value_readout.add_child(_text("Select a track" if value == null else _value_caption(value).left(48), 13))
+	for index in component_inputs.size():
+		component_inputs[index].set_value_no_signal(value[index] if not _axes(type).is_empty() else value)
+	if is_instance_valid(boolean_input):
+		boolean_input.set_pressed_no_signal(value)
+	if is_instance_valid(text_input):
+		text_input.text = str(value)
+
+
+func _component_changed(number: float, index: int) -> void:
+	if not _override_requested or not _editing_enabled:
+		return
+	var value: Variant = _override_value
+	if _axes(typeof(value)).is_empty():
+		value = int(number) if typeof(_current_value) == TYPE_INT else number
+	else:
+		value[index] = int(number) if typeof(value) in [TYPE_VECTOR2I, TYPE_VECTOR3I, TYPE_VECTOR4I] else number
+	_set_override(value)
+
+
+func _set_override(value: Variant) -> void:
+	if not _override_requested or not _editing_enabled:
+		return
+	_override_value = value
+	value_input.text = var_to_str(value)
+	_validate_value()
+	override_changed.emit()
 
 
 func capture_value() -> Dictionary:
@@ -355,8 +396,15 @@ func _validate_value() -> void:
 	override_mode_button.disabled = _current_value == null
 	use_current_button.set_pressed_no_signal(not editing_override)
 	override_mode_button.set_pressed_no_signal(editing_override)
-	value_input.visible = editing_override and _editing_enabled
-	value_readout.visible = not editing_override or not _editing_enabled
+	var structured := not component_inputs.is_empty() or is_instance_valid(boolean_input) or is_instance_valid(text_input)
+	value_input.visible = editing_override and _editing_enabled and not structured
+	value_readout.visible = _show_values and not value_input.visible
+	for input in component_inputs:
+		input.editable = _override_requested and _editing_enabled
+	if is_instance_valid(boolean_input):
+		boolean_input.disabled = not (_override_requested and _editing_enabled)
+	if is_instance_valid(text_input):
+		text_input.editable = _override_requested and _editing_enabled
 	capture_hint.visible = not result.ok and _current_value != null and _editing_enabled
 	capture_hint.text = str(result.error)
 	capture_hint.modulate = EditorInterface.get_base_control().get_theme_color("error_color", "Editor")
@@ -364,29 +412,56 @@ func _validate_value() -> void:
 
 func _build_property_browser() -> void:
 	property_dialog = AcceptDialog.new()
-	property_dialog.title = "Selected node · animatable value properties"
+	property_dialog.title = "New property track"
 	property_dialog.min_size = Vector2i(500, 400)
-	property_dialog.get_ok_button().text = "Use property"
+	property_dialog.dialog_hide_on_ok = false
+	add_track_button = property_dialog.get_ok_button()
+	add_track_button.text = "Add track"
 	add_child(property_dialog)
 	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
 	property_dialog.add_child(body)
-	property_search = LineEdit.new()
-	property_search.placeholder_text = "Search properties, e.g. position, alpha, shader…"
+	property_row = HBoxContainer.new()
+	body.add_child(property_row)
+	property_row.add_child(_text("Property", 0))
+	property_path = LineEdit.new()
+	property_path.placeholder_text = "Search or type a property path"
+	property_path.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	property_row.add_child(property_path)
+	property_search = property_path
 	property_search.text_changed.connect(func(_text: String): _filter_properties())
-	body.add_child(property_search)
 	property_list = ItemList.new()
-	property_list.custom_minimum_size = Vector2(460, 280)
+	property_list.custom_minimum_size = Vector2(460, 260)
 	property_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	property_list.item_activated.connect(func(_index: int): _use_property(); property_dialog.hide())
+	property_list.item_selected.connect(func(_index: int): _use_property())
+	property_list.item_activated.connect(func(_index: int): _use_property(); _try_add_track())
 	body.add_child(property_list)
-	property_dialog.confirmed.connect(_use_property)
+	property_error = _text("", 13)
+	property_error.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	property_error.custom_minimum_size.x = 460
+	property_error.hide()
+	body.add_child(property_error)
+	property_dialog.confirmed.connect(_try_add_track)
+
+
+func _try_add_track() -> void:
+	var count := track_picker.item_count
+	var selected := track_picker.selected
+	add_track_requested.emit()
+	if track_picker.item_count > count or (selected < 0 and track_picker.selected >= 0):
+		property_dialog.hide()
+	else:
+		property_error.text = "Track not added. Choose a valid property on the selected node."
+		property_error.show()
 
 
 func set_target(target: Node) -> void:
 	var options := preload("res://addons/tween_animation/editor/timeline_options.gd")
 	available_properties = options.properties(target)
 	available_actions = options.actions(target)
-	property_browser.disabled = available_properties.is_empty()
+	property_browser.disabled = not is_instance_valid(target)
+	property_browser.tooltip_text = "Add a track for " + str(target.name) if is_instance_valid(target) else "Select a scene node before adding a track."
+	property_dialog.title = "New track · " + str(target.name) if is_instance_valid(target) else "New property track"
 	action_menu.disabled = available_actions.is_empty()
 	property_dialog.hide()
 	action_menu.get_popup().clear()
@@ -397,7 +472,7 @@ func set_target(target: Node) -> void:
 
 
 func _open_properties() -> void:
-	property_search.clear()
+	property_error.hide()
 	_filter_properties()
 	property_dialog.popup_centered()
 	property_search.grab_focus()
@@ -420,24 +495,51 @@ func _use_property() -> void:
 
 
 func focus_lesson(phase: int) -> void:
-	# The real editor shows everything; practice progressively reveals relevant controls.
-	target_label.visible = phase > 0
+	target_label.hide()
 	track_picker.visible = phase >= 2
-	property_row.visible = phase == 1
+	new_track_button.visible = phase == 1
+	property_row.show()
+	property_dialog.hide()
 	action_menu.hide()
 	_editing_enabled = phase in [2, 3]
+	_show_values = phase >= 2
 	format_popup.hide()
 	example_row.visible = _editing_enabled
-	value_row.visible = phase in [2, 3, 4]
-	key_value_card.visible = phase in [2, 3, 4]
+	value_row.visible = phase in [1, 2, 3, 4]
+	key_value_card.visible = phase in [1, 2, 3, 4]
 	mode_switch.visible = _editing_enabled
+	value_readout.visible = phase >= 2
 	examples_button.visible = _editing_enabled
+	saved_state.get_parent().visible = phase >= 2
 	_validate_value()
 	separator.visible = phase in [2, 3, 4]
-	timeline_row.visible = phase in [2, 3, 4]
+	timeline_row.hide()
 	timeline.visible = phase in [2, 3, 4]
 	key_heading.visible = phase in [3, 4]
 	key_list.visible = phase in [3, 4]
+
+
+func _scrub_timeline(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_scrubbing = event.pressed
+		_scrub_to(event.position.x)
+		timeline.grab_focus()
+		timeline.accept_event()
+	elif event is InputEventMouseMotion and _scrubbing:
+		if event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			_scrub_to(event.position.x)
+			timeline.accept_event()
+		else:
+			_scrubbing = false
+
+
+func _scrub_to(x: float) -> void:
+	time_slider.value = time_slider.max_value * clampf(x / maxf(timeline.size.x, 1.0), 0.0, 1.0)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_scrubbing = false
 
 
 func paint(animation: Animation) -> void:
@@ -480,7 +582,7 @@ func _button(parent: Control, caption: String, action: Callable) -> Button:
 	button.text = caption
 	button.custom_minimum_size = Vector2(80, 34)
 	button.pressed.connect(action)
-	var icon_name: String = {"Add track": "Add", "Capture key": "Key", "Properties…": "Search"}.get(caption, "Add")
+	var icon_name: String = {"Add track": "Add", "Capture key": "Key", "Capture": "Key", "Properties…": "Search"}.get(caption, "Add")
 	button.icon = EditorInterface.get_base_control().get_theme_icon(icon_name, "EditorIcons")
 	button.tooltip_text = "Add the selected node property as a track." if caption == "Add track" else "Capture a property value at the playhead time."
 	parent.add_child(button)
