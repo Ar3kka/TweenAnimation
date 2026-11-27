@@ -103,10 +103,10 @@ func configure(mode: int, phase: int) -> void:
 		stage.add_child(readout)
 		key.pressed.connect(func(): readout.text = "move_right() · actor.gd · line 12\nPosition · offset X +100 · duration 0.4 s · wait 0.2 s\nIn the real workspace, edit these fields and Apply; Move this call changes its method location.")
 	else:
-		_journey("Runtime motion", "Script", "Recorded clip", "Animation")
+		_journey("Tween call", "Script", "Editable timeline", "Key")
 		_label("Create code-backed key writes the selected parameters at your chosen method location. Undo restores the previous source. Rescan reads later script changes.")
 		_label("Runtime means the order or duration depends on live data, branches or loops. It is not an exact playback time. Source line is optional: visual editing does not require writing code.")
-		_label("Animation clips remains available for fixed poses and AnimationPlayer resources. Code Tweens is for runtime motion; it does not execute arbitrary gameplay methods as an editor preview.")
+		_label("Tweenimation maps recognizable runtime Tween calls to editable keys. Run your scene to see gameplay behavior; computed values and branches are marked Runtime.")
 
 
 func _label(text: String) -> void:

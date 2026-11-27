@@ -34,7 +34,6 @@ func build() -> void:
 	split_offset = 260
 	entries = DATA.SOURCE.duplicate(true)
 	entries.merge(DATA.ITEMS.duplicate(true))
-	entries.merge(DATA.VISUAL.duplicate(true))
 	_read_signatures()
 	var sidebar := VBoxContainer.new()
 	sidebar.custom_minimum_size.x = 220
@@ -195,15 +194,10 @@ func _show_entry(key: String) -> void:
 	content.add_child(_label(str(item["target_note"]), 15))
 	content.add_child(_label(str(item["summary"]), 17))
 	if content_mode == 2:
-		var practice
-		if item.has("source_phase"):
-			practice = preload("res://addons/tween_animation/editor/source_walkthrough.gd").new()
-		else:
-			practice = preload("res://addons/tween_animation/editor/timeline_preview.gd").new()
+		var practice = preload("res://addons/tween_animation/editor/source_walkthrough.gd").new()
 		practice.build()
 		var target_mode := 1 if target_filter.get_item_text(target_filter.selected) == "3D" else (2 if target_filter.get_item_text(target_filter.selected) == "UI" else 0)
-		var phases := {"guide_visual_start": 1, "timeline_add_track": 1, "timeline_capture": 3, "timeline_preview": 4, "timeline_save": 5, "guide_visual_player": 5, "guide_visual_existing": 5}
-		practice.configure(target_mode, item.get("source_phase", phases.get(key, 1)))
+		practice.configure(target_mode, item.get("source_phase", 1))
 		content.add_child(practice)
 		var number := 1
 		for instruction in item["steps"]:

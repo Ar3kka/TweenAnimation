@@ -7,7 +7,7 @@ signal code_start_requested
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 22
+const UI_REVISION := 25
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -19,7 +19,6 @@ var progress: Label
 var step_title: Label
 var previous: Button
 var next_button: Button
-var reuse_button: Button
 var visual: Control
 var steps: Array[Dictionary] = []
 var lesson_picker: OptionButton
@@ -27,18 +26,14 @@ var lesson_path := 0
 var content_body: VBoxContainer
 var card_style: StyleBoxFlat
 var copy_button: Button
-var timeline_example := ""
 var helper_view: CodeEdit
 var comparison: RichTextLabel
-var resource_view: CodeEdit
 var action_label: Label
 var language_picker: OptionButton
 var snippet_context: Label
 var content_mode := 0
-var timeline_practice
 var navigation_hint: Label
 var code_practice
-var visual_workflow: OptionButton
 var code_guide := true
 
 
@@ -107,9 +102,9 @@ func build(logo_texture: Texture2D) -> void:
 		hint.modulate.a = 0.65
 		content.add_child(hint)
 	var open_button := Button.new()
-	open_button.text = "Open an existing animation…"
+	open_button.text = "Open Tween timeline"
 	open_button.flat = true
-	open_button.pressed.connect(func(): open_requested.emit())
+	open_button.pressed.connect(func(): code_start_requested.emit())
 	landing.add_child(open_button)
 
 	details = ScrollContainer.new()
@@ -149,11 +144,6 @@ func build(logo_texture: Texture2D) -> void:
 	lesson_picker.custom_minimum_size.x = 320
 	lesson_row.add_child(lesson_picker)
 	body.add_child(lesson_row)
-	visual_workflow = OptionButton.new()
-	visual_workflow.add_item("Code Tweens - runtime values and method placement")
-	visual_workflow.add_item("Animation clips - recorded poses and AnimationPlayer")
-	visual_workflow.item_selected.connect(func(index: int): code_guide = index == 0; _show_guide(selected_mode))
-	body.add_child(visual_workflow)
 	code_practice = preload("res://addons/tween_animation/editor/source_walkthrough.gd").new()
 	code_practice.build()
 	language_picker = OptionButton.new()
@@ -190,13 +180,8 @@ func build(logo_texture: Texture2D) -> void:
 	visual = preload("res://addons/tween_animation/editor/tutorial_visual.gd").new()
 	visual.custom_minimum_size.y = 170
 	card_body.add_child(visual)
-	timeline_practice = preload("res://addons/tween_animation/editor/timeline_preview.gd").new()
-	timeline_practice.build()
-	timeline_practice.target_selection_changed.connect(_practice_selection_changed)
-	card_body.add_child(timeline_practice)
 	card_body.add_child(code_practice)
 	code_practice.hide()
-	timeline_practice.hide()
 	guide = RichTextLabel.new()
 	guide.bbcode_enabled = true
 	guide.fit_content = true
@@ -212,7 +197,6 @@ func build(logo_texture: Texture2D) -> void:
 	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	guide.add_theme_constant_override("line_separation", 6)
 	card_body.add_child(guide)
-	card_body.move_child(timeline_practice, guide.get_index())
 
 	code_view = CodeEdit.new()
 	code_view.editable = false
@@ -233,16 +217,6 @@ func build(logo_texture: Texture2D) -> void:
 	comparison.scroll_active = false
 	comparison.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 	card_body.add_child(comparison)
-	resource_view = CodeEdit.new()
-	resource_view.editable = false
-	resource_view.custom_minimum_size.y = 0
-	resource_view.gutters_draw_line_numbers = true
-	_style_code(resource_view)
-	_snippet(card_body, resource_view, "PLAY A SAVED TIMELINE")
-	reuse_button = Button.new()
-	reuse_button.text = "Open an existing .tres animation…"
-	reuse_button.pressed.connect(func(): open_requested.emit())
-	card_body.add_child(reuse_button)
 	var navigation := HBoxContainer.new()
 	navigation.add_theme_constant_override("separation", 12)
 	body.add_child(navigation)
@@ -287,24 +261,20 @@ func _text(value: String, font_size: int) -> Label:
 
 
 func _open_workspace() -> void:
-	if content_mode == 2 and code_guide:
-		code_start_requested.emit()
-	else:
-		start_requested.emit(MODES[selected_mode])
+	code_start_requested.emit()
 
 
 func _show_guide(index: int) -> void:
 	_ensure_ui()
 	selected_mode = index
 	start_button.text = "Open " + MODES[index] + " timeline →"
-	navigation_hint.text = "Next / Back show prepared practice examples. Open timeline switches to editing your project's animation." if content_mode == 2 else "Next / Back change the lesson. Run copied code in your scene, or use Open timeline to try the editor steps."
+	navigation_hint.text = "Next / Back show prepared practice examples. Open timeline shows the Tween calls found in your project scripts." if content_mode == 2 else "Next / Back change the lesson. Run copied code in your scene, or use Open timeline to try the editor steps."
 	menu.hide()
 	details.show()
-	visual_workflow.visible = content_mode == 2
 	lesson_picker.get_parent().visible = content_mode != 2
 	if content_mode == 2:
-		steps = _source_lessons() if code_guide else preload("res://addons/tween_animation/editor/visual_lessons.gd").lessons(index)
-		start_button.text = "Open Code Tweens" if code_guide else "Open Animation clips"
+		steps = _source_lessons()
+		start_button.text = "Open Tween timeline"
 		navigation_hint.text = "Practice controls use isolated sample data. Next changes the explanation; Open takes you to your project."
 		step_index = 0
 		_render_step()
@@ -329,41 +299,14 @@ func _show_guide(index: int) -> void:
 		start_value = "0.0"
 		end_value = "1.0"
 		node_path = "$Panel"
-	steps = [
-		{"title": "Meet your animation target", "body": "[b]Mission: pick something to bring to life.[/b]\n\nOpen a scene and select a [b]%s[/b] in the Scene tree.\n\n%s" % [target, differences]},
-		{"title": "Give it a property to play with", "body": "[b]A track = one property changing over time.[/b]\n\nOpen the timeline, enter [code]%s[/code], then choose [b]Add track[/b].\n\nThink of a track as a lane; its keys are the stops along the way. Return to Setup to continue this guide." % property},
-		{"title": "Plant the first key", "body": "[b]This is where the journey begins. ◆[/b]\n\nAt [b]0 seconds[/b], enter [code]%s[/code] in Value and press [b]Capture key[/b].\n\nTip: an empty Value field captures what the selected node already has." % start_value},
-		{"title": "Choose the destination", "body": "[b]Two keys. One little journey. ◆ ━━━ ◆[/b]\n\nMove the playhead to [b]1 second[/b], enter [code]%s[/code], then [b]Capture key[/b] again.\n\nScrub between them: Godot fills in the values along the way." % end_value},
-		{"title": "Bring it to life", "body": "[b]Press Play preview, then take a look![/b]\n\nSwitch to Godot's [b]%s view[/b] while playback continues; return to Timeline to pause. Then [b]Save[/b] your animation as a .tres file.\n\nPreview changes the open scene's properties and leaves the last sampled values on its nodes. The animation illustrated here is only a demonstration." % ("3D" if mode == "3D" else "2D")},
-		{"title": "Let your game press Play", "body": "[b]Your animation is ready for code.[/b]\n\nAdd an [b]AnimationPlayer[/b] as a child of the scene root used when authoring. Keep its default root_node (..).\n\nThe example loads your saved Animation into a library. Replace the file path with yours. The other two functions show direct Tween and helper alternatives."},
-		{"title": "Bring your existing work along", "body": "[b]Already made an animation? Give it a home here.[/b]\n\n[b].tres Animation[/b] → Open it below. Its track paths must match the open scene.\n\n[b]AnimationPlayer[/b] → Save its Animation resource as .tres, then Open it.\n\n[b]Tween code[/b] → Keep running it, or recreate its property, values and duration as keys. Running Tweens cannot be imported.\n\nValue tracks are supported. Script easing, chained and parallel Tween calls are not automatically converted. The helper's custom() works across 2D, 3D and UI; its movement, scale, rotation, press and wiggle helpers support Node2D, Node3D and Control."}
-	]
-	code_view.text = ("# Attach to the scene root; add AnimationPlayer as a child.\nextends Node\n\n" +
-		"func _ready() -> void:\n" +
-		"    var clip := load(\"res://animations/my_animation.tres\") as Animation\n" +
-		"    var library := AnimationLibrary.new()\n" +
-		"    library.add_animation(\"my_animation\", clip)\n" +
-		"    $AnimationPlayer.add_animation_library(\"tweenimation\", library)\n" +
-		"    $AnimationPlayer.play(\"tweenimation/my_animation\")\n\n" +
-		"# Alternative: animate directly with a runtime Tween.\n" +
-		"func animate_directly() -> void:\n" +
-		"    var tween := create_tween()\n" +
-		"    tween.tween_property(%s, \"%s\", %s, 1.0)\n\n" +
-		"# Or use the add-on's runtime helper (same property and target).\n" +
-		"func animate_with_helper() -> void:\n" +
-		"    var animator := Tweenimator.new()\n" +
-		"    animator.custom(%s, ^\"%s\", %s, 1.0)\n") % [node_path, property, end_value, node_path, property, end_value]
-
-	timeline_example = code_view.text
+	steps = _source_lessons()
+	_build_code_lesson(node_path, property, end_value)
 	if lesson_path == 2:
 		_build_code_lesson(node_path, property, end_value)
-	steps.insert(1, _property_lesson())
 	steps.insert(2, _direction_lesson())
 	steps.insert(3, _press_lesson())
 	steps.insert(4, _owner_lesson(node_path, property, end_value))
 	steps.insert(5, _registry_lesson(node_path, property, end_value))
-	_attach_comparisons(node_path, property, end_value, start_value)
-	_prioritize_setup()
 	step_index = 0
 	_render_step()
 
@@ -393,23 +336,15 @@ func _render_step() -> void:
 	card_style.border_color = [Color("78b9ff"), Color("ff8f91"), Color("8fdfb3")][selected_mode]
 	var visual_only := content_mode == 2
 	visual.visible = not visual_only
-	timeline_practice.visible = visual_only and not code_guide
-	code_practice.visible = visual_only and code_guide
+	code_practice.visible = visual_only
 	code_view.get_parent().get_parent().visible = not visual_only
 	helper_view.get_parent().get_parent().visible = not visual_only
 	snippet_context.visible = not visual_only
 	if visual_only:
-		if code_guide:
-			code_practice.configure(selected_mode, step_index)
-		else:
-			timeline_practice.configure(selected_mode, step_index)
+		code_practice.configure(selected_mode, step_index)
 		comparison.hide()
-		resource_view.get_parent().get_parent().hide()
-		reuse_button.visible = step_index == steps.size() - 1
 		previous.disabled = step_index == 0
 		next_button.text = "Open timeline →" if step_index == steps.size() - 1 else "Next step →"
-		if step_index == 0 and not code_guide:
-			_practice_selection_changed(timeline_practice.selected)
 		details.scroll_vertical = 0
 		return
 	var examples := preload("res://addons/tween_animation/editor/tutorial_examples.gd")
@@ -433,23 +368,11 @@ func _render_step() -> void:
 	copy_button.tooltip_text = "Copy regular Godot Tween example"
 	comparison.text = str(steps[step_index]["comparison"]).get_slice("\n\n[b]Defaults:", 0)
 	comparison.visible = content_mode == 0 and not comparison.text.is_empty()
-	resource_view.get_parent().get_parent().visible = steps[step_index]["title"] == "Let your game press Play"
-	resource_view.text = examples.gdscript(timeline_example, false) if language_picker.selected == 0 else examples.csharp(selected_mode, "Let your game press Play", false)
-	_style_code(resource_view)
-	reuse_button.visible = steps[step_index]["title"] == "Bring your existing work along"
 	previous.disabled = step_index == 0
 	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
 	if lesson_path == 2 and step_index == steps.size() - 1:
 		next_button.text = "Choose another guide →"
 	details.scroll_vertical = 0
-
-
-func _practice_selection_changed(_is_selected: bool) -> void:
-	if content_mode != 2 or step_index != 0:
-		return
-	# Node selection demonstrates track targeting; it never gates lesson navigation.
-	next_button.disabled = false
-	next_button.text = "Next: add a track →"
 
 
 func _fit_body() -> void:
@@ -753,5 +676,5 @@ func _source_lessons() -> Array[Dictionary]:
 		{"title": "Let the destination change", "action": "Try Offset, Value or Method parameter below.", "body": "[b]This is where Tweens shine.[/b] Offset reads the current property each time the call runs. Move a character, then call the same animation again: its starting position can be different. A method parameter supplies a destination chosen by gameplay. The fields stay visual."},
 		{"title": "Give motion a rhythm", "action": "Try a duration, a wait and a sequence choice.", "body": "[b]Duration moves; interval waits afterwards.[/b] Join an earlier Tween to append a step, or create an independent Tween that runs alongside it. The map shows known timing within each method invocation. Different methods are not one shared playback sequence."},
 		{"title": "A key you can understand", "action": "Click the sample key to reveal its details.", "body": "[b]Select a real key to see its source method, line and editable parameters.[/b] Apply writes only changed arguments. Original runtime expressions are kept until you choose a replacement. Move this call changes placement inside its method; Source line is optional for coders."},
-		{"title": "Runtime motion or a recorded clip?", "action": "Open Code Tweens when ready to work on your scene.", "body": "[b]Code Tweens[/b] edits runtime animation calls. [b]Animation clips[/b] records fixed property keys for AnimationPlayer. Use the workflow selector above to learn either. Branches, loops, external bindings and computed durations can prevent exact timing; these are labelled Runtime. Code Tweens does not execute arbitrary gameplay methods as an editor preview."}
+		{"title": "Read your Tween map", "action": "Open the Tween timeline and select a scene node.", "body": "[b]Your timeline is a readable map of runtime Tween calls.[/b] Select an operation to inspect its method, source line, target and parameters. Edit values visually or jump to the source. Branches and runtime values remain marked as such; run the scene to see gameplay behavior."}
 	]

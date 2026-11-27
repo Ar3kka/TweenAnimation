@@ -6,30 +6,17 @@ A Godot add-on for keeping track of individual Tweens, creating intent-first eff
 
 Copy `addons/tween_animation` into your project's `addons/` folder. Enable **Tweenimation** in **Project > Project Settings > Plugins**. The Setup tab offers centered 2D, 3D and UI entry points, visual walkthroughs, and paired helper/native code snippets.
 
-## Runtime Tweens and AnimationPlayer
+## Tweenimation
 
-**Code Tweens** is a source-backed editor for runtime animation calls. **Animation clips** is the existing fixed-key editor that saves Godot Animation resources for AnimationPlayer. AnimationPlayer is useful for authored clips, synchronized tracks and playback; Tweens are useful when destinations, starting values or durations depend on gameplay.
+Tweenimation helps you read and edit runtime Tweens visually in Godot. Select a scene node to map recognizable Tween and Tweenimator calls from project scripts into a timeline. Each operation shows its method, source line, target, parameters and known timing.
 
-In **Timeline > Code Tweens**, select a scene node. Tweenimation detects 2D, 3D or UI, scans scripts attached to the open scene (including base scripts), and maps recognizable native Godot Tween and Tweenimator calls. Select an operation to inspect its method, line, timing and parameters. Native Tweens do not require Tweenimator.
+Create a Tween by choosing a method and clicking a source line to place it. Existing code is preserved. Edit destinations, durations, intervals and supported parameters visually, or jump to the call in the script. Runtime offsets and method parameters let an animation adapt to values chosen while the game runs.
 
-**Visual Timeline mode requires no code entry:**
+Tweenimation supports 2D, 3D and UI nodes, native Godot Tweens and the optional Tweenimator helper. The helper can create and name its own Tweens or manage existing ones. The timeline makes code-driven animation easier to inspect and edit.
 
-1. Choose **Add key**, a method, then click a line in the read-only source preview. Choose **Before** or **After**: an insertion arrow marks the gap and existing code moves down. Multiline statements stay intact. **Quick locations** also offers method boundaries. Methods on parent scene nodes can animate a selected child without giving that child a script.
-2. Choose an animatable property and a destination: a fixed value, offset from the current value, method parameter, or selected node property. Numeric/vector fields accept data directly. Runtime expressions already in the source are preserved by default.
-3. Choose duration, optional trailing wait and whether to join an earlier Tween or start independently. Creation generates native Tween calls at the chosen location. A node with no available scene script can create a GDScript through a file picker.
-4. Select a key to edit parameters or move its statement within the same method. Apply updates only changed arguments; keys regenerate from source. Godot Undo restores the previous script. Save existing script-editor buffers before applying; stale or unsaved edits are rejected.
+Recognized source calls can be mapped; computed targets, branches and durations may be uncertain and are marked accordingly. The timeline does not execute gameplay methods as an editor preview. Run your scene to see the actual result.
 
-The global GDScript / C# / Visual Timeline selector controls tutorials and the optional source pane. **Source line** opens the actual language of the script at its call; it does not translate project scripts. C# supports source indexing and edits, but needs an existing instance method and **Godot .NET** for compilation. Standard Godot cannot validate C# project types.
-
-### What the map can infer
-
-Known literal durations, sequential steps, parallel/chain operations, trailing intervals and awaited handles are mapped within each method invocation. Separate methods and independent Tweens are not one guaranteed playback sequence. Blue spans animate; gold spans wait.
-
-Computed durations, branches, loops/speed changes and external Tween handles can make the schedule unknown. These appear as **Runtime**, rather than an invented time. Target aliases resolved from scene paths are confirmed; unresolved targets are marked possible matches. Unknown receivers remain read-only.
-
-This is source analysis, **not universal introspection of every live Tween**. It does not execute gameplay methods, follow arbitrary factories/function calls, recover source locations from C++ Tween internals, or evaluate arbitrary expressions. Callback bodies and computed property names remain source-only; built-in scene scripts are read-only. Moving existing statements between methods is restricted to preserve local variable scope. Code Tweens has no gameplay playback/scrubbing preview; run the scene to test runtime behavior. Animation clips retains its editor preview.
-
-Setup includes separate visual practice for code-backed Tweens and recorded clips. Documentation explains both workflows and their limits.
+Visual Timeline tutorials let you practice selecting a target, placing a call and editing its parameters without writing code. GDScript and C# modes show examples and source navigation. C# editing requires Godot .NET for compilation.
 
 ## Name your Tweens
 
@@ -158,13 +145,11 @@ Godot's Tween API is sufficient on its own. Tweenimator adds names, lookup, clea
 
 The Setup tutorials pair both implementations on every step, explain owner choice and default easing, and include embedded copy icons. The visual, native-code and helper-code paths all cover the named registry.
 
-## Timeline resources
+## Tween timeline
 
-The editor creates standard Godot Animation resources, independently of the runtime registry. Select a scene node, add a property track, and capture keys at different times. Save as `.tres`; play it through an AnimationLibrary on AnimationPlayer with paths rooted at the same scene root.
+The editable timeline is focused on runtime Tween calls. It reads recognizable Tween and Tweenimator operations in project scripts, groups them by target and method, and shows source lines, parameters, and known timing. Add a Tween call visually by choosing a method location and parameters; existing source is shifted instead of replaced. Select an existing operation to edit supported arguments or jump to its code.
 
-The timeline previews value tracks for Node2D, Node3D and Control. It writes properties into the open scene; switch to the 2D/3D editor to observe playback. There is no embedded scene viewport, and preview leaves the last sampled values on the nodes. Existing Animation resources can be opened as `.tres`; non-value tracks are not edited or previewed by the value-track controls.
-
-The timeline does not yet provide key dragging, multi-track selection, undo integration, or an easing-curve editor. It does not import running Tweens or automatically reproduce procedural chains/easing. Runtime named Tween storage and Animation resources serve different workflows.
+Runtime branches, loops, computed values, and calls outside the scanned scripts may depend on gameplay state. The map reports source it can recognize; run the scene to observe actual behavior.
 
 ## Compatibility
 
@@ -187,7 +172,6 @@ Documentation includes applicability badges and combinable target filters for 2D
 
 A pinned top-right GDScript / C# / Visual Timeline selector controls both Tutorials and Documentation. It remains above scrolling content and across the three add-on tabs. Code views show the corresponding examples; C# accesses the same GDScript runtime through GodotObject.Call() and requires Godot .NET to execute. C# examples are reference content, not a separately compiled C# port.
 
-Visual Timeline mode contains no code panels. It offers six-step 2D/3D/UI editor tutorials and visual documentation for property tracks, key capture, preview/rewind, saving/opening clips, and playing saved resources through AnimationPlayer without scripts. Its documentation filters show visual guides and timeline controls rather than pretending runtime helper functions are timeline features. Switching views does not translate or modify your project's scripts.
 
 The page tabs and content selector share one pinned navigation bar. The content selector is a contiguous three-segment toggle with a solid accent selected state, high-contrast text and keyboard focus outline. Page selection stays synchronized with tutorial actions that open the Timeline.
 

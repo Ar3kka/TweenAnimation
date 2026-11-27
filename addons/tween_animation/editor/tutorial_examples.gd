@@ -90,7 +90,7 @@ static func csharp(mode: int, title: String, helper: bool) -> String:
 			text = '_target.Modulate = new Color(1, 1, 1, 0);' if mode == 2 else '_target.Position = ' + start + ';'
 			text += '\n    _tweenimator.Call("custom", _target, new NodePath("' + property + '"), ' + finish + ', 1.0);' if helper else '\n    var tween = CreateTween();\n    tween.TweenProperty(_target, "' + property + '", ' + finish + ', 1.0);'
 		"Bring it to life", "Let your game press Play", "Bring your existing work along":
-			return 'public void PlaySavedClip()\n{\n    var clip = GD.Load<Animation>("res://animations/my_animation.tres");\n    var library = new AnimationLibrary();\n    library.AddAnimation("clip", clip);\n    var player = GetNode<AnimationPlayer>("AnimationPlayer");\n    player.AddAnimationLibrary("tweenimation", library);\n    player.Play("tweenimation/clip");\n}\n'
+			return "// Select a Tween call in Tweenimation to inspect or edit its supported parameters.\n"
 		"A press that returns to its starting size":
 			if helper:
 				text = '_tweenimator.Call("press", _target);'

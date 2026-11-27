@@ -47,16 +47,16 @@ const CSHARP := {
 		"The native C# path passes the destination to TweenProperty(). The helper uses Call(\"custom\", ...) with a NodePath and matching destination type.\n\nPosition uses Vector2 in 2D/UI and Vector3 in 3D; UI alpha is a float from 0 to 1."
 	],
 	"Bring it to life": [
-		"Call PlaySavedClip() after saving a timeline clip.",
-		"Replace the .tres path and add an AnimationPlayer child. The C# method loads an Animation into an AnimationLibrary and calls Play().\n\nFor editor-only preview and key capture, switch the top selector to Visual Timeline."
+		"Use the Tween timeline to inspect a source call, edit supported arguments, or jump to its C# line.",
+		"Use the Tween timeline to inspect a source call, edit supported arguments, or jump to its C# line."
 	],
 	"Let your game press Play": [
-		"Call PlaySavedClip() from _Ready() or an input event.",
-		"Load the saved Animation resource, add it to an AnimationLibrary, then play its library/name key. Keep the player root pointed at the authored scene root.\n\nThis is the same AnimationPlayer API for either workflow; the runtime helper is not required to play a saved .tres clip."
+		"Use the Tween timeline to inspect a source call, edit supported arguments, or jump to its C# line.",
+		"Use the Tween timeline to inspect a source call, edit supported arguments, or jump to its C# line."
 	],
 	"Bring your existing work along": [
-		"Use PlaySavedClip() for a saved Animation resource.",
-		"An existing AnimationPlayer clip can be saved as .tres and loaded from C#. A procedural Tween stays a Tween: register it through Call(\"store\", name, tween) when you want named management.\n\nProcedural Tween scripts are not imported into timeline tracks automatically."
+		"Use the Tween timeline to inspect a source call, edit supported arguments, or jump to its C# line.",
+		"An existing Tween remains a Tween: register it through Call(\"store\", name, tween) when you want named management.\n\nTweenimation edits supported Tween calls in source and leaves unsupported runtime logic intact."
 	],
 	"A press that returns to its starting size": [
 		"Call PlayExample() from a button press or other event.",

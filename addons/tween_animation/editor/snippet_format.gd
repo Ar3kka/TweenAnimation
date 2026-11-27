@@ -43,15 +43,12 @@ const ARGUMENTS := {
 	"set_trans": "The enum selects the shape of the motion curve for subsequently appended steps.",
 	"set_ease": "The enum selects which part of the motion accelerates/decelerates.",
 	"set_indexed": "The property path selects the field/subfield; the value sets its starting state immediately.",
-	"add_animation": "The first argument names this clip inside the library; the second is the loaded Animation resource.",
-	"add_animation_library": "The first argument names the library on this AnimationPlayer; the second is the library object.",
 }
 
 const NATIVE_NAMES := {
 	"TweenProperty": "tween_property", "TweenInterval": "tween_interval",
 	"TweenCallback": "tween_callback", "SetParallel": "set_parallel",
 	"SetTrans": "set_trans", "SetEase": "set_ease",
-	"AddAnimation": "add_animation", "AddAnimationLibrary": "add_animation_library",
 }
 
 static var _interval_methods: Dictionary = {}
