@@ -183,13 +183,12 @@ func _show_entry(key: String) -> void:
 	content.add_child(_label(str(item["target_note"]), 15))
 	content.add_child(_label(str(item["summary"]), 17))
 	if content_mode == 2:
-		var diagram := preload("res://addons/tween_animation/editor/tutorial_visual.gd").new()
-		diagram.custom_minimum_size.y = 170
-		diagram.mode = 1 if target_filter.get_item_text(target_filter.selected) == "3D" else (2 if target_filter.get_item_text(target_filter.selected) == "UI" else 0)
-		diagram.step = 3
-		diagram.caption = "SELECT  →  CAPTURE KEYS  →  PREVIEW"
-		diagram.tooltip_text = "Illustration only; this does not modify your scene."
-		content.add_child(diagram)
+		var practice := preload("res://addons/tween_animation/editor/timeline_preview.gd").new()
+		practice.build()
+		var target_mode := 1 if target_filter.get_item_text(target_filter.selected) == "3D" else (2 if target_filter.get_item_text(target_filter.selected) == "UI" else 0)
+		var phases := {"guide_visual_start": 1, "timeline_add_track": 1, "timeline_capture": 3, "timeline_preview": 4, "timeline_save": 5, "guide_visual_player": 5, "guide_visual_existing": 5}
+		practice.configure(target_mode, phases.get(key, 1))
+		content.add_child(practice)
 		var number := 1
 		for instruction in item["steps"]:
 			content.add_child(_card(_label(str(number) + ".  " + str(instruction), 18), _kind_color(is_guide)))
@@ -281,7 +280,7 @@ func _add_example(source: String) -> void:
 	view.editable = false
 	view.text = source
 	view.gutters_draw_line_numbers = true
-	view.custom_minimum_size.y = 120
+	view.custom_minimum_size.y = 0
 	# Let the outer page scroll; don't crop a complete example inside a fixed box.
 	view.scroll_fit_content_height = true
 	var background := EditorInterface.get_base_control().get_theme_color("dark_color_2", "Editor")

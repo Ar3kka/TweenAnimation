@@ -24,6 +24,7 @@ var property_path: LineEdit
 var value_input: LineEdit
 var track_picker: OptionButton
 var timeline: Control
+var timeline_controls
 var key_list: ItemList
 var status: Label
 var play_button: Button
@@ -154,66 +155,23 @@ func _build_ui() -> void:
 	duration.value_changed.connect(_set_length)
 	toolbar.add_child(duration)
 
-	var workspace := VBoxContainer.new()
-	workspace.add_theme_constant_override("separation", 8)
-	_add_card(workspace)
-	workspace.add_child(_label("TIMELINE  ·  2D / 3D / UI properties", 12))
-	var track_tools := HFlowContainer.new()
-	track_tools.add_theme_constant_override("h_separation", 8)
-	track_tools.add_theme_constant_override("v_separation", 6)
-	workspace.add_child(track_tools)
-	track_picker = OptionButton.new()
-	track_picker.custom_minimum_size.x = 200
-	track_picker.fit_to_longest_item = false
-	track_picker.item_selected.connect(_select_track)
-	track_picker.tooltip_text = "Select a track to view and capture its keyframes."
-	track_tools.add_child(track_picker)
-	var property_row := HBoxContainer.new()
-	track_tools.add_child(property_row)
-	property_row.add_theme_constant_override("separation", 4)
-	property_path = LineEdit.new()
-	property_path.placeholder_text = "Property: position"
-	property_path.custom_minimum_size.x = 160
-	property_path.tooltip_text = "Select a scene node, then enter a property such as position, scale or modulate:a."
-	property_row.add_child(property_path)
-	_add_button(property_row, "Add track", _add_track)
-	var value_row := HBoxContainer.new()
-	track_tools.add_child(value_row)
-	value_row.add_theme_constant_override("separation", 4)
-	value_input = LineEdit.new()
-	value_input.placeholder_text = "Value: current"
-	value_input.tooltip_text = "Leave empty to capture the node's current value. Override with a number, Vector2(100, 50), or Vector3(0, 1, 0)."
-	value_input.custom_minimum_size.x = 160
-	value_row.add_child(value_input)
-	_add_button(value_row, "Capture key", _capture_key)
-	workspace.add_child(HSeparator.new())
-
-	var timeline_row := HBoxContainer.new()
-	workspace.add_child(timeline_row)
-	time_label = _label("0.00s", 0)
-	time_label.custom_minimum_size.x = 70
-	timeline_row.add_child(time_label)
-	time_slider = HSlider.new()
-	time_slider.min_value = 0.0
-	time_slider.max_value = DEFAULT_LENGTH
-	time_slider.step = 0.01
-	time_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	time_slider.value_changed.connect(_on_time_changed)
-	timeline_row.add_child(time_slider)
-
-	timeline = Control.new()
-	timeline.custom_minimum_size = Vector2(0, 200)
-	timeline.tooltip_text = "Click to scrub. Gold markers show keyframes on the active track."
-	timeline.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	timeline.draw.connect(_draw_timeline)
-	timeline.gui_input.connect(_timeline_input)
-	workspace.add_child(timeline)
-
-	workspace.add_child(_label("KEYFRAMES  ·  Select a key to jump to its time", 12))
-	key_list = ItemList.new()
-	key_list.custom_minimum_size.y = 90
-	key_list.item_selected.connect(_select_key)
-	workspace.add_child(key_list)
+	timeline_controls = preload("res://addons/tween_animation/editor/timeline_controls.gd").new()
+	timeline_controls.build()
+	_add_card(timeline_controls)
+	track_picker = timeline_controls.track_picker
+	property_path = timeline_controls.property_path
+	value_input = timeline_controls.value_input
+	time_label = timeline_controls.time_label
+	time_slider = timeline_controls.time_slider
+	timeline = timeline_controls.timeline
+	key_list = timeline_controls.key_list
+	timeline_controls.add_track_requested.connect(_add_track)
+	timeline_controls.capture_key_requested.connect(_capture_key)
+	timeline_controls.track_selected.connect(_select_track)
+	timeline_controls.time_changed.connect(_on_time_changed)
+	timeline_controls.key_selected.connect(_select_key)
+	timeline_controls.draw_requested.connect(_draw_timeline)
+	timeline_controls.timeline_input.connect(_timeline_input)
 	status = _label("Create an animation, select a node, then add a property track.", 0)
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.custom_minimum_size.y = 40
@@ -469,30 +427,7 @@ func _toggle_play() -> void:
 
 
 func _draw_timeline() -> void:
-	if animation == null:
-		return
-	var width := timeline.size.x
-	var height := timeline.size.y
-	var editor := get_editor_interface().get_base_control()
-	var foreground := editor.get_theme_color("font_color", "Editor")
-	var accent := editor.get_theme_color("accent_color", "Editor")
-	var grid := foreground
-	grid.a = 0.15
-	timeline.draw_rect(Rect2(Vector2.ZERO, Vector2(width, height)), editor.get_theme_color("dark_color_2", "Editor"), true)
-	var length := maxf(animation.length, 0.01)
-	for tick in range(11):
-		var x := width * tick / 10.0
-		timeline.draw_line(Vector2(x, 24), Vector2(x, height), grid, 1.0)
-		timeline.draw_string(page.get_theme_font("font", "Label"), Vector2(minf(x + 6, width - 30), 17), "%.1f" % (length * tick / 10.0), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, foreground)
-	var track := track_picker.selected
-	if track < 0:
-		timeline.draw_string(page.get_theme_font("font", "Label"), Vector2(20, 85), "Select a node, add a property track, then capture keyframes.", HORIZONTAL_ALIGNMENT_LEFT, width - 40, 14, foreground)
-	if track >= 0 and track < animation.get_track_count():
-		for key in animation.track_get_key_count(track):
-			var x := width * animation.track_get_key_time(track, key) / length
-			timeline.draw_circle(Vector2(x, height * 0.55), 5.0, foreground)
-	var playhead_x := width * time_slider.value / length
-	timeline.draw_line(Vector2(playhead_x, 24), Vector2(playhead_x, height), accent, 2.0)
+	timeline_controls.paint(animation)
 
 
 func _timeline_input(event: InputEvent) -> void:

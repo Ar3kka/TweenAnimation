@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 12
+const UI_REVISION := 13
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -34,6 +34,7 @@ var action_label: Label
 var language_picker: OptionButton
 var snippet_context: Label
 var content_mode := 0
+var timeline_practice
 
 
 func build(logo_texture: Texture2D) -> void:
@@ -171,6 +172,10 @@ func build(logo_texture: Texture2D) -> void:
 	visual = preload("res://addons/tween_animation/editor/tutorial_visual.gd").new()
 	visual.custom_minimum_size.y = 170
 	card_body.add_child(visual)
+	timeline_practice = preload("res://addons/tween_animation/editor/timeline_preview.gd").new()
+	timeline_practice.build()
+	card_body.add_child(timeline_practice)
+	timeline_practice.hide()
 	guide = RichTextLabel.new()
 	guide.bbcode_enabled = true
 	guide.fit_content = true
@@ -189,13 +194,13 @@ func build(logo_texture: Texture2D) -> void:
 
 	code_view = CodeEdit.new()
 	code_view.editable = false
-	code_view.custom_minimum_size.y = 120
+	code_view.custom_minimum_size.y = 0
 	code_view.gutters_draw_line_numbers = true
 	_style_code(code_view)
 	copy_button = _snippet(card_body, code_view, "REGULAR GODOT TWEEN ANIMATION")
 	helper_view = CodeEdit.new()
 	helper_view.editable = false
-	helper_view.custom_minimum_size.y = 120
+	helper_view.custom_minimum_size.y = 0
 	helper_view.gutters_draw_line_numbers = true
 	_style_code(helper_view)
 	_snippet(card_body, helper_view, "TWEENIMATION")
@@ -208,7 +213,7 @@ func build(logo_texture: Texture2D) -> void:
 	card_body.add_child(comparison)
 	resource_view = CodeEdit.new()
 	resource_view.editable = false
-	resource_view.custom_minimum_size.y = 120
+	resource_view.custom_minimum_size.y = 0
 	resource_view.gutters_draw_line_numbers = true
 	_style_code(resource_view)
 	_snippet(card_body, resource_view, "PLAY A SAVED TIMELINE")
@@ -353,10 +358,13 @@ func _render_step() -> void:
 	visual.set("elapsed", 0.0)
 	card_style.border_color = [Color("78b9ff"), Color("ff8f91"), Color("8fdfb3")][selected_mode]
 	var visual_only := content_mode == 2
+	visual.visible = not visual_only
+	timeline_practice.visible = visual_only
 	code_view.get_parent().get_parent().visible = not visual_only
 	helper_view.get_parent().get_parent().visible = not visual_only
 	snippet_context.visible = not visual_only
 	if visual_only:
+		timeline_practice.configure(selected_mode, step_index)
 		comparison.hide()
 		resource_view.get_parent().get_parent().hide()
 		reuse_button.visible = step_index == steps.size() - 1
@@ -371,6 +379,9 @@ func _render_step() -> void:
 		helper_view.text = examples.gdscript(str(steps[step_index]["helper"]), step_index == 0)
 		snippet_context.text = "Add step 1 variables to your existing Node script. Run later action lines inside _ready() or an input handler; add any shown function definitions at script scope."
 	else:
+		var instructions := preload("res://addons/tween_animation/editor/tutorial_copy.gd").for_csharp(title)
+		action_label.text = instructions["action"]
+		guide.text = instructions["body"]
 		code_view.text = examples.csharp(selected_mode, title, false)
 		helper_view.text = examples.csharp(selected_mode, title, true)
 		snippet_context.text = "Requires Godot .NET and using Godot;. Add step 1 fields to your existing Node class, then call the shown methods from _Ready() or a button/input handler. Helper examples access the GDScript runtime through Call()."
@@ -381,7 +392,7 @@ func _render_step() -> void:
 	copy_button.show()
 	copy_button.tooltip_text = "Copy regular Godot Tween example"
 	comparison.text = str(steps[step_index]["comparison"]).get_slice("\n\n[b]Defaults:", 0)
-	comparison.visible = not comparison.text.is_empty()
+	comparison.visible = content_mode == 0 and not comparison.text.is_empty()
 	resource_view.get_parent().get_parent().visible = steps[step_index]["title"] == "Let your game press Play"
 	resource_view.text = examples.gdscript(timeline_example, false) if language_picker.selected == 0 else examples.csharp(selected_mode, "Let your game press Play", false)
 	_style_code(resource_view)
@@ -551,6 +562,7 @@ func _attach_comparisons(node_path: String, property: String, end_value: String,
 
 
 func _style_code(view: CodeEdit) -> void:
+	view.custom_minimum_size.y = 0
 	view.scroll_fit_content_height = true
 	var background := EditorInterface.get_base_control().get_theme_color("dark_color_2", "Editor")
 	var dark := background.get_luminance() < 0.5

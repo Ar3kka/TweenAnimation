@@ -142,3 +142,7 @@ A pinned top-right GDScript / C# / Visual Timeline selector controls both Tutori
 Visual Timeline mode contains no code panels. It offers six-step 2D/3D/UI editor tutorials and visual documentation for property tracks, key capture, preview/rewind, saving/opening clips, and playing saved resources through AnimationPlayer without scripts. Its documentation filters show visual guides and timeline controls rather than pretending runtime helper functions are timeline features. Switching views does not translate or modify your project's scripts.
 
 The page tabs and content selector share one pinned navigation bar. The content selector is a contiguous three-segment toggle with a solid accent selected state, high-contrast text and keyboard focus outline. Page selection stays synchronized with tutorial actions that open the Timeline.
+
+C# tutorial actions and explanations use C# method names, ownership, signals and bridge calls alongside their snippets. Code panels fit their content, so short examples stay compact and longer examples expand within the scrolling page.
+
+Visual tutorials and reference pages include interactive practice previews made from the same property, capture, scrub and key-list controls as the real Timeline. Highlighted controls identify each step; a sample Scene tree and Inspector let you practice capturing two poses and previewing the result with a sprite, projected cube or fading panel. Practice uses a private Animation and never changes your scene or saves project files. Use the Timeline page to author and save your real animation.
