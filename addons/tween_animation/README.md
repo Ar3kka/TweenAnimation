@@ -6,6 +6,31 @@ A Godot add-on for keeping track of individual Tweens, creating intent-first eff
 
 Copy `addons/tween_animation` into your project's `addons/` folder. Enable **Tweenimation** in **Project > Project Settings > Plugins**. The Setup tab offers centered 2D, 3D and UI entry points, visual walkthroughs, and paired helper/native code snippets.
 
+## Runtime Tweens and AnimationPlayer
+
+**Code Tweens** is a source-backed editor for runtime animation calls. **Animation clips** is the existing fixed-key editor that saves Godot Animation resources for AnimationPlayer. AnimationPlayer is useful for authored clips, synchronized tracks and playback; Tweens are useful when destinations, starting values or durations depend on gameplay.
+
+In **Timeline > Code Tweens**, select a scene node. Tweenimation detects 2D, 3D or UI, scans scripts attached to the open scene (including base scripts), and maps recognizable native Godot Tween and Tweenimator calls. Select an operation to inspect its method, line, timing and parameters. Native Tweens do not require Tweenimator.
+
+**Visual Timeline mode requires no code entry:**
+
+1. Choose **Add key**, a method, and placement before/after a statement or at a method boundary. Methods on parent scene nodes can animate a selected child without giving that child a script.
+2. Choose an animatable property and a destination: a fixed value, offset from the current value, method parameter, or selected node property. Numeric/vector fields accept data directly. Runtime expressions already in the source are preserved by default.
+3. Choose duration, optional trailing wait and whether to join an earlier Tween or start independently. Creation generates native Tween calls at the chosen location. A node with no available scene script can create a GDScript through a file picker.
+4. Select a key to edit parameters or move its statement within the same method. Apply updates only changed arguments; keys regenerate from source. Godot Undo restores the previous script. Save existing script-editor buffers before applying; stale or unsaved edits are rejected.
+
+The global GDScript / C# / Visual Timeline selector controls tutorials and the optional source pane. **Source line** opens the actual language of the script at its call; it does not translate project scripts. C# supports source indexing and edits, but needs an existing instance method and **Godot .NET** for compilation. Standard Godot cannot validate C# project types.
+
+### What the map can infer
+
+Known literal durations, sequential steps, parallel/chain operations, trailing intervals and awaited handles are mapped within each method invocation. Separate methods and independent Tweens are not one guaranteed playback sequence. Blue spans animate; gold spans wait.
+
+Computed durations, branches, loops/speed changes and external Tween handles can make the schedule unknown. These appear as **Runtime**, rather than an invented time. Target aliases resolved from scene paths are confirmed; unresolved targets are marked possible matches. Unknown receivers remain read-only.
+
+This is source analysis, **not universal introspection of every live Tween**. It does not execute gameplay methods, follow arbitrary factories/function calls, recover source locations from C++ Tween internals, or evaluate arbitrary expressions. Callback bodies and computed property names remain source-only; built-in scene scripts are read-only. Moving existing statements between methods is restricted to preserve local variable scope. Code Tweens has no gameplay playback/scrubbing preview; run the scene to test runtime behavior. Animation clips retains its editor preview.
+
+Setup includes separate visual practice for code-backed Tweens and recorded clips. Documentation explains both workflows and their limits.
+
 ## Name your Tweens
 
 `Tweenimator` is the runtime class. Its public `tweens` dictionary stores ordinary Godot Tween objects by StringName. You can construct it before your scene is ready, with no owner or existing Tween.
@@ -47,7 +72,7 @@ var handed_back := animate.release(&"hover")
 handed_back.tween_interval(0.1)
 ```
 
-`store()` does not recreate operations, change easing, or rebind an existing Tween. Anything a valid Godot Tween can do remains available through the returned object. You can append properties, methods, callbacks and intervals yourself. It does not reconstruct arbitrary Tween scripts as editor tracks.
+`store()` does not recreate operations, change easing, or rebind an existing Tween. Anything a valid Godot Tween can do remains available through the returned object. You can append properties, methods, callbacks and intervals yourself. The Code Tweens workspace separately maps recognizable source calls; storing a handle does not itself create editor tracks.
 
 | Operation | Behavior |
 | --- | --- |

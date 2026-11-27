@@ -1,3 +1,6 @@
 .godot/
 .import/
 *.tmp
+
+.source_check/
+.tweenimation-check-*/

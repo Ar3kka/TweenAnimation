@@ -849,3 +849,197 @@ const VISUAL := {
 		"returns": ""
 	}
 }
+
+
+const SOURCE := {
+	"guide_source_workflow": {
+		"group": "Start here",
+		"title": "Code Tweens or AnimationPlayer?",
+		"summary": "Choose runtime behavior or recorded poses.",
+		"steps": [
+			"Use Timeline > Code Tweens to edit animation calls for the selected scene node. Type detection is automatic.",
+			"Use Animation clips for fixed property keys saved as an Animation resource for AnimationPlayer.",
+			"Use runtime values for motion that depends on the current node state or method parameters."
+		],
+		"notes": "AnimationPlayer is suited to authored clips, tracks and synchronized playback. Tweens are suited to values decided at runtime. Code Tweens is a source map, not a capture of every live Tween or a substitute for running gameplay.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Code Tweens workspace - native Godot and Tweenimator calls.",
+		"visual_only": false,
+		"params": {},
+		"returns": "",
+		"source_phase": 5,
+		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
+		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
+	},
+	"guide_source_workflow_visual": {
+		"group": "Start here",
+		"title": "Code Tweens or AnimationPlayer?",
+		"summary": "Choose runtime behavior or recorded poses.",
+		"steps": [
+			"Use Timeline > Code Tweens to edit animation calls for the selected scene node. Type detection is automatic.",
+			"Use Animation clips for fixed property keys saved as an Animation resource for AnimationPlayer.",
+			"Use runtime values for motion that depends on the current node state or method parameters."
+		],
+		"notes": "AnimationPlayer is suited to authored clips, tracks and synchronized playback. Tweens are suited to values decided at runtime. Code Tweens is a source map, not a capture of every live Tween or a substitute for running gameplay.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Code Tweens workspace - native Godot and Tweenimator calls.",
+		"visual_only": true,
+		"params": {},
+		"returns": "",
+		"source_phase": 5,
+		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
+		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
+	},
+	"guide_source_create": {
+		"group": "Start here",
+		"title": "Create a code-backed key",
+		"summary": "Enter data and choose a method location; no source typing required.",
+		"steps": [
+			"Select a scene node and choose Code Tweens > Add key.",
+			"Choose an instance method and placement before/after a statement, or at a method boundary. A node without a script can create one through the file picker.",
+			"Choose a property, destination binding, duration and optional wait. Offset reads current state when called; Method parameter uses gameplay input.",
+			"Join an earlier top-level Tween or create an independent one, then Create code-backed key."
+		],
+		"notes": "New keys generate native Godot TweenProperty/tween_property calls. They do not require Tweenimator. A method only runs when the game calls it. Existing built-in scripts are read-only here. C# requires an existing method and Godot .NET for compilation.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Code Tweens workspace - native Godot and Tweenimator calls.",
+		"visual_only": false,
+		"params": {},
+		"returns": "",
+		"source_phase": 2,
+		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
+		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
+	},
+	"guide_source_create_visual": {
+		"group": "Start here",
+		"title": "Create a code-backed key",
+		"summary": "Enter data and choose a method location; no source typing required.",
+		"steps": [
+			"Select a scene node and choose Code Tweens > Add key.",
+			"Choose an instance method and placement before/after a statement, or at a method boundary. A node without a script can create one through the file picker.",
+			"Choose a property, destination binding, duration and optional wait. Offset reads current state when called; Method parameter uses gameplay input.",
+			"Join an earlier top-level Tween or create an independent one, then Create code-backed key."
+		],
+		"notes": "New keys generate native Godot TweenProperty/tween_property calls. They do not require Tweenimator. A method only runs when the game calls it. Existing built-in scripts are read-only here. C# requires an existing method and Godot .NET for compilation.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Code Tweens workspace - native Godot and Tweenimator calls.",
+		"visual_only": true,
+		"params": {},
+		"returns": "",
+		"source_phase": 2,
+		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
+		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
+	},
+	"guide_source_inspect": {
+		"group": "Start here",
+		"title": "Inspect, edit and move code keys",
+		"summary": "A source call remains the source of truth.",
+		"steps": [
+			"Select a key to inspect its method, source line, parameters and runtime bindings.",
+			"Choose Value, Offset, Method parameter or Node property instead of typing an expression. Apply changes only edited arguments.",
+			"Move this call changes statement placement inside the same method. Source line opens the actual script at its call.",
+			"Rescan regenerates keys after external edits. Save Godot script buffers first; stale edits are rejected. Undo restores the prior source."
+		],
+		"notes": "Moving between methods is not offered because local variable scope may change. Unknown receiver types are read-only. Callback bodies and computed property names are preserved; edit those in the optional source view. C# source edits are not compiled by standard Godot.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Code Tweens workspace - native Godot and Tweenimator calls.",
+		"visual_only": false,
+		"params": {},
+		"returns": "",
+		"source_phase": 4,
+		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
+		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
+	},
+	"guide_source_inspect_visual": {
+		"group": "Start here",
+		"title": "Inspect, edit and move code keys",
+		"summary": "A source call remains the source of truth.",
+		"steps": [
+			"Select a key to inspect its method, source line, parameters and runtime bindings.",
+			"Choose Value, Offset, Method parameter or Node property instead of typing an expression. Apply changes only edited arguments.",
+			"Move this call changes statement placement inside the same method. Source line opens the actual script at its call.",
+			"Rescan regenerates keys after external edits. Save Godot script buffers first; stale edits are rejected. Undo restores the prior source."
+		],
+		"notes": "Moving between methods is not offered because local variable scope may change. Unknown receiver types are read-only. Callback bodies and computed property names are preserved; edit those in the optional source view. C# source edits are not compiled by standard Godot.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Code Tweens workspace - native Godot and Tweenimator calls.",
+		"visual_only": true,
+		"params": {},
+		"returns": "",
+		"source_phase": 4,
+		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
+		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
+	},
+	"guide_source_timing": {
+		"group": "Start here",
+		"title": "Read runtime timing honestly",
+		"summary": "Sequence, parallel steps and waits map differently.",
+		"steps": [
+			"Read blue spans as animation duration and gold spans as a trailing interval.",
+			"Native sequential calls append; parallel starts with the current step; chain waits for the longest parallel operation. Independent helper calls start together unless awaited.",
+			"Filter by method to avoid confusing separate invocations with a single animation.",
+			"Runtime labels identify computed durations, conditional flow, speed/loop changes and external Tween handles."
+		],
+		"notes": "The scanner supports recognizable native and helper calls in GDScript/C# scripts attached to nodes of the open scene, plus base scripts. It does not execute methods, infer arbitrary factories, follow every function call, inspect C++ Tween internals, or evaluate user expressions. Exact runtime ordering cannot be inferred for all programs.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Code Tweens workspace - native Godot and Tweenimator calls.",
+		"visual_only": false,
+		"params": {},
+		"returns": "",
+		"source_phase": 3,
+		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
+		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
+	},
+	"guide_source_timing_visual": {
+		"group": "Start here",
+		"title": "Read runtime timing honestly",
+		"summary": "Sequence, parallel steps and waits map differently.",
+		"steps": [
+			"Read blue spans as animation duration and gold spans as a trailing interval.",
+			"Native sequential calls append; parallel starts with the current step; chain waits for the longest parallel operation. Independent helper calls start together unless awaited.",
+			"Filter by method to avoid confusing separate invocations with a single animation.",
+			"Runtime labels identify computed durations, conditional flow, speed/loop changes and external Tween handles."
+		],
+		"notes": "The scanner supports recognizable native and helper calls in GDScript/C# scripts attached to nodes of the open scene, plus base scripts. It does not execute methods, infer arbitrary factories, follow every function call, inspect C++ Tween internals, or evaluate user expressions. Exact runtime ordering cannot be inferred for all programs.",
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Code Tweens workspace - native Godot and Tweenimator calls.",
+		"visual_only": true,
+		"params": {},
+		"returns": "",
+		"source_phase": 3,
+		"code": "var animate := Tweenimator.new()\n# target, distance from its current position, seconds, wait afterwards\nvar slide := animate.move_left($Sprite2D, 100, 0.4, 0.2)\n# Equivalent native sequence, with a runtime destination:\nvar tween := create_tween()\ntween.tween_property($Sprite2D, \"position\", $Sprite2D.position + Vector2.LEFT * 100, 0.4)\ntween.tween_interval(0.2)",
+		"csharp": "// Native C# Tween; Code Tweens edits this source in place.\nvar tween = CreateTween();\nvar actor = GetNode<Node2D>(\"Sprite2D\");\ntween.TweenProperty(actor, \"position\", actor.Position + Vector2.Left * 100, 0.4);\ntween.TweenInterval(0.2);"
+	}
+}

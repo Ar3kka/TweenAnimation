@@ -7,6 +7,8 @@ const SETUP_SCREEN := preload("res://addons/tween_animation/editor/setup.gd")
 const DOCUMENTATION_SCREEN := preload("res://addons/tween_animation/editor/documentation.gd")
 const DEFAULT_LENGTH := 1.0
 
+var code_timeline
+var workspace_picker: TabBar
 var page: VBoxContainer
 var frame: MarginContainer
 var tabs: TabContainer
@@ -104,8 +106,10 @@ func _build_ui() -> void:
 	var setup := SETUP_SCREEN.new()
 	setup.build(HEADER_LOGO)
 	setup.start_requested.connect(_start_setup)
+	setup.code_start_requested.connect(func(): tabs.current_tab = 1; _set_workspace(0))
 	setup.open_requested.connect(func():
 		tabs.current_tab = 1
+		_set_workspace(1)
 		_open_animation()
 	)
 	tabs.add_child(setup)
@@ -119,10 +123,22 @@ func _build_ui() -> void:
 	tabs.set_tab_icon(0, _editor_icon("Node"))
 	tabs.set_tab_icon(1, ADDON_ICON)
 	tabs.set_tab_icon(2, _editor_icon("Help"))
+	var workspace := VBoxContainer.new()
+	workspace.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	timeline_scroll.add_child(workspace)
+	workspace_picker = TabBar.new()
+	workspace_picker.add_tab("Code Tweens", _editor_icon("Script"))
+	workspace_picker.add_tab("Animation clips", _editor_icon("Animation"))
+	workspace.add_child(workspace_picker)
+	code_timeline = preload("res://addons/tween_animation/editor/code_timeline.gd").new()
+	code_timeline.build(self)
+	workspace.add_child(code_timeline)
+	workspace_picker.tab_changed.connect(_set_workspace)
 	page = VBoxContainer.new()
 	page.name = "Timeline"
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	timeline_scroll.add_child(page)
+	workspace.add_child(page)
+	page.hide()
 	page.add_theme_constant_override("separation", 12)
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 16)
@@ -207,6 +223,7 @@ func _build_ui() -> void:
 
 
 func _start_setup(mode: String) -> void:
+	_set_workspace(1)
 	setup_mode = mode
 	property_path.text = "modulate:a" if mode == "UI" else "position"
 	value_input.clear()
@@ -265,6 +282,9 @@ func _track_target() -> Node:
 
 func _selection_changed() -> void:
 	timeline_controls.set_target(_track_target())
+	if is_instance_valid(code_timeline):
+		var nodes := get_editor_interface().get_selection().get_selected_nodes()
+		code_timeline.set_node(nodes[0] if not nodes.is_empty() else null)
 
 
 func _action_template(action: String) -> void:
@@ -670,8 +690,19 @@ func _set_status(message: String) -> void:
 		status.text = message
 
 
+func _set_workspace(index: int) -> void:
+	workspace_picker.set_current_tab(index)
+	page.visible = index == 1
+	code_timeline.visible = index == 0
+	if index == 0:
+		playing = false
+		play_button.text = "Play preview"
+
+
 func _set_content_mode(index: int) -> void:
 	content_mode = clampi(index, 0, 2)
+	if is_instance_valid(code_timeline):
+		code_timeline.set_content_mode(content_mode)
 	for item in content_mode_buttons.size():
 		content_mode_buttons[item].set_pressed_no_signal(item == content_mode)
 	if tabs.get_tab_count() == 3:
