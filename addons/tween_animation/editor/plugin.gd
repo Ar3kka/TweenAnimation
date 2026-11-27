@@ -3,10 +3,13 @@ extends EditorPlugin
 
 const ADDON_ICON := preload("res://addons/tween_animation/icon.svg")
 const HEADER_LOGO := preload("res://addons/tween_animation/header_logo.svg")
+const SETUP_SCREEN := preload("res://addons/tween_animation/editor/setup.gd")
 const DEFAULT_LENGTH := 1.0
 
 var page: VBoxContainer
 var frame: MarginContainer
+var tabs: TabContainer
+var setup_mode := ""
 var animation: Animation
 var animation_path := ""
 var duration: SpinBox
@@ -73,10 +76,21 @@ func _build_ui() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	frame.add_child(scroll)
+	tabs = TabContainer.new()
+	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(tabs)
+	var setup := SETUP_SCREEN.new()
+	setup.build(HEADER_LOGO)
+	setup.start_requested.connect(_start_setup)
+	setup.open_requested.connect(func():
+		tabs.current_tab = 1
+		_open_animation()
+	)
+	tabs.add_child(setup)
 	page = VBoxContainer.new()
-	page.name = "Tweenimation"
+	page.name = "Timeline"
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(page)
+	tabs.add_child(page)
 	page.add_theme_constant_override("separation", 12)
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 16)
@@ -198,6 +212,15 @@ func _build_ui() -> void:
 	page.add_child(status)
 	page.move_child(status, 2)
 	_new_animation()
+	tabs.current_tab = 0
+
+
+func _start_setup(mode: String) -> void:
+	setup_mode = mode
+	property_path.text = "modulate:a" if mode == "UI" else "position"
+	value_input.clear()
+	tabs.current_tab = 1
+	_set_status("%s setup: select a %s node, then Add track. Existing tracks are preserved." % [mode, "Control" if mode == "UI" else "Node" + mode])
 
 
 func _new_animation() -> void:
@@ -227,6 +250,9 @@ func _add_track() -> void:
 		_set_status("Select a node inside the currently edited scene.")
 		return
 	var property_name := property_path.text.strip_edges()
+	if (setup_mode == "2D" and not selected[0] is Node2D) or (setup_mode == "3D" and not selected[0] is Node3D) or (setup_mode == "UI" and not selected[0] is Control):
+		_set_status("This setup expects a %s target. Select a matching node or choose another guide in Setup." % setup_mode)
+		return
 	if property_name.is_empty() or not _has_property(selected[0], property_name):
 		_set_status("Enter a valid property name for the selected node.")
 		return
@@ -241,6 +267,9 @@ func _capture_key() -> void:
 	var track := track_picker.selected
 	if track < 0 or track >= animation.get_track_count():
 		_set_status("Add or select a track first.")
+		return
+	if animation.track_get_type(track) != Animation.TYPE_VALUE:
+		_set_status("This imported track is not a property value track. Select or add a value track to capture keys.")
 		return
 	var root := get_editor_interface().get_edited_scene_root()
 	var track_path := animation.track_get_path(track)
@@ -268,6 +297,8 @@ func _preview_tracks(at_time: float) -> void:
 	if root == null:
 		return
 	for index in animation.get_track_count():
+		if animation.track_get_type(index) != Animation.TYPE_VALUE or animation.track_get_key_count(index) == 0:
+			continue
 		var path := animation.track_get_path(index)
 		var target := root.get_node_or_null(NodePath(path.get_concatenated_names()))
 		if target == null:
@@ -316,6 +347,7 @@ func _open_animation() -> void:
 	dialog.file_selected.connect(func(path: String):
 		var loaded := ResourceLoader.load(path) as Animation
 		if loaded:
+			setup_mode = ""
 			playing = false
 			play_button.text = "Play preview"
 			animation = loaded
