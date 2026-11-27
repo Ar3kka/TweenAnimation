@@ -73,12 +73,10 @@ func _build_ui() -> void:
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
 		frame.add_theme_constant_override("margin_" + side, 16)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	frame.add_child(scroll)
 	tabs = TabContainer.new()
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(tabs)
+	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	frame.add_child(tabs)
 	var setup := SETUP_SCREEN.new()
 	setup.build(HEADER_LOGO)
 	setup.start_requested.connect(_start_setup)
@@ -87,10 +85,14 @@ func _build_ui() -> void:
 		_open_animation()
 	)
 	tabs.add_child(setup)
+	var timeline_scroll := ScrollContainer.new()
+	timeline_scroll.name = "Timeline"
+	timeline_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(timeline_scroll)
 	page = VBoxContainer.new()
 	page.name = "Timeline"
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tabs.add_child(page)
+	timeline_scroll.add_child(page)
 	page.add_theme_constant_override("separation", 12)
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 16)

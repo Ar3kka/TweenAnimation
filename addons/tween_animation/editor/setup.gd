@@ -1,12 +1,14 @@
 @tool
-extends VBoxContainer
-## In-editor onboarding. Examples are displayed as text and never executed.
+extends MarginContainer
+## Centered landing menu with tutorials shown only after choosing a target.
 
 signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-var mode_picker: OptionButton
+var selected_mode := 0
+var menu: CenterContainer
+var details: ScrollContainer
 var guide: RichTextLabel
 var code_view: CodeEdit
 var start_button: Button
@@ -14,61 +16,125 @@ var start_button: Button
 
 func build(logo_texture: Texture2D) -> void:
 	name = "Setup"
-	add_theme_constant_override("separation", 12)
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 16)
-	add_child(header)
+	menu = CenterContainer.new()
+	add_child(menu)
+	var landing := VBoxContainer.new()
+	landing.add_theme_constant_override("separation", 18)
+	menu.add_child(landing)
 	var logo := TextureRect.new()
 	logo.texture = logo_texture
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.custom_minimum_size = Vector2(120, 40)
-	header.add_child(logo)
-	var title := Label.new()
-	title.text = "Welcome to Tweenimation"
-	title.add_theme_font_size_override("font_size", 22)
-	header.add_child(title)
-	var intro := Label.new()
-	intro.text = "Choose your target, follow the guide, then build your animation in the Timeline tab."
-	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_child(intro)
-	mode_picker = OptionButton.new()
-	for mode in MODES:
-		mode_picker.add_item(mode + " animation")
-	mode_picker.item_selected.connect(_show_guide)
-	add_child(mode_picker)
+	logo.custom_minimum_size = Vector2(180, 60)
+	landing.add_child(logo)
+	var title := _text("Tweenimation", 30)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	landing.add_child(title)
+	var subtitle := _text("What would you like to animate?", 16)
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.modulate.a = 0.7
+	landing.add_child(subtitle)
+	var choices := HBoxContainer.new()
+	choices.add_theme_constant_override("separation", 12)
+	landing.add_child(choices)
+	var descriptions := ["Sprites & 2D worlds", "Objects & 3D worlds", "Menus & interfaces"]
+	var icons := ["Node2D", "Node3D", "Control"]
+	var colors := [Color("78b9ff"), Color("ff8f91"), Color("8fdfb3")]
+	for index in range(3):
+		var choice := Button.new()
+		choice.custom_minimum_size = Vector2(170, 144)
+		choice.tooltip_text = "Choose " + MODES[index] + " animation"
+		choice.pressed.connect(_show_guide.bind(index))
+		choices.add_child(choice)
+		var normal := StyleBoxFlat.new()
+		normal.bg_color = Color(0.18, 0.19, 0.21)
+		normal.border_color = colors[index].darkened(0.35)
+		normal.border_width_top = 3
+		normal.set_corner_radius_all(10)
+		choice.add_theme_stylebox_override("normal", normal)
+		var hover := normal.duplicate() as StyleBoxFlat
+		hover.bg_color = colors[index].darkened(0.75)
+		hover.border_color = colors[index]
+		choice.add_theme_stylebox_override("hover", hover)
+		choice.add_theme_stylebox_override("focus", hover)
+		var content := VBoxContainer.new()
+		content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_theme_constant_override("separation", 9)
+		choice.add_child(content)
+		content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		content.offset_top = 22
+		var symbol := TextureRect.new()
+		symbol.texture = EditorInterface.get_base_control().get_theme_icon(icons[index], "EditorIcons")
+		symbol.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		symbol.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		symbol.custom_minimum_size.y = 28
+		symbol.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_child(symbol)
+		var label := _text(MODES[index] + " animation", 18)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		content.add_child(label)
+		var hint := _text(descriptions[index], 12)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.modulate.a = 0.65
+		content.add_child(hint)
+	var open_button := Button.new()
+	open_button.text = "Open an existing animation…"
+	open_button.flat = true
+	open_button.pressed.connect(func(): open_requested.emit())
+	landing.add_child(open_button)
+
+	details = ScrollContainer.new()
+	details.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(details)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 14)
+	details.add_child(body)
 	var actions := HFlowContainer.new()
-	actions.add_theme_constant_override("h_separation", 8)
-	add_child(actions)
+	actions.add_theme_constant_override("h_separation", 12)
+	body.add_child(actions)
+	var back := Button.new()
+	back.text = "← Change animation type"
+	back.pressed.connect(show_menu)
+	actions.add_child(back)
 	start_button = Button.new()
 	start_button.custom_minimum_size.y = 36
-	start_button.pressed.connect(func(): start_requested.emit(MODES[mode_picker.selected]))
+	start_button.pressed.connect(func(): start_requested.emit(MODES[selected_mode]))
 	actions.add_child(start_button)
-	var open_button := Button.new()
-	open_button.text = "Open existing Animation (.tres)…"
-	open_button.custom_minimum_size.y = 36
-	open_button.pressed.connect(func(): open_requested.emit())
-	actions.add_child(open_button)
 	guide = RichTextLabel.new()
 	guide.bbcode_enabled = true
 	guide.fit_content = true
 	guide.scroll_active = false
 	guide.selection_enabled = true
-	add_child(guide)
-	var code_title := Label.new()
-	code_title.text = "CODE EXAMPLES · Select and copy the parts you need"
-	add_child(code_title)
+	body.add_child(guide)
+	body.add_child(_text("CODE EXAMPLES · Select and copy", 14))
 	code_view = CodeEdit.new()
 	code_view.editable = false
 	code_view.custom_minimum_size.y = 250
 	code_view.gutters_draw_line_numbers = true
-	add_child(code_view)
-	_show_guide(0)
+	body.add_child(code_view)
+	show_menu()
+
+
+func show_menu() -> void:
+	details.hide()
+	menu.show()
+
+
+func _text(value: String, font_size: int) -> Label:
+	var label := Label.new()
+	label.text = value
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", font_size)
+	return label
 
 
 func _show_guide(index: int) -> void:
+	selected_mode = index
+	menu.hide()
+	details.show()
 	var mode: String = MODES[index]
-	start_button.text = "Set up " + mode + " animation →"
+	start_button.text = "Open " + mode + " timeline →"
 	var target := "Node2D (Sprite2D, CharacterBody2D, etc.)"
 	var differences := "Position and scale use Vector2. Rotation uses a single angle in radians."
 	var property := "position"
