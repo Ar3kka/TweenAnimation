@@ -14,6 +14,7 @@ var content: VBoxContainer
 var current_key := ""
 var kind_tabs: TabBar
 var visible_items: Array[int] = []
+var target_filter: OptionButton
 
 const PARAMETER_HELP := {
 	"name": "Non-empty StringName used as a key in this Tweenimator's registry.",
@@ -52,6 +53,11 @@ func build() -> void:
 		category.add_item(group)
 	category.item_selected.connect(func(_index: int): _filter())
 	sidebar.add_child(category)
+	target_filter = OptionButton.new()
+	for target_type in ["All targets", "2D", "3D", "UI", "Audio", "Shader resources", "Callbacks"]:
+		target_filter.add_item(target_type)
+	target_filter.item_selected.connect(func(_index: int): _filter())
+	sidebar.add_child(target_filter)
 	results = _label("", 12)
 	sidebar.add_child(results)
 	navigation = ItemList.new()
@@ -101,6 +107,9 @@ func _filter() -> void:
 	for key in entries:
 		var item: Dictionary = entries[key]
 		var is_guide := str(key).begins_with("guide_")
+		var target_type := target_filter.get_item_text(target_filter.selected)
+		if target_filter.selected > 0 and not "Any Tween" in item["targets"] and not target_type in item["targets"]:
+			continue
 		if (kind_tabs.current_tab == 1 and not is_guide) or (kind_tabs.current_tab == 2 and is_guide):
 			continue
 		if category.selected > 0 and item["group"] != chosen:
@@ -129,7 +138,7 @@ func _filter() -> void:
 	else:
 		_clear_content()
 		content.add_child(_label("No matching entries", 24))
-		content.add_child(_label("Try another word, section or entry type.", 17))
+		content.add_child(_label("Try another word, section, target or entry type.", 17))
 
 
 func _clear_content() -> void:
@@ -159,6 +168,14 @@ func _show_entry(key: String) -> void:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading.add_child(title)
 	content.add_child(_card(heading, _kind_color(is_guide)))
+	var tags := HFlowContainer.new()
+	tags.add_theme_constant_override("h_separation", 8)
+	tags.add_theme_constant_override("v_separation", 6)
+	for target_type in item["targets"]:
+		var tag := _label(str(target_type), 14)
+		tags.add_child(_card(tag, _kind_color(is_guide)))
+	content.add_child(tags)
+	content.add_child(_label(str(item["target_note"]), 15))
 	content.add_child(_label(str(item["summary"]), 17))
 	if item.has("signature"):
 		var signature := _label(str(item["signature"]), 15)
@@ -190,7 +207,8 @@ func _show_entry(key: String) -> void:
 		content.add_child(_label("BEHAVIOR & OPTIONS", 13))
 		content.add_child(_label(str(item["notes"]), 16))
 	content.add_child(HSeparator.new())
-	_add_example(str(item["code"]))
+	var examples := preload("res://addons/tween_animation/editor/tutorial_examples.gd")
+	_add_example(examples.documentation(str(item["code"]), key == "guide_setup" or key == "guide_external"))
 	scroll.scroll_vertical = 0
 
 
@@ -224,7 +242,7 @@ func _add_example(source: String) -> void:
 	content.add_child(_card(body))
 	var header := HBoxContainer.new()
 	body.add_child(header)
-	var label := _label("EXAMPLE · Adjust node paths to your scene", 13)
+	var label := _label("FOCUSED EXAMPLE", 13)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(label)
 	var copy := Button.new()
@@ -261,6 +279,7 @@ func _add_example(source: String) -> void:
 	for keyword in ["extends", "var", "func", "await", "if", "for", "in", "return"]:
 		syntax.add_keyword_color(keyword, Color("d4b8f4") if dark else Color("663795"))
 	view.syntax_highlighter = syntax
+	body.add_child(_label("Use these lines in your existing Node script. Calls run inside a method; function definitions remain at script scope. Unless shown, tweenimator is a shared Tweenimator.new(self) instance. Adjust $node paths to your scene.", 14))
 	body.add_child(view)
 
 

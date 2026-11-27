@@ -8,7 +8,12 @@ static func gdscript(source: String, first_step: bool) -> String:
 	names.compile("\\b(animate|animator)\\b")
 	code = names.sub(code, "tweenimator", true)
 	if first_step:
-		return code.strip_edges() + "\n"
+		var setup_lines := PackedStringArray()
+		for line in code.split("\n"):
+			var trimmed := line.strip_edges()
+			if trimmed.begins_with("@onready var target") or trimmed == "var tweenimator := Tweenimator.new()":
+				setup_lines.append(line)
+		return "\n".join(setup_lines) + "\n"
 	var lines := PackedStringArray()
 	for line in code.split("\n"):
 		var trimmed := line.strip_edges()
@@ -19,7 +24,7 @@ static func gdscript(source: String, first_step: bool) -> String:
 		if trimmed.begins_with("# Attach") or trimmed.begins_with("# Wait until children") or trimmed.begins_with("# No existing Tween") or trimmed.begins_with("# Option: Tweenimator.new") or trimmed.begins_with("# Reuse this helper"):
 			continue
 		lines.append(line)
-	return "\n".join(lines).strip_edges() + "\n"
+	return focus("\n".join(lines))
 
 
 static func csharp(mode: int, title: String, helper: bool) -> String:
@@ -28,17 +33,17 @@ static func csharp(mode: int, title: String, helper: bool) -> String:
 	var vector := "Vector3" if mode == 1 else "Vector2"
 	var distance := "2.0f" if mode == 1 else "100.0f"
 	var position := "new Vector3(2, 0, 0)" if mode == 1 else "new Vector2(100, 0)"
-	var header := "using Godot;\n\npublic partial class TweenExample : Node\n{\n    private " + target_type + " _target;\n"
 	if title == "Your animation toolbox":
+		var fields := "private " + target_type + " _target => GetNode<" + target_type + ">(" + JSON.stringify(target_path) + ");\n"
 		if helper:
-			return header + "    private GodotObject _tweenimator;\n\n    public override void _Ready()\n    {\n        _target = GetNode<" + target_type + ">(" + JSON.stringify(target_path) + ");\n        // Load the SAME GDScript runtime; there is no separate C# class.\n        var script = GD.Load<GDScript>(\"res://addons/tween_animation/src/tweenimator.gd\");\n        _tweenimator = (GodotObject)script.New();\n        // Optional default owner: (GodotObject)script.New(this)\n    }\n}\n"
-		return header + "\n    public override void _Ready()\n    {\n        _target = GetNode<" + target_type + ">(" + JSON.stringify(target_path) + ");\n    }\n}\n"
+			fields += '\nprivate readonly GodotObject _tweenimator =\n    (GodotObject)GD.Load<GDScript>("res://addons/tween_animation/src/tweenimator.gd").New();\n'
+		return fields
 	var move := '(Tween)_tweenimator.Call("move_left", _target, ' + distance + ', 0.4).AsGodotObject()'
 	var native_move := 'var tween = CreateTween();\n    tween.TweenProperty(_target, "position", _target.Position + ' + vector + '.Left * ' + distance + ', 0.4);'
 	var text := ""
 	match title:
 		"Make your first move", "Move left without the vector math":
-			text = "var tween = " + move + ";" if helper else native_move
+			text = '_tweenimator.Call("move_left", _target, ' + distance + ', 0.4);' if helper else native_move
 		"Keep the Tween you just made":
 			text = "var slide = " + move + ';\n    _tweenimator.Call("store", new StringName("slide"), slide);' if helper else 'var slide = CreateTween();\n    slide.TweenProperty(_target, "position", _target.Position + ' + vector + '.Left * ' + distance + ', 0.4);'
 			text += '\n    slide.TweenInterval(0.2);\n    await ToSignal(slide, Tween.SignalName.Finished);\n    GD.Print("Slide complete");'
@@ -98,3 +103,33 @@ static func csharp(mode: int, title: String, helper: bool) -> String:
 		_:
 			text = "var tween = " + move + ";" if helper else native_move
 	return "public void PlayExample()\n{\n    " + text + "\n}\n"
+
+
+static func focus(source: String) -> String:
+	var lines := PackedStringArray()
+	var functions := RegEx.new()
+	functions.compile("(?m)^func ([a-zA-Z_]+)\\(")
+	var matches := functions.search_all(source)
+	var unwrap := matches.size() == 1 and matches[0].get_string(1) == "_ready"
+	for line in source.split("\n"):
+		var trimmed := line.strip_edges()
+		if trimmed == "extends Node" or trimmed.begins_with("# Attach"):
+			continue
+		if unwrap and trimmed == "func _ready() -> void:":
+			continue
+		if unwrap and line.begins_with("    "):
+			line = line.substr(4)
+		elif unwrap and line.begins_with("\t"):
+			line = line.substr(1)
+		lines.append(line)
+	return "\n".join(lines).strip_edges() + "\n"
+
+
+static func documentation(source: String, keep_setup: bool) -> String:
+	var code := source
+	var names := RegEx.new()
+	names.compile("\\b(animate|animator)\\b")
+	code = names.sub(code, "tweenimator", true)
+	if not keep_setup:
+		code = code.replace("    var tweenimator := Tweenimator.new(self)\n", "").replace("var tweenimator := Tweenimator.new()\n", "")
+	return focus(code)

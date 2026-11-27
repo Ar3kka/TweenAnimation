@@ -75,6 +75,7 @@ func _build_ui() -> void:
 	for side in ["left", "right", "top", "bottom"]:
 		frame.add_theme_constant_override("margin_" + side, 16)
 	tabs = TabContainer.new()
+	tabs.tab_alignment = TabBar.ALIGNMENT_CENTER
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	frame.add_child(tabs)
@@ -93,6 +94,9 @@ func _build_ui() -> void:
 	var documentation := DOCUMENTATION_SCREEN.new()
 	documentation.build()
 	tabs.add_child(documentation)
+	tabs.set_tab_icon(0, _editor_icon("Node"))
+	tabs.set_tab_icon(1, ADDON_ICON)
+	tabs.set_tab_icon(2, _editor_icon("Help"))
 	page = VBoxContainer.new()
 	page.name = "Timeline"
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL

@@ -4,7 +4,7 @@ A Godot add-on for keeping track of individual Tweens, creating intent-first eff
 
 ## Install
 
-Copy `addons/tween_animation` into your project's `addons/` folder. Enable **Tweenimation** in **Project > Project Settings > Plugins**. The Setup tab offers centered 2D, 3D and UI entry points, visual walkthroughs, and paired native/helper code examples.
+Copy `addons/tween_animation` into your project's `addons/` folder. Enable **Tweenimation** in **Project > Project Settings > Plugins**. The Setup tab offers centered 2D, 3D and UI entry points, visual walkthroughs, and paired helper/native code snippets.
 
 ## Name your Tweens
 
@@ -130,4 +130,6 @@ The default Setup guide is a seven-step quick start: create the manager; run an 
 
 Open Tweenimation > Documentation for a searchable, category-filtered reference to all 36 public runtime functions. Each function has its current signature and defaults, parameter explanations, return values, behavior notes and a copyable example. Signatures are read from the runtime source. Start-here pages cover owner choices, named storage, existing external Tweens, chains/parallel groups, completion, playback/replay and public configuration fields.
 
-Tutorial examples appear helper-first, followed by regular Godot Tweens. Setup is shown once; subsequent GDScript snippets use the target/tweenimator variables established there. C# examples use a complete TweenExample.cs setup and subsequent methods inside that class. The language picker requires no .NET runtime to view examples, but executing C# requires Godot .NET and an SDK. C# helper examples use GodotObject.Call() to access the existing GDScript Tweenimator, rather than a separate C# implementation. The examples follow Godot's cross-language API; C# compilation was not validated in the current standard-engine environment.
+Tutorial examples appear helper-first, followed by regular Godot Tweens. Setup starts with only useful variables/fields; no empty ready function is required. Subsequent snippets reuse the setup variables and run inside your existing methods; function definitions belong at script/class scope. C# examples use fields inside an existing Godot Node class (with using Godot;) and GodotObject.Call() to access the same GDScript runtime. Viewing C# samples does not need a .NET engine; executing them needs Godot .NET and an SDK. C# compilation was not validated in the current standard-engine environment.
+
+Documentation includes applicability badges and combinable target filters for 2D, 3D, UI, audio, shader resources and callbacks. Registry operations are target-independent and marked Any Tween. Main tabs are centered with icons and short labels. Reference examples use focused actions and event handlers rather than repeated whole scripts; their context is stated beside the snippet.

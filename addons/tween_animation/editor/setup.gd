@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 10
+const UI_REVISION := 11
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -348,11 +348,11 @@ func _render_step() -> void:
 	if language_picker.selected == 0:
 		code_view.text = examples.gdscript(str(steps[step_index]["native"]), step_index == 0)
 		helper_view.text = examples.gdscript(str(steps[step_index]["helper"]), step_index == 0)
-		snippet_context.text = "Step 1 shows the complete setup. Later examples use its target and tweenimator variables; replace the shown method or copy its body into your existing method."
+		snippet_context.text = "Add step 1 variables to your existing Node script. Run later action lines inside _ready() or an input handler; add any shown function definitions at script scope."
 	else:
 		code_view.text = examples.csharp(selected_mode, title, false)
 		helper_view.text = examples.csharp(selected_mode, title, true)
-		snippet_context.text = "Requires Godot .NET. Save step 1 as TweenExample.cs and attach it to the target's parent. Later methods go inside that class; call them from _Ready() or an input/button handler. Helper examples access the existing GDScript runtime through Call()."
+		snippet_context.text = "Requires Godot .NET and using Godot;. Add step 1 fields to your existing Node class, then call the shown methods from _Ready() or a button/input handler. Helper examples access the GDScript runtime through Call()."
 	_style_code(code_view)
 	_style_code(helper_view)
 	code_view.show()

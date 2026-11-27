@@ -9,7 +9,11 @@ const ITEMS := {
 		"code": "extends Node\n\n# Can exist before the scene is ready. No Tween is required.\nvar animator := Tweenimator.new()\n\nfunc _ready() -> void:\n    # Node-target effects infer their owner from the target.\n    animator.move_left($Sprite2D, 100, 0.3)\n    # A shared controller owner is optional, not compulsory.\n    var controlled := Tweenimator.new(self)\n    controlled.fade_out($Panel)\n    # A named factory can select an owner for this animation only.\n    var intro := animator.create(&\"intro\", self)\n    intro.tween_interval(0.2)\n",
 		"returns": "",
 		"notes": "The owner must be inside the scene tree when creating an effect. Freeing an owner kills its bound Tweens. Resource-only and callback-only effects need a default owner because they have no Node target. Share the same Tweenimator instance with code that should access the same dictionary. TweenAnimation remains a compatibility name.",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"guide_names": {
 		"group": "Start here",
@@ -18,7 +22,11 @@ const ITEMS := {
 		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    var slide := animator.move_left($Sprite2D, 100, 0.3)\n    animator.store(&\"slide\", slide)\n    # Same object: storing does not create a second animation.\n    var same: Tween = animator.tweens[&\"slide\"]\n    same.pause()\n    # Safe lookup when a name might have finished or been removed.\n    var found := animator.get_tween(&\"slide\")\n    if found:\n        animator.resume(&\"slide\")\n",
 		"returns": "",
 		"notes": "Names are local to one Tweenimator. Finished entries are removed automatically. Reusing a name kills the old Tween by default; store(name, tween, false) rejects a duplicate. Direct dictionary writes bypass validation and finished cleanup. Externally killed entries are pruned on get_tween()/list_tweens().",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"guide_external": {
 		"group": "Start here",
@@ -27,7 +35,11 @@ const ITEMS := {
 		"code": "extends Node\n\nfunc _ready() -> void:\n    # This Tween predates its manager.\n    var external := create_tween()\n    external.set_trans(Tween.TRANS_LINEAR)\n    external.tween_property($Sprite2D, \"position:x\", 100.0, 1.0)\n    var animator := Tweenimator.new()\n    animator.store(&\"external\", external)\n    animator.pause(&\"external\")\n    animator.resume(&\"external\")\n    # Hand it back: release removes tracking, not playback.\n    var returned := animator.release(&\"external\")\n    returned.tween_interval(0.2)\n",
 		"returns": "",
 		"notes": "store() accepts a valid Godot Tween; it does not inspect property tracks or convert scripts into timeline resources. External Tweens are managed by name, not by inferred target/property replacement channels. A Tween can have aliases: release every name to fully detach it.",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"guide_chains": {
 		"group": "Start here",
@@ -36,7 +48,11 @@ const ITEMS := {
 		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    var intro := animator.create(&\"intro\", self)\n    intro.set_parallel(true)\n    intro.tween_property($Panel, \"position:x\", 100.0, 0.4)\n    intro.tween_property($Panel, \"modulate:a\", 1.0, 0.4)\n    # chain() starts the next sequential group after the parallel group.\n    intro.chain().tween_interval(0.2)\n    intro.tween_callback(func(): print(\"Intro finished\"))\n    await intro.finished\n    print(\"Continue game logic here\")\n",
 		"returns": "",
 		"notes": "Append operations before the next process frame. Tweens are sequential unless configured otherwise. Finished Tweens cannot be replayed; call a function that creates a fresh Tween. Killed Tweens do not emit finished. Replacing a named/helper effect cancels its whole Tween, including any appended steps.",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"guide_replay": {
 		"group": "Start here",
@@ -45,7 +61,11 @@ const ITEMS := {
 		"code": "extends Node\n\nvar animator := Tweenimator.new()\n\nfunc _ready() -> void:\n    play_intro()\n    animator.pause(&\"intro\")\n    animator.resume(&\"intro\")\n\n# Connect a button or input action to this function to replay.\nfunc play_intro() -> void:\n    var intro := animator.create(&\"intro\", self)\n    intro.tween_property($Panel, \"modulate:a\", 0.3, 0.5)\n    intro.tween_property($Panel, \"modulate:a\", 1.0, 0.5)\n\nfunc cancel_intro() -> void:\n    animator.stop_named(&\"intro\")\n",
 		"returns": "",
 		"notes": "pause/resume work only on live entries. A completed Tween must be recreated. create() replaces an existing name, so replaying the factory cancels a previous run automatically.",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"guide_settings": {
 		"group": "Configuration",
@@ -54,7 +74,11 @@ const ITEMS := {
 		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.transition_type = Tween.TRANS_BACK\n    animator.ease_type = Tween.EASE_OUT\n    # Preserve an intentionally placed Control pivot.\n    animator.auto_center_pivot = false\n    animator.scale_to($Panel, 1.1, 0.2)\n    print(animator.list_tweens())\n",
 		"returns": "",
 		"notes": "Public fields: node: Node (optional default owner); tweens: Dictionary[StringName, Tween] (named handles); transition_type: Tween.TransitionType (Sine); ease_type: Tween.EaseType (In-Out); auto_center_pivot: bool (true); random: RandomNumberGenerator (available for your own randomized effects; built-in effects are deterministic).",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"new": {
 		"group": "Setup",
@@ -66,7 +90,11 @@ const ITEMS := {
 		"params": {
 			"owner": "Optional default owner; null lets Node-target effects infer ownership from their target.",
 			"transition": "Default transition curve for future created Tweens. Defaults to Tween.TRANS_SINE."
-		}
+		},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"create": {
 		"group": "Named registry",
@@ -75,7 +103,11 @@ const ITEMS := {
 		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    var intro := animator.create(&\"intro\", self)\n    intro.tween_property($Panel, \"modulate:a\", 0.0, 0.5)\n    intro.tween_interval(0.2)\n",
 		"returns": "Tween, or null if the target/owner/arguments are invalid.",
 		"notes": "Replaces and kills an existing Tween using that name. Append operations immediately; an empty Tween cannot stay active indefinitely. Explicit owner takes precedence over the default owner.",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"store": {
 		"group": "Named registry",
@@ -86,7 +118,11 @@ const ITEMS := {
 		"notes": "Does not rebind, rebuild or change an adopted Tween. Finished entries clean themselves up. replace=false rejects a live duplicate and returns null without killing either Tween.",
 		"params": {
 			"replace": "Whether a duplicate name replaces and kills its previous Tween. Defaults to true."
-		}
+		},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"get_tween": {
 		"group": "Named registry",
@@ -95,7 +131,11 @@ const ITEMS := {
 		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.store(&\"slide\", animator.move_left($Sprite2D, 100))\n    var slide := animator.get_tween(&\"slide\")\n    if slide:\n        slide.pause()\n",
 		"returns": "The stored Tween, or null when missing, completed/invalid or externally killed.",
 		"notes": "",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"has_tween": {
 		"group": "Named registry",
@@ -104,7 +144,11 @@ const ITEMS := {
 		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.store(&\"slide\", animator.move_left($Sprite2D, 100))\n    if animator.has_tween(&\"slide\"):\n        animator.pause(&\"slide\")\n",
 		"returns": "bool: true for a valid entry; false otherwise.",
 		"notes": "",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"list_tweens": {
 		"group": "Named registry",
@@ -113,34 +157,50 @@ const ITEMS := {
 		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.store(&\"slide\", animator.move_left($Sprite2D, 100))\n    for name in animator.list_tweens():\n        print(name)\n",
 		"returns": "Array[StringName].",
 		"notes": "",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"pause": {
 		"group": "Playback",
 		"title": "pause()",
 		"summary": "Pause one live named Tween.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.store(&\"slide\", animator.move_left($Sprite2D, 100))\n    animator.pause(&\"slide\")\n",
+		"code": "func _on_pause_pressed() -> void:\n    tweenimator.pause(&\"intro\")\n",
 		"returns": "void.",
-		"notes": "Missing names are harmless. pause() preserves progress; resume() does not replay a completed Tween. stop_named() kills the whole Tween and does not restore prior property values.",
-		"params": {}
+		"notes": "Missing names are harmless. pause() preserves progress; resume() does not replay a completed Tween. stop_named() kills the whole Tween and does not restore prior property values. The example assumes intro was created earlier; connect the matching button to this handler.",
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"resume": {
 		"group": "Playback",
 		"title": "resume()",
 		"summary": "Resume one paused named Tween.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.store(&\"slide\", animator.move_left($Sprite2D, 100))\n    animator.resume(&\"slide\")\n",
+		"code": "func _on_continue_pressed() -> void:\n    tweenimator.resume(&\"intro\")\n",
 		"returns": "void.",
-		"notes": "Missing names are harmless. pause() preserves progress; resume() does not replay a completed Tween. stop_named() kills the whole Tween and does not restore prior property values.",
-		"params": {}
+		"notes": "Missing names are harmless. pause() preserves progress; resume() does not replay a completed Tween. stop_named() kills the whole Tween and does not restore prior property values. The example assumes intro was created earlier; connect the matching button to this handler.",
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"stop_named": {
 		"group": "Playback",
 		"title": "stop_named()",
 		"summary": "Kill a named Tween and remove its registry/replacement tracking.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.store(&\"slide\", animator.move_left($Sprite2D, 100))\n    animator.stop_named(&\"slide\")\n",
+		"code": "func _on_cancel_pressed() -> void:\n    tweenimator.stop_named(&\"intro\")\n",
 		"returns": "void.",
-		"notes": "Missing names are harmless. pause() preserves progress; resume() does not replay a completed Tween. stop_named() kills the whole Tween and does not restore prior property values.",
-		"params": {}
+		"notes": "Missing names are harmless. pause() preserves progress; resume() does not replay a completed Tween. stop_named() kills the whole Tween and does not restore prior property values. The example assumes intro was created earlier; connect the matching button to this handler.",
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"release": {
 		"group": "Named registry",
@@ -149,38 +209,54 @@ const ITEMS := {
 		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.store(&\"slide\", animator.move_left($Sprite2D, 100))\n    var slide := animator.release(&\"slide\")\n    if slide:\n        slide.tween_interval(0.2)\n",
 		"returns": "The detached Tween, or null if no valid entry exists.",
 		"notes": "Other code may continue using the returned object. If the same Tween has other names, those aliases remain managed.",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"clear": {
 		"group": "Playback",
 		"title": "clear()",
 		"summary": "Remove all named entries, optionally killing them.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.store(&\"slide\", animator.move_left($Sprite2D, 100))\n    animator.clear(false) # Release all names, let them keep running.\n",
+		"code": "tweenimator.clear(false) # Forget named handles, keep their animations running.\n",
 		"returns": "void.",
 		"notes": "clear() defaults to killing all named entries. Unnamed helper effects are unaffected; use stop_all() for both.",
 		"params": {
 			"kill_tweens": "true (default) kills entries; false releases names and replacement tracking without killing them."
-		}
+		},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"stop": {
 		"group": "Playback",
 		"title": "stop()",
 		"summary": "Stop helper-created effects for a target, optionally on one property.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.move_left($Sprite2D, 100)\n    animator.fade_out($Sprite2D)\n    animator.stop($Sprite2D, ^\"position\") # Fade can continue.\n",
+		"code": "func _on_drag_started() -> void:\n    tweenimator.stop($Sprite2D, ^\"position\") # Let player dragging take over.\n",
 		"returns": "void.",
 		"notes": "Omit property to stop every helper effect for this target. This does not infer properties inside adopted external Tweens; use stop_named() for those.",
 		"params": {
 			"property": "Optional property channel, such as ^\"position\". Empty NodePath stops all helper channels for the target."
-		}
+		},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"stop_all": {
 		"group": "Playback",
 		"title": "stop_all()",
 		"summary": "Kill all named entries and all other effects made by this manager.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.move_left($Sprite2D, 100)\n    animator.store(&\"fade\", animator.fade_out($Panel))\n    animator.stop_all()\n",
+		"code": "func _on_leaving_screen() -> void:\n    tweenimator.stop_all()\n",
 		"returns": "void.",
 		"notes": "Released Tweens are no longer managed and keep running. Property values remain where they were sampled.",
-		"params": {}
+		"params": {},
+		"targets": [
+			"Any Tween"
+		],
+		"target_note": "Target-independent: these operations manage Godot Tweens, including animations used in 2D, 3D or UI."
 	},
 	"custom": {
 		"group": "Advanced",
@@ -193,7 +269,15 @@ const ITEMS := {
 			"property": "Tween-compatible property/subproperty NodePath, e.g. ^\"position:x\" or ^\"modulate:a\".",
 			"value": "Destination matching the property type.",
 			"transition": "-1 uses the manager default; otherwise a Tween.TransitionType integer."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI",
+			"Audio",
+			"Shader resources"
+		],
+		"target_note": "Any writable Tween-compatible property with a matching destination type. Resource targets need a default owner."
 	},
 	"move_to": {
 		"group": "Movement",
@@ -204,7 +288,13 @@ const ITEMS := {
 		"notes": "Node2D/Control use Vector2; Node3D uses Vector3. Container layout may override Control position. Parent axes are used, not camera or target-facing axes.",
 		"params": {
 			"value": "Vector2 for 2D/UI, Vector3 for 3D."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"move_by": {
 		"group": "Movement",
@@ -215,7 +305,13 @@ const ITEMS := {
 		"notes": "Node2D/Control use Vector2; Node3D uses Vector3. Container layout may override Control position. Parent axes are used, not camera or target-facing axes.",
 		"params": {
 			"offset": "Vector2 for 2D/UI, Vector3 for 3D."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"move_left": {
 		"group": "Movement",
@@ -226,7 +322,13 @@ const ITEMS := {
 		"notes": "Direction uses the parent coordinate axes. Distances are scene units (normally pixels for 2D/UI). Forward/back require Node3D.",
 		"params": {
 			"distance": "Signed distance in parent coordinates. A positive value moves in the named direction. Default 1.0."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"move_right": {
 		"group": "Movement",
@@ -237,7 +339,13 @@ const ITEMS := {
 		"notes": "Direction uses the parent coordinate axes. Distances are scene units (normally pixels for 2D/UI). Forward/back require Node3D.",
 		"params": {
 			"distance": "Signed distance in parent coordinates. A positive value moves in the named direction. Default 1.0."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"move_up": {
 		"group": "Movement",
@@ -248,7 +356,13 @@ const ITEMS := {
 		"notes": "Direction uses the parent coordinate axes. Distances are scene units (normally pixels for 2D/UI). Forward/back require Node3D.",
 		"params": {
 			"distance": "Signed distance in parent coordinates. A positive value moves in the named direction. Default 1.0."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"move_down": {
 		"group": "Movement",
@@ -259,7 +373,13 @@ const ITEMS := {
 		"notes": "Direction uses the parent coordinate axes. Distances are scene units (normally pixels for 2D/UI). Forward/back require Node3D.",
 		"params": {
 			"distance": "Signed distance in parent coordinates. A positive value moves in the named direction. Default 1.0."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"move_forward": {
 		"group": "Movement",
@@ -270,7 +390,11 @@ const ITEMS := {
 		"notes": "Direction uses the parent coordinate axes. Distances are scene units (normally pixels for 2D/UI). Forward/back require Node3D.",
 		"params": {
 			"distance": "Signed distance in parent coordinates. A positive value moves in the named direction. Default 1.0."
-		}
+		},
+		"targets": [
+			"3D"
+		],
+		"target_note": "Node3D only. Forward/back follow the parent Z axis, not the camera."
 	},
 	"move_back": {
 		"group": "Movement",
@@ -281,7 +405,11 @@ const ITEMS := {
 		"notes": "Direction uses the parent coordinate axes. Distances are scene units (normally pixels for 2D/UI). Forward/back require Node3D.",
 		"params": {
 			"distance": "Signed distance in parent coordinates. A positive value moves in the named direction. Default 1.0."
-		}
+		},
+		"targets": [
+			"3D"
+		],
+		"target_note": "Node3D only. Forward/back follow the parent Z axis, not the camera."
 	},
 	"scale_to": {
 		"group": "Transform",
@@ -292,7 +420,13 @@ const ITEMS := {
 		"notes": "Supports Node2D, Node3D and Control. UI pivots are centered unless auto_center_pivot=false. A number selects Vector2/Vector3 automatically.",
 		"params": {
 			"value": "Number for uniform scale; Vector2 for 2D/UI; Vector3 for 3D."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"scale_up": {
 		"group": "Transform",
@@ -303,7 +437,13 @@ const ITEMS := {
 		"notes": "Works on Node2D, Node3D and Control. This scales from the current value; it is not an absolute size preset.",
 		"params": {
 			"amount": "Fractional scale change, default 0.1 (10 percent)."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"scale_down": {
 		"group": "Transform",
@@ -314,7 +454,13 @@ const ITEMS := {
 		"notes": "Works on Node2D, Node3D and Control. This scales from the current value; it is not an absolute size preset.",
 		"params": {
 			"amount": "Fractional scale change, default 0.1 (10 percent)."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"rotate_to": {
 		"group": "Transform",
@@ -325,7 +471,13 @@ const ITEMS := {
 		"notes": "Use a number for Node2D/Control or Vector3 Euler radians for Node3D. UI pivots can be centered automatically.",
 		"params": {
 			"radians": "Number for 2D/UI; Vector3 for 3D. This is an absolute destination, not a relative increment."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"rotate_degrees": {
 		"group": "Transform",
@@ -336,20 +488,32 @@ const ITEMS := {
 		"notes": "Converts to radians internally and uses the same rotation replacement channel as rotate_to().",
 		"params": {
 			"degrees": "Number for 2D/UI; Vector3 for 3D."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"press": {
 		"group": "Effects",
 		"title": "press()",
 		"summary": "Shrink and return to the captured starting scale as a two-phase effect.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.press($Button, 0.05, 0.1, 0.2)\n",
+		"code": "func _on_button_pressed() -> void:\n    tweenimator.press($Button)\n",
 		"returns": "Tween, or null if the target/owner/arguments are invalid.",
 		"notes": "Supports Node2D, Node3D and Control. Repeated presses preserve the initial rest scale. UI pivots are centered unless opted out.",
 		"params": {
 			"amount": "Shrink fraction, clamped to 0-1. Default 0.05 (5 percent).",
 			"duration_down": "Shrink duration in seconds; default 0.1.",
 			"duration_up": "Return duration in seconds; default 0.2."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"wiggle": {
 		"group": "Effects",
@@ -361,7 +525,13 @@ const ITEMS := {
 		"params": {
 			"strength": "Angular excursion in radians; default 0.15.",
 			"loops": "Number of oscillations, at least 1. duration covers the whole effect."
-		}
+		},
+		"targets": [
+			"2D",
+			"3D",
+			"UI"
+		],
+		"target_note": "Node2D, Node3D or Control. Use Vector2 for 2D/UI and Vector3 for 3D where a vector is required."
 	},
 	"fade_to": {
 		"group": "Effects",
@@ -372,18 +542,28 @@ const ITEMS := {
 		"notes": "CanvasItem only: 2D and UI, not arbitrary Node3D transparency. Uses the modulate:a replacement channel.",
 		"params": {
 			"alpha": "Destination alpha, clamped to 0-1."
-		}
+		},
+		"targets": [
+			"2D",
+			"UI"
+		],
+		"target_note": "CanvasItem only. This does not control transparency on an arbitrary Node3D."
 	},
 	"fade_in": {
 		"group": "Effects",
 		"title": "fade_in()",
 		"summary": "Fade toward alpha 1 from the current value.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    animator.fade_in($Panel, 0.5)\n",
+		"code": "$Panel.modulate.a = 0.0\ntweenimator.fade_in($Panel, 0.3)\n",
 		"returns": "Tween, or null if the target/owner/arguments are invalid.",
 		"notes": "CanvasItem only: 2D and UI, not arbitrary Node3D transparency. Uses the modulate:a replacement channel.",
 		"params": {
 			"alpha": "Destination alpha, clamped to 0-1."
-		}
+		},
+		"targets": [
+			"2D",
+			"UI"
+		],
+		"target_note": "CanvasItem only. This does not control transparency on an arbitrary Node3D."
 	},
 	"fade_out": {
 		"group": "Effects",
@@ -394,7 +574,12 @@ const ITEMS := {
 		"notes": "CanvasItem only: 2D and UI, not arbitrary Node3D transparency. Uses the modulate:a replacement channel.",
 		"params": {
 			"alpha": "Destination alpha, clamped to 0-1."
-		}
+		},
+		"targets": [
+			"2D",
+			"UI"
+		],
+		"target_note": "CanvasItem only. This does not control transparency on an arbitrary Node3D."
 	},
 	"resize_to": {
 		"group": "Effects",
@@ -405,7 +590,11 @@ const ITEMS := {
 		"notes": "Containers and minimum size can override or constrain this property.",
 		"params": {
 			"value": "Destination size as Vector2, in Control coordinate units."
-		}
+		},
+		"targets": [
+			"UI"
+		],
+		"target_note": "Control only. Containers and minimum size can override or constrain its layout."
 	},
 	"set_volume": {
 		"group": "Advanced",
@@ -416,32 +605,44 @@ const ITEMS := {
 		"notes": "Accepts AudioStreamPlayer, AudioStreamPlayer2D and AudioStreamPlayer3D.",
 		"params": {
 			"decibels": "Destination volume in dB, default 0.0. Negative values attenuate the audio."
-		}
+		},
+		"targets": [
+			"Audio"
+		],
+		"target_note": "AudioStreamPlayer, AudioStreamPlayer2D or AudioStreamPlayer3D. This changes volume, not a visual node property."
 	},
 	"shader_transition": {
 		"group": "Advanced",
 		"title": "shader_transition()",
 		"summary": "Tween a ShaderMaterial uniform.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    var shader := Shader.new()\n    shader.code = \"shader_type canvas_item; uniform float amount = 0.0;\"\n    var material := ShaderMaterial.new()\n    material.shader = shader\n    material.set_shader_parameter(\"amount\", 0.0)\n    animator.shader_transition(material, \"amount\", 1.0, 0.5)\n",
+		"code": "var material := $Sprite2D.material as ShaderMaterial\ntweenimator.shader_transition(material, \"dissolve\", 1.0, 0.5)\n",
 		"returns": "Tween, or null if the target/owner/arguments are invalid.",
-		"notes": "The manager needs a default owner (e.g. new(self)); ShaderMaterial is not a Node. Uniform type must support Tween interpolation.",
+		"notes": "The manager needs a default owner (e.g. new(self)); ShaderMaterial is not a Node. Uniform type must support Tween interpolation. This example assumes the Sprite2D already uses a shader with a float uniform named dissolve.",
 		"params": {
 			"material": "ShaderMaterial with the parameter defined in its shader.",
 			"parameter": "Uniform name without the shader_parameter/ prefix.",
 			"value": "Destination matching the uniform type."
-		}
+		},
+		"targets": [
+			"Shader resources"
+		],
+		"target_note": "ShaderMaterial uniform, not a spatial-node effect. Use an explicit owner Node for the manager."
 	},
 	"method": {
 		"group": "Advanced",
 		"title": "method()",
 		"summary": "Animate values supplied to a Callable instead of an object property.",
-		"code": "extends Node\n\nfunc _ready() -> void:\n    var animator := Tweenimator.new(self)\n    var update := func(value: float): print(value)\n    var tween := animator.method(update, 0.0, 1.0, 0.5)\n    animator.store(&\"counter\", tween)\n",
+		"code": "var update_score := func(value: float): $Label.text = \"Score: %d\" % roundi(value)\nvar counter := tweenimator.method(update_score, 0.0, 100.0, 1.0)\ntweenimator.store(&\"score_counter\", counter)\n",
 		"returns": "Tween, or null if the target/owner/arguments are invalid.",
 		"notes": "Needs a default owner. Returned Tween can be named, chained and awaited. stop_all() includes these callback effects.",
 		"params": {
 			"callback": "Valid Callable accepting an interpolated value.",
 			"from": "Starting value.",
 			"to": "Ending value; must be compatible with from."
-		}
+		},
+		"targets": [
+			"Callbacks"
+		],
+		"target_note": "Interpolates values into your Callable; no spatial target is assumed. Supply a default owner Node."
 	}
 }
