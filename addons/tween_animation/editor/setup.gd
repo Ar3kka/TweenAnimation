@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 9
+const UI_REVISION := 10
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -31,6 +31,8 @@ var helper_view: CodeEdit
 var comparison: RichTextLabel
 var resource_view: CodeEdit
 var action_label: Label
+var language_picker: OptionButton
+var snippet_context: Label
 
 
 func build(logo_texture: Texture2D) -> void:
@@ -134,6 +136,14 @@ func build(logo_texture: Texture2D) -> void:
 		_show_guide(selected_mode)
 	)
 	body.add_child(lesson_picker)
+	language_picker = OptionButton.new()
+	language_picker.add_item("GDScript")
+	language_picker.add_item("C# · Godot .NET")
+	language_picker.item_selected.connect(func(_index: int): _render_step())
+	body.add_child(language_picker)
+	snippet_context = _text("", 14)
+	snippet_context.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(snippet_context)
 	progress = _text("", 14)
 	progress.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(progress)
@@ -176,16 +186,17 @@ func build(logo_texture: Texture2D) -> void:
 
 	code_view = CodeEdit.new()
 	code_view.editable = false
-	code_view.custom_minimum_size.y = 250
+	code_view.custom_minimum_size.y = 120
 	code_view.gutters_draw_line_numbers = true
 	_style_code(code_view)
-	copy_button = _snippet(card_body, code_view, "GODOT TWEEN")
+	copy_button = _snippet(card_body, code_view, "REGULAR GODOT TWEEN ANIMATION")
 	helper_view = CodeEdit.new()
 	helper_view.editable = false
-	helper_view.custom_minimum_size.y = 230
+	helper_view.custom_minimum_size.y = 120
 	helper_view.gutters_draw_line_numbers = true
 	_style_code(helper_view)
-	_snippet(card_body, helper_view, "TWEENIMATION HELPER")
+	_snippet(card_body, helper_view, "TWEENIMATION")
+	card_body.move_child(helper_view.get_parent().get_parent(), code_view.get_parent().get_parent().get_index())
 	comparison = RichTextLabel.new()
 	comparison.bbcode_enabled = true
 	comparison.fit_content = true
@@ -194,7 +205,7 @@ func build(logo_texture: Texture2D) -> void:
 	card_body.add_child(comparison)
 	resource_view = CodeEdit.new()
 	resource_view.editable = false
-	resource_view.custom_minimum_size.y = 230
+	resource_view.custom_minimum_size.y = 120
 	resource_view.gutters_draw_line_numbers = true
 	_style_code(resource_view)
 	_snippet(card_body, resource_view, "PLAY A SAVED TIMELINE")
@@ -332,15 +343,27 @@ func _render_step() -> void:
 	visual.set("step", step_index)
 	visual.set("elapsed", 0.0)
 	card_style.border_color = [Color("78b9ff"), Color("ff8f91"), Color("8fdfb3")][selected_mode]
-	code_view.text = str(steps[step_index]["native"])
-	helper_view.text = str(steps[step_index]["helper"])
+	var examples := preload("res://addons/tween_animation/editor/tutorial_examples.gd")
+	var title := str(steps[step_index]["title"])
+	if language_picker.selected == 0:
+		code_view.text = examples.gdscript(str(steps[step_index]["native"]), step_index == 0)
+		helper_view.text = examples.gdscript(str(steps[step_index]["helper"]), step_index == 0)
+		snippet_context.text = "Step 1 shows the complete setup. Later examples use its target and tweenimator variables; replace the shown method or copy its body into your existing method."
+	else:
+		code_view.text = examples.csharp(selected_mode, title, false)
+		helper_view.text = examples.csharp(selected_mode, title, true)
+		snippet_context.text = "Requires Godot .NET. Save step 1 as TweenExample.cs and attach it to the target's parent. Later methods go inside that class; call them from _Ready() or an input/button handler. Helper examples access the existing GDScript runtime through Call()."
+	_style_code(code_view)
+	_style_code(helper_view)
 	code_view.show()
 	helper_view.show()
 	copy_button.show()
-	copy_button.tooltip_text = "Copy Godot example"
-	comparison.text = str(steps[step_index]["comparison"])
+	copy_button.tooltip_text = "Copy regular Godot Tween example"
+	comparison.text = str(steps[step_index]["comparison"]).get_slice("\n\n[b]Defaults:", 0)
+	comparison.visible = not comparison.text.is_empty()
 	resource_view.get_parent().get_parent().visible = steps[step_index]["title"] == "Let your game press Play"
-	resource_view.text = "# Play the saved .tres timeline with AnimationPlayer.\n" + timeline_example
+	resource_view.text = examples.gdscript(timeline_example, false) if language_picker.selected == 0 else examples.csharp(selected_mode, "Let your game press Play", false)
+	_style_code(resource_view)
 	reuse_button.visible = steps[step_index]["title"] == "Bring your existing work along"
 	previous.disabled = step_index == 0
 	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
@@ -358,7 +381,7 @@ func _fit_body() -> void:
 func _ensure_ui() -> bool:
 	# Tool scripts can reload while their existing controls remain alive.
 	# Rebuild added fields and signal targets together rather than using stale UI.
-	if get_meta("ui_revision", 0) == UI_REVISION and is_instance_valid(card_style) and is_instance_valid(copy_button) and is_instance_valid(helper_view):
+	if get_meta("ui_revision", 0) == UI_REVISION and is_instance_valid(card_style) and is_instance_valid(copy_button) and is_instance_valid(helper_view) and is_instance_valid(language_picker):
 		return false
 	for child in get_children():
 		remove_child(child)
@@ -524,8 +547,8 @@ func _style_code(view: CodeEdit) -> void:
 	syntax.number_color = Color("b6dba3") if dark else Color("35631d")
 	syntax.function_color = Color("92ccef") if dark else Color("145980")
 	syntax.add_color_region('"', '"', Color("edce96") if dark else Color("785109"))
-	syntax.add_color_region("#", "", Color("a5afbe") if dark else Color("546070"), true)
-	for keyword in ["extends", "var", "func", "await", "if", "return", "else"]:
+	syntax.add_color_region("#" if not is_instance_valid(language_picker) or language_picker.selected == 0 else "//", "", Color("a5afbe") if dark else Color("546070"), true)
+	for keyword in ["extends", "var", "func", "await", "if", "return", "else", "using", "public", "private", "partial", "class", "override", "void", "async", "new", "null", "true", "false"]:
 		syntax.add_keyword_color(keyword, Color("d4b8f4") if dark else Color("663795"))
 	view.syntax_highlighter = syntax
 
@@ -550,23 +573,9 @@ func _press_lesson() -> Dictionary:
 
 
 func _explain_code(source: String) -> String:
-	var result := ""
-	for line in source.split("\n"):
-		var trimmed := line.strip_edges()
-		var indent := line.substr(0, line.length() - line.lstrip(" \t").length())
-		if not trimmed.begins_with("#"):
-			if "Tweenimator.new()" in line:
-				result += indent + "# No existing Tween is needed. Node-target effects use their target as owner.\n"
-				result += indent + "# Option: Tweenimator.new(self) binds created effects to this controller instead.\n"
-				result += indent + "# Reuse this helper so repeated effects can replace earlier ones.\n"
-			elif "Tweenimator.new(target)" in line:
-				result += indent + "# Here the animated node also owns the Tween. It must be in the tree.\n"
-			elif "create_tween()" in line:
-				result += indent + "# Implicitly self.create_tween(): Godot binds this Tween to this Node.\n"
-			if trimmed.begins_with("@onready") and "var target" in line:
-				result += "# Wait until children are available before resolving the target path.\n"
-		result += line + "\n"
-	return result
+	# Setup and owner explanations live in their own step instead of being
+	# inserted into every later snippet.
+	return source
 
 
 func _owner_lesson(node_path: String, property: String, end_value: String) -> Dictionary:
@@ -581,6 +590,8 @@ func _snippet(parent: VBoxContainer, view: CodeEdit, caption: String) -> Button:
 	var style := StyleBoxFlat.new()
 	style.bg_color = view.get_theme_color("background_color")
 	style.set_corner_radius_all(6)
+	style.border_width_left = 3
+	style.border_color = Color("72d7bb") if caption == "TWEENIMATION" else EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
 	style.content_margin_left = 8
 	style.content_margin_right = 8
 	style.content_margin_top = 6
@@ -623,10 +634,11 @@ func _registry_lesson(node_path: String, property: String, end_value: String) ->
 func _prioritize_setup() -> void:
 	var advanced := steps
 	steps = preload("res://addons/tween_animation/editor/onboarding.gd").lessons(selected_mode)
-	for lesson in steps:
+	for index in steps.size():
+		var lesson: Dictionary = steps[index]
 		lesson["native"] = _explain_code(str(lesson["native"]))
 		lesson["helper"] = _explain_code(str(lesson["helper"]))
-		lesson["comparison"] = "[b]Two valid routes.[/b] Godot supplies the Tween engine. Tweenimator adds a shared place to create effects, keep named references and control them. Native defaults to Linear easing; Tweenimator defaults to Sine / In-Out."
+		lesson["comparison"] = "Godot supplies the Tween engine; Tweenimator adds named tracking and effects. Defaults: native Linear, helper Sine / In-Out." if index == 0 else ""
 	if lesson_path == 0:
 		return
 	var timeline_titles := ["Give it a property to play with", "Plant the first key", "Choose the destination", "Bring it to life", "Let your game press Play", "Bring your existing work along"]
