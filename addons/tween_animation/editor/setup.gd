@@ -575,6 +575,7 @@ func _attach_comparisons(node_path: String, property: String, end_value: String,
 
 
 func _style_code(view: CodeEdit) -> void:
+	view.text = preload("res://addons/tween_animation/editor/snippet_format.gd").prepare(view.text, content_mode == 1)
 	view.custom_minimum_size.y = 0
 	view.scroll_fit_content_height = true
 	var background := EditorInterface.get_base_control().get_theme_color("dark_color_2", "Editor")

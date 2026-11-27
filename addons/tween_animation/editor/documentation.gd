@@ -260,6 +260,7 @@ func _card(child: Control, accent: Color = Color.TRANSPARENT) -> PanelContainer:
 
 
 func _add_example(source: String) -> void:
+	source = preload("res://addons/tween_animation/editor/snippet_format.gd").prepare(source, content_mode == 1)
 	var body := VBoxContainer.new()
 	content.add_child(_card(body))
 	var header := HBoxContainer.new()
