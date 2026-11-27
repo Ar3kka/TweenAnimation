@@ -63,7 +63,7 @@ func build() -> void:
 	sidebar = VBoxContainer.new()
 	sidebar.custom_minimum_size.x = 150
 	body.add_child(sidebar)
-	sidebar.add_child(_text("PRACTICE SCENE", 12))
+	sidebar.add_child(_text("TUTORIAL SCENE · choose an animation target", 12))
 	scene_tree = Tree.new()
 	scene_tree.custom_minimum_size.y = 92
 	scene_tree.item_selected.connect(_select_target)
@@ -147,7 +147,7 @@ func configure(target_mode: int, step: int) -> void:
 	var messages := ["1 · Click the target under PreviewScene.", "2 · Property goes here → then Add track.", "3 · Start at 0 seconds → Capture key.", "4 · Playhead at 1 second → change the sample Inspector → Capture key.", "5 · Press Play preview. Rewind returns to the beginning.", "6 · Save in the real Timeline creates an Animation resource."]
 	callout.text = messages[phase]
 	if phase == 0:
-		callout.text = "↓ Click the %s row below." % scene_item.get_text(0)
+		callout.text = "↓ Select %s as the target for a new track." % scene_item.get_text(0)
 	match phase:
 		0: _highlight(scene_tree)
 		1:
@@ -161,7 +161,7 @@ func configure(target_mode: int, step: int) -> void:
 		5: _highlight(save_button)
 	feedback.text = "Practice only: controls edit this sample clip, not your scene. Use Timeline in the top bar for your project."
 	if phase == 0:
-		feedback.text = "Waiting for selection. Click the object name, not PreviewScene."
+		feedback.text = "No animation target selected. Add track needs a node so it knows which object's property to animate."
 		target_selection_changed.emit(false)
 
 
@@ -169,8 +169,8 @@ func _select_target() -> void:
 	selected = scene_tree.get_selected() == scene_item
 	if selected:
 		if phase == 0:
-			callout.text = "✓ %s selected" % scene_item.get_text(0)
-			feedback.text = "Done! This is the object we will animate. Click Next: add a track below."
+			callout.text = "Animation target: %s" % scene_item.get_text(0)
+			feedback.text = "New tracks will target this tutorial node. In your project, choose the target in Godot's Scene tree before using Add track."
 		else:
 			feedback.text = "Target selected. Enter the property and choose Add track."
 	target_selection_changed.emit(selected)

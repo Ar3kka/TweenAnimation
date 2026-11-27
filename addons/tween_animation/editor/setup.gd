@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 14
+const UI_REVISION := 15
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -409,11 +409,12 @@ func _render_step() -> void:
 	details.scroll_vertical = 0
 
 
-func _practice_selection_changed(is_selected: bool) -> void:
+func _practice_selection_changed(_is_selected: bool) -> void:
 	if content_mode != 2 or step_index != 0:
 		return
-	next_button.disabled = not is_selected
-	next_button.text = "Next: add a track →" if is_selected else "Select the object above to continue"
+	# Node selection demonstrates track targeting; it never gates lesson navigation.
+	next_button.disabled = false
+	next_button.text = "Next: add a track →"
 
 
 func _fit_body() -> void:
