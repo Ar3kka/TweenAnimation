@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 3
+const UI_REVISION := 4
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -107,7 +107,7 @@ func build(logo_texture: Texture2D) -> void:
 	add_child(details)
 	var body := VBoxContainer.new()
 	content_body = body
-	body.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if not resized.is_connected(_fit_body):
 		resized.connect(_fit_body)
 	_fit_body()
@@ -168,14 +168,7 @@ func build(logo_texture: Texture2D) -> void:
 	code_view.editable = false
 	code_view.custom_minimum_size.y = 250
 	code_view.gutters_draw_line_numbers = true
-	var syntax := CodeHighlighter.new()
-	syntax.number_color = Color("a7d5a0")
-	syntax.add_color_region('"', '"', Color("e8c988"))
-	syntax.add_color_region("#", "", Color("88949d"), true)
-	syntax.function_color = Color("83c5ed")
-	for keyword in ["extends", "var", "func", "await", "if", "return", "else"]:
-		syntax.add_keyword_color(keyword, Color("c7a9ed"))
-	code_view.syntax_highlighter = syntax
+	_style_code(code_view)
 	card_body.add_child(_text("GODOT TWEEN · Built into Godot", 14))
 	card_body.add_child(code_view)
 	copy_button = Button.new()
@@ -191,7 +184,7 @@ func build(logo_texture: Texture2D) -> void:
 	helper_view.editable = false
 	helper_view.custom_minimum_size.y = 230
 	helper_view.gutters_draw_line_numbers = true
-	helper_view.syntax_highlighter = syntax.duplicate()
+	_style_code(helper_view)
 	card_body.add_child(helper_view)
 	var copy_helper := Button.new()
 	copy_helper.text = "Copy helper example"
@@ -208,6 +201,7 @@ func build(logo_texture: Texture2D) -> void:
 	resource_view.editable = false
 	resource_view.custom_minimum_size.y = 230
 	resource_view.gutters_draw_line_numbers = true
+	_style_code(resource_view)
 	card_body.add_child(resource_view)
 	reuse_button = Button.new()
 	reuse_button.text = "Open an existing .tres animation…"
@@ -354,7 +348,8 @@ func _render_step() -> void:
 
 func _fit_body() -> void:
 	if is_instance_valid(content_body):
-		content_body.custom_minimum_size.x = maxf(300.0, minf(860.0, size.x - 32.0))
+		content_body.custom_minimum_size.x = 0
+		content_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 
 func _ensure_ui() -> bool:
@@ -477,3 +472,26 @@ func _attach_comparisons(node_path: String, property: String, end_value: String,
 			for api in ["native", "helper"]:
 				steps[index][api] = str(steps[index][api]).replace("func _ready() -> void:\n", 'func _ready() -> void:\n    target.set_indexed(^"%s", %s) # Explicit starting value\n' % [property, start_value])
 		steps[index]["comparison"] = benefit + "\n\n[b]Defaults:[/b] native Tween uses Linear / In-Out; Tweenimation uses Sine / In-Out. Set native transition/ease before tween_property() to match the helper. Both scripts are alternatives; run one at a time."
+
+
+func _style_code(view: CodeEdit) -> void:
+	var background := EditorInterface.get_base_control().get_theme_color("dark_color_2", "Editor")
+	var dark := background.get_luminance() < 0.5
+	var foreground := Color("dce4ef") if dark else Color("202733")
+	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# CodeEdit uses a separate foreground for read-only text.
+	view.add_theme_color_override("background_color", background)
+	view.add_theme_color_override("font_color", foreground)
+	view.add_theme_color_override("font_readonly_color", foreground)
+	view.add_theme_color_override("font_selected_color", foreground)
+	view.add_theme_color_override("line_number_color", Color("a5afbe") if dark else Color("546070"))
+	var syntax := CodeHighlighter.new()
+	syntax.symbol_color = foreground
+	syntax.member_variable_color = foreground
+	syntax.number_color = Color("b6dba3") if dark else Color("35631d")
+	syntax.function_color = Color("92ccef") if dark else Color("145980")
+	syntax.add_color_region('"', '"', Color("edce96") if dark else Color("785109"))
+	syntax.add_color_region("#", "", Color("a5afbe") if dark else Color("546070"), true)
+	for keyword in ["extends", "var", "func", "await", "if", "return", "else"]:
+		syntax.add_keyword_color(keyword, Color("d4b8f4") if dark else Color("663795"))
+	view.syntax_highlighter = syntax
