@@ -5,6 +5,7 @@ extends Control
 var mode := 0
 var step := 0
 var elapsed := 0.0
+var caption := "READ  →  TRY  →  CONTINUE"
 
 
 func _process(delta: float) -> void:
@@ -21,7 +22,7 @@ func _draw() -> void:
 	var stage_width := minf(380.0, size.x - 80)
 	var left := Vector2((size.x - stage_width) / 2.0, 65)
 	var right := Vector2((size.x + stage_width) / 2.0, 65)
-	var fraction := (sin(elapsed * 2.0 - PI / 2.0) + 1.0) / 2.0 if step >= 3 else 0.0
+	var fraction := (sin(elapsed * 2.0 - PI / 2.0) + 1.0) / 2.0 if step >= 1 else 0.0
 	var stage := StyleBoxFlat.new()
 	stage.bg_color = Color(accent, 0.035)
 	stage.border_color = Color(accent, 0.12)
@@ -64,4 +65,4 @@ func _draw() -> void:
 	draw_circle(Vector2(lerpf(left.x, right.x, fraction), 124), 3, foreground)
 	draw_string(font, Vector2(left.x - 26, 128), "0s", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, foreground)
 	draw_string(font, Vector2(right.x + 12, 128), "1s", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, foreground)
-	draw_string(font, Vector2(20, 152), "Illustration · your scene stays untouched", HORIZONTAL_ALIGNMENT_CENTER, size.x - 40, 12, foreground)
+	draw_string(font, Vector2(20, 154), caption, HORIZONTAL_ALIGNMENT_CENTER, size.x - 40, 14, foreground)

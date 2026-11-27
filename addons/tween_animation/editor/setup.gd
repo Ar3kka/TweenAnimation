@@ -6,7 +6,7 @@ signal start_requested(mode: String)
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 7
+const UI_REVISION := 8
 var selected_mode := 0
 var menu: CenterContainer
 var details: ScrollContainer
@@ -30,6 +30,7 @@ var timeline_example := ""
 var helper_view: CodeEdit
 var comparison: RichTextLabel
 var resource_view: CodeEdit
+var action_label: Label
 
 
 func build(logo_texture: Texture2D) -> void:
@@ -125,15 +126,16 @@ func build(logo_texture: Texture2D) -> void:
 	start_button.pressed.connect(func(): start_requested.emit(MODES[selected_mode]))
 	actions.add_child(start_button)
 	lesson_picker = OptionButton.new()
-	lesson_picker.add_item("Learn visually · Timeline")
-	lesson_picker.add_item("Learn Godot Tweens · Code only")
-	lesson_picker.add_item("Use Tweenimation · Helper code")
+	lesson_picker.add_item("Quick start · Your named Tween toolbox")
+	lesson_picker.add_item("Go further · Visual timeline")
+	lesson_picker.add_item("Go further · Effects and easing")
 	lesson_picker.item_selected.connect(func(index: int):
 		lesson_path = index
 		_show_guide(selected_mode)
 	)
 	body.add_child(lesson_picker)
-	progress = _text("", 13)
+	progress = _text("", 14)
+	progress.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(progress)
 	var progress_style := StyleBoxFlat.new()
 	card_style = progress_style
@@ -150,7 +152,8 @@ func build(logo_texture: Texture2D) -> void:
 	var card_body := VBoxContainer.new()
 	card_body.add_theme_constant_override("separation", 14)
 	card.add_child(card_body)
-	step_title = _text("", 24)
+	step_title = _text("", 26)
+	step_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card_body.add_child(step_title)
 	visual = preload("res://addons/tween_animation/editor/tutorial_visual.gd").new()
 	visual.custom_minimum_size.y = 170
@@ -161,7 +164,14 @@ func build(logo_texture: Texture2D) -> void:
 	guide.scroll_active = false
 	guide.selection_enabled = true
 	guide.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
-	guide.add_theme_font_size_override("normal_font_size", 15)
+	guide.add_theme_font_size_override("normal_font_size", 17)
+	guide.add_theme_font_size_override("bold_font_size", 17)
+	guide.add_theme_font_size_override("mono_font_size", 16)
+	action_label = _text("", 20)
+	action_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	card_body.add_child(action_label)
+	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	guide.add_theme_constant_override("line_separation", 6)
 	card_body.add_child(guide)
 
 	code_view = CodeEdit.new()
@@ -207,7 +217,7 @@ func build(logo_texture: Texture2D) -> void:
 	next_button.custom_minimum_size = Vector2(150, 38)
 	next_button.pressed.connect(func():
 		if step_index == steps.size() - 1:
-			if lesson_path > 0:
+			if lesson_path == 2:
 				show_menu()
 			else:
 				start_requested.emit(MODES[selected_mode])
@@ -287,7 +297,7 @@ func _show_guide(index: int) -> void:
 		"    animator.custom(%s, ^\"%s\", %s, 1.0)\n") % [node_path, property, end_value, node_path, property, end_value]
 
 	timeline_example = code_view.text
-	if lesson_path > 0:
+	if lesson_path == 2:
 		_build_code_lesson(node_path, property, end_value)
 	steps.insert(1, _property_lesson())
 	steps.insert(2, _direction_lesson())
@@ -295,6 +305,7 @@ func _show_guide(index: int) -> void:
 	steps.insert(4, _owner_lesson(node_path, property, end_value))
 	steps.insert(5, _registry_lesson(node_path, property, end_value))
 	_attach_comparisons(node_path, property, end_value, start_value)
+	_prioritize_setup()
 	step_index = 0
 	_render_step()
 
@@ -312,8 +323,11 @@ func _render_step() -> void:
 	for index in steps.size():
 		progress.text += "●  " if index <= step_index else "○  "
 	step_title.text = str(steps[step_index]["title"])
-	start_button.visible = lesson_path == 0
+	start_button.visible = lesson_path != 2
+	action_label.text = str(steps[step_index].get("action", "Try it in your scene, then continue when you are ready."))
+	action_label.modulate = [Color("a1ccff"), Color("ffb4b5"), Color("ace8c5")][selected_mode]
 	guide.text = str(steps[step_index]["body"])
+	visual.set("caption", str(steps[step_index].get("visual", "READ  →  TRY  →  CONTINUE")))
 	visual.set("mode", selected_mode)
 	visual.set("step", step_index)
 	visual.set("elapsed", 0.0)
@@ -325,12 +339,12 @@ func _render_step() -> void:
 	copy_button.show()
 	copy_button.tooltip_text = "Copy Godot example"
 	comparison.text = str(steps[step_index]["comparison"])
-	resource_view.get_parent().get_parent().visible = lesson_path == 0 and steps[step_index]["title"] == "Let your game press Play"
+	resource_view.get_parent().get_parent().visible = steps[step_index]["title"] == "Let your game press Play"
 	resource_view.text = "# Play the saved .tres timeline with AnimationPlayer.\n" + timeline_example
-	reuse_button.visible = lesson_path == 0 and steps[step_index]["title"] == "Bring your existing work along"
+	reuse_button.visible = steps[step_index]["title"] == "Bring your existing work along"
 	previous.disabled = step_index == 0
 	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
-	if lesson_path > 0 and step_index == steps.size() - 1:
+	if lesson_path == 2 and step_index == steps.size() - 1:
 		next_button.text = "Choose another guide →"
 	details.scroll_vertical = 0
 
@@ -603,3 +617,19 @@ func _registry_lesson(node_path: String, property: String, end_value: String) ->
 	var native := 'extends Node\n\n@onready var target = %s\nvar tweens: Dictionary[StringName, Tween] = {}\n\nfunc _ready() -> void:\n    var tween := create_tween()\n    tween.tween_property(target, "%s", %s, 1.0)\n    tweens[&"intro"] = tween\n    # Plain dictionaries need their own lifetime/replacement handling.\n    tween.finished.connect(func():\n        if tweens.get(&"intro") == tween:\n            tweens.erase(&"intro")\n    )\n    tweens[&"intro"].pause()\n    tweens[&"intro"].play()\n' % [node_path, property, end_value]
 	var helper := 'extends Node\n\n@onready var target = %s\nvar animate := Tweenimator.new()\n\nfunc _ready() -> void:\n    # Create a named animation here; append any Godot Tween operations.\n    var intro := animate.create(&"intro", self)\n    intro.tween_property(target, "%s", %s, 1.0)\n    intro.tween_interval(0.2)\n    # Direct dictionary access and the helper refer to the SAME Tween.\n    animate.tweens[&"intro"].pause()\n    animate.resume(&"intro")\n\nfunc register_external(external: Tween) -> void:\n    # Any valid Tween from other code can join the registry unchanged.\n    animate.store(&"external", external)\n    animate.pause(&"external")\n    animate.resume(&"external")\n\nfunc use_named_effect() -> void:\n    animate.store(&"slide", animate.move_left(target, %s, 0.3))\n\nfunc hand_back_to_other_code() -> Tween:\n    # Removes the name and replacement tracking, but does not kill it.\n    return animate.release(&"intro")\n\nfunc stop_one() -> void:\n    animate.stop_named(&"intro")\n' % [node_path, property, end_value, "2.0" if selected_mode == 1 else "100.0"]
 	return {"title": "Name it. Find it. Control it.", "body": "[b]Give each animation a name you can reach from anywhere that has this Tweenimator.[/b]\n\ncreate(name, owner) creates and stores a new Tween. store(name, tween) tracks any valid existing Tween without rebuilding it. Dedicated effects also create their own Tweens; store their return values when you want names.\n\nAccess tweens[&\"intro\"] directly, or use get_tween() to safely handle a missing name. pause(), resume() and stop_named() address individual entries. release() removes tracking without stopping the Tween, so outside code can keep using it.\n\nReusing a name replaces and kills its old Tween by default. Pass false to store() to reject a duplicate instead. Finished entries are removed automatically. External kill() calls are cleaned up lazily by get_tween()/list_tweens(). Tweens cannot be replayed after completion; create a fresh one. store() does not introspect operations or turn arbitrary scripts into editor tracks. Direct dictionary writes bypass the helper's validation and automatic finished cleanup.", "native": native, "helper": helper}
+
+
+func _prioritize_setup() -> void:
+	var advanced := steps
+	steps = preload("res://addons/tween_animation/editor/onboarding.gd").lessons(selected_mode)
+	for lesson in steps:
+		lesson["native"] = _explain_code(str(lesson["native"]))
+		lesson["helper"] = _explain_code(str(lesson["helper"]))
+		lesson["comparison"] = "[b]Two valid routes.[/b] Godot supplies the Tween engine. Tweenimator adds a shared place to create effects, keep named references and control them. Native defaults to Linear easing; Tweenimator defaults to Sine / In-Out."
+	if lesson_path == 0:
+		return
+	var timeline_titles := ["Give it a property to play with", "Plant the first key", "Choose the destination", "Bring it to life", "Let your game press Play", "Bring your existing work along"]
+	var effect_titles := ["See what each property does", "A press that returns to its starting size", "Give the movement a feel", "Make one thing follow another"]
+	for lesson in advanced:
+		if (lesson_path == 1 and lesson["title"] in timeline_titles) or (lesson_path == 2 and lesson["title"] in effect_titles):
+			steps.append(lesson)

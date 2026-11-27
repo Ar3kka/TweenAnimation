@@ -121,3 +121,7 @@ The timeline does not yet provide key dragging, multi-track selection, undo inte
 ## Compatibility
 
 `TweenAnimation` remains as a compatibility subclass of `Tweenimator`. Existing `TweenAnimation.new(self, transition)` calls continue to work. New code should use `Tweenimator`. Runtime source: `src/tweenimator.gd`; editor setup and timeline: `editor/`.
+
+## Start here
+
+The default Setup guide is a seven-step quick start: create the manager; run an effect without supplying a Tween; keep its returned handle; build a named animation function; register an external Tween; look up/control names; and release a handle back to outside code. Each step has a large action headline, a small diagram, and runnable native/helper examples. Additional timeline and effects paths build on that same setup flow. Next/Back navigate the guide rather than modifying your scene.
