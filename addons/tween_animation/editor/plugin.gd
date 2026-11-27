@@ -13,6 +13,8 @@ var tabs: TabContainer
 var setup_mode := ""
 var content_mode := 0
 var content_mode_buttons: Array[Button] = []
+var navigation_buttons: Array[Button] = []
+var navigation_row: HBoxContainer
 var animation: Animation
 var animation_path := ""
 var duration: SpinBox
@@ -77,27 +79,12 @@ func _build_ui() -> void:
 	for side in ["left", "right", "top", "bottom"]:
 		frame.add_theme_constant_override("margin_" + side, 16)
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 8)
+	layout.add_theme_constant_override("separation", 0)
 	frame.add_child(layout)
-	var view_bar := HBoxContainer.new()
-	view_bar.alignment = BoxContainer.ALIGNMENT_END
-	view_bar.add_theme_constant_override("separation", 4)
-	layout.add_child(view_bar)
-	var label := _label("CONTENT", 12)
-	view_bar.add_child(label)
-	var group := ButtonGroup.new()
-	content_mode_buttons.clear()
-	for index in range(3):
-		var button := Button.new()
-		button.text = ["GDScript", "C#", "Visual Timeline"][index]
-		button.toggle_mode = true
-		button.button_group = group
-		button.tooltip_text = "Show " + button.text + " content in Tutorials and Documentation"
-		button.pressed.connect(_set_content_mode.bind(index))
-		content_mode_buttons.append(button)
-		view_bar.add_child(button)
+	_build_navigation_bar(layout)
 	tabs = TabContainer.new()
-	tabs.tab_alignment = TabBar.ALIGNMENT_CENTER
+	tabs.tabs_visible = false
+	tabs.tab_changed.connect(_sync_navigation_buttons)
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(tabs)
@@ -246,6 +233,7 @@ func _build_ui() -> void:
 	_new_animation()
 	tabs.current_tab = 0
 	_set_content_mode(content_mode)
+	_sync_navigation_buttons(tabs.current_tab)
 
 
 func _start_setup(mode: String) -> void:
@@ -619,3 +607,104 @@ func _set_content_mode(index: int) -> void:
 	if tabs.get_tab_count() == 3:
 		tabs.get_child(0).call("set_content_mode", content_mode)
 		tabs.get_child(2).call("set_content_mode", content_mode)
+
+
+func _build_navigation_bar(layout: VBoxContainer) -> void:
+	var editor := get_editor_interface().get_base_control()
+	var bar := PanelContainer.new()
+	var background := StyleBoxFlat.new()
+	background.bg_color = editor.get_theme_color("dark_color_1", "Editor")
+	background.content_margin_left = 6
+	background.content_margin_right = 6
+	background.content_margin_top = 6
+	background.content_margin_bottom = 6
+	background.corner_radius_top_left = 6
+	background.corner_radius_top_right = 6
+	bar.add_theme_stylebox_override("panel", background)
+	layout.add_child(bar)
+	navigation_row = HBoxContainer.new()
+	navigation_row.add_theme_constant_override("separation", 12)
+	bar.add_child(navigation_row)
+	var pages := HBoxContainer.new()
+	pages.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pages.alignment = BoxContainer.ALIGNMENT_CENTER
+	pages.add_theme_constant_override("separation", 2)
+	navigation_row.add_child(pages)
+	var page_group := ButtonGroup.new()
+	navigation_buttons.clear()
+	for index in range(3):
+		var button := Button.new()
+		button.text = ["Setup", "Timeline", "Documentation"][index]
+		button.icon = [_editor_icon("Node"), ADDON_ICON, _editor_icon("Help")][index]
+		button.toggle_mode = true
+		button.button_group = page_group
+		button.pressed.connect(_select_page.bind(index))
+		_style_bar_button(button, index, false)
+		navigation_buttons.append(button)
+		pages.add_child(button)
+	navigation_row.add_child(VSeparator.new())
+	var segments := HBoxContainer.new()
+	segments.add_theme_constant_override("separation", 0)
+	navigation_row.add_child(segments)
+	var mode_group := ButtonGroup.new()
+	content_mode_buttons.clear()
+	for index in range(3):
+		var button := Button.new()
+		button.text = ["GDScript", "C#", "Visual Timeline"][index]
+		button.toggle_mode = true
+		button.button_group = mode_group
+		button.tooltip_text = "Show " + button.text + " content in Tutorials and Documentation"
+		button.pressed.connect(_set_content_mode.bind(index))
+		_style_bar_button(button, index, true)
+		content_mode_buttons.append(button)
+		segments.add_child(button)
+
+
+func _style_bar_button(button: Button, index: int, segmented: bool) -> void:
+	var editor := get_editor_interface().get_base_control()
+	var accent := editor.get_theme_color("accent_color", "Editor")
+	var base := editor.get_theme_color("dark_color_2", "Editor")
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = base if segmented else Color.TRANSPARENT
+	normal.content_margin_left = 12
+	normal.content_margin_right = 12
+	normal.content_margin_top = 8
+	normal.content_margin_bottom = 8
+	if segmented:
+		normal.border_color = editor.get_theme_color("font_color", "Editor") * Color(1, 1, 1, 0.2)
+		normal.set_border_width_all(1)
+		normal.corner_radius_top_left = 5 if index == 0 else 0
+		normal.corner_radius_bottom_left = 5 if index == 0 else 0
+		normal.corner_radius_top_right = 5 if index == 2 else 0
+		normal.corner_radius_bottom_right = 5 if index == 2 else 0
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = base.lerp(accent, 0.2)
+	var pressed := normal.duplicate() as StyleBoxFlat
+	pressed.bg_color = accent if segmented else base
+	pressed.border_color = accent
+	pressed.border_width_bottom = 3
+	var focus := StyleBoxFlat.new()
+	focus.bg_color = Color.TRANSPARENT
+	focus.border_color = editor.get_theme_color("font_color", "Editor")
+	focus.set_border_width_all(2)
+	focus.set_corner_radius_all(4)
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_stylebox_override("hover_pressed", pressed)
+	button.add_theme_stylebox_override("focus", focus)
+	var active_text := (Color.BLACK if accent.get_luminance() > 0.179 else Color.WHITE) if segmented else accent
+	button.add_theme_color_override("font_pressed_color", active_text)
+	button.add_theme_color_override("font_hover_pressed_color", active_text)
+	button.add_theme_color_override("icon_pressed_color", active_text)
+	button.add_theme_color_override("icon_hover_pressed_color", active_text)
+
+
+func _select_page(index: int) -> void:
+	tabs.current_tab = index
+	_sync_navigation_buttons(index)
+
+
+func _sync_navigation_buttons(index: int) -> void:
+	for item in navigation_buttons.size():
+		navigation_buttons[item].set_pressed_no_signal(item == index)
