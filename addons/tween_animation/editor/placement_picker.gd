@@ -170,6 +170,12 @@ func show_generated(text: String, offset: int, added_length: int, global_offset:
 	global_start = SYNTAX.line_at(source, global_offset) - 1 if global_offset >= 0 else -1
 	global_lines = added_global_lines
 	preview_lines = text.substr(offset, added_length).count("\n")
+	# Clear the previous preview too when edits change either generated range.
+	for line in editor.get_line_count():
+		editor.set_line_background_color(line, Color.TRANSPARENT)
+	if global_start >= 0:
+		for line in range(global_start, mini(global_start + global_lines, editor.get_line_count())):
+			editor.set_line_background_color(line, Color(0.3, 0.65, 1.0, 0.2))
 	for line in range(preview_start, mini(preview_start + preview_lines, editor.get_line_count())):
 		editor.set_line_background_color(line, Color(0.3, 0.65, 1.0, 0.2))
 	editor.set_caret_line(preview_start)

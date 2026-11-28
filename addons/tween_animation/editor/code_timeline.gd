@@ -37,6 +37,7 @@ var _new_placement
 var _new_dialog: ConfirmationDialog
 var _new_feedback: Label
 var _new_backend: TabBar
+var _new_manager_row: HBoxContainer
 var _new_manager: OptionButton
 var _new_name: LineEdit
 var _new_fields: Dictionary = {}
@@ -568,16 +569,24 @@ func _open_new_key() -> void:
 
 	location.add_child(_new_backend)
 	location.move_child(_new_backend, 1)
+	_new_manager_row = HBoxContainer.new()
+	_new_manager_row.add_theme_constant_override("separation", 8)
+	location.add_child(_new_manager_row)
+	location.move_child(_new_manager_row, 2)
 	_new_manager = OptionButton.new()
 	_new_manager.fit_to_longest_item = false
 	_new_manager.get_popup().max_size = Vector2i(460, 300)
-	location.add_child(_new_manager)
-	location.move_child(_new_manager, 2)
+	_new_manager.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_new_manager.size_flags_stretch_ratio = 2.0
+	_new_manager.tooltip_text = "Choose where the Tweenimator instance is declared, or reuse an existing one."
+	_new_manager_row.add_child(_new_manager)
 	_new_name = LineEdit.new()
 	_new_name.placeholder_text = "Tween name  -  e.g. menu_intro"
 	_new_name.text = "intro"
-	location.add_child(_new_name)
-	location.move_child(_new_name, 3)
+	_new_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_new_name.custom_minimum_size.x = 130
+	_new_name.tooltip_text = "Name of the Tween in the selected Tweenimator registry"
+	_new_manager_row.add_child(_new_name)
 	_new_backend.tab_changed.connect(func(_index: int): _refresh_generated_preview())
 	_new_manager.item_selected.connect(func(_index: int): _refresh_generated_preview())
 	_new_name.text_changed.connect(func(_text: String): _refresh_generated_preview())
@@ -638,6 +647,7 @@ func _refresh_generated_preview() -> void:
 	if not is_instance_valid(_new_backend) or _new_fields.size() != 3 or _new_anchors.is_empty() or not is_instance_valid(selected_node):
 		return
 	var helper := _new_backend.current_tab == 1
+	_new_manager_row.visible = helper
 	_new_manager.visible = helper
 	_new_name.visible = helper
 	_new_sequence_picker.visible = not helper
