@@ -16,6 +16,10 @@ var visible_operations: Array[Dictionary] = []
 var method_picker: OptionButton
 var status: Label
 var description: Label
+var _node_icon: TextureRect
+var _node_type: Label
+var _tween_count: Label
+var _node_summary: PanelContainer
 var graph: Control
 var empty_state_panel: Control
 var empty_state_title: Label
@@ -71,11 +75,10 @@ func build(editor_plugin: EditorPlugin) -> void:
 	jump_button = _button(toolbar, "Source line", "Script", _jump_source)
 	jump_button.custom_minimum_size.x = 102
 	jump_button.disabled = true
-	description = _label("Select a node in the Scene tree to map its Tween calls.", 16)
-	description.add_theme_font_size_override("font_size", 18)
-	add_child(description)
-	status = _label("Each lane maps one method call sequence. Select a bar to inspect its Tween and edit supported values.", 13)
-	status.modulate.a = 0.72
+	_build_node_summary()
+	status = _label("", 13)
+	status.modulate.a = 0.8
+	status.hide()
 	add_child(status)
 	var split := HSplitContainer.new()
 	split.split_offset = 720
@@ -130,6 +133,55 @@ func build(editor_plugin: EditorPlugin) -> void:
 	set_content_mode(mode)
 
 
+func _build_node_summary() -> void:
+	var editor := EditorInterface.get_base_control()
+	_node_summary = PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = editor.get_theme_color("dark_color_1", "Editor")
+	style.border_color = editor.get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.15)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(10)
+	_node_summary.add_theme_stylebox_override("panel", style)
+	_node_summary.tooltip_text = "Recognized Tween calls in scripts on the open scene. Possible target matches are included. Conditional, repeated and computed timing depends on runtime."
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	_node_summary.add_child(row)
+	_node_icon = TextureRect.new()
+	_node_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_node_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_node_icon.custom_minimum_size = Vector2(24, 24)
+	_node_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_node_icon)
+	description = _label("Select a node", 16)
+	description.autowrap_mode = TextServer.AUTOWRAP_OFF
+	description.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(description)
+	_node_type = _label("", 13)
+	_node_type.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_node_type.modulate.a = 0.7
+	row.add_child(_node_type)
+	row.add_child(VSeparator.new())
+	_tween_count = _label("0 Tween calls", 14)
+	_tween_count.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(_tween_count)
+	add_child(_node_summary)
+	_update_node_summary()
+
+
+func _update_node_summary() -> void:
+	var has_node := is_instance_valid(selected_node)
+	_node_icon.texture = _icon(selected_node.get_class() if has_node else "Node")
+	description.text = str(selected_node.name) if has_node else "Select a scene node"
+	description.tooltip_text = str(selected_node.get_path()) if has_node else "Select a node in the Scene tree to view its Tween calls."
+	_node_type.visible = has_node
+	if has_node:
+		var kind := "UI" if selected_node is Control else ("3D" if selected_node is Node3D else ("2D" if selected_node is Node2D else "Node"))
+		_node_type.text = selected_node.get_class() + " · " + kind
+	_tween_count.text = "%d Tween call%s" % [operations.size(), "" if operations.size() == 1 else "s"]
+
+
 func set_content_mode(value: int) -> void:
 	mode = clampi(value, 0, 2)
 	if is_instance_valid(source_panel):
@@ -156,8 +208,9 @@ func rescan() -> void:
 	method_picker.add_item("All methods · separate invocations")
 	jump_button.disabled = true
 	add_button.disabled = not is_instance_valid(selected_node)
+	status.hide()
+	_update_node_summary()
 	if not is_instance_valid(selected_node):
-		description.text = "Select a scene node. Its type is detected automatically."
 		_filter()
 		return
 	var root := plugin.get_editor_interface().get_edited_scene_root()
@@ -188,9 +241,7 @@ func rescan() -> void:
 						method_picker.add_item(path.get_file() + " · " + str(method.name) + "() · L" + str(method.line))
 						method_picker.set_item_metadata(method_picker.item_count - 1, method)
 			script = script.get_base_script()
-	var type := "UI" if selected_node is Control else ("3D" if selected_node is Node3D else ("2D" if selected_node is Node2D else selected_node.get_class()))
-	description.text = "%s · %s · %d Tween calls" % [selected_node.name, type, operations.size()]
-	status.text = "Source-backed model of scripts on the open scene. Unresolved targets are possible matches; conditional, repeated or computed timing is runtime-dependent."
+	_update_node_summary()
 	_filter()
 
 
@@ -965,6 +1016,7 @@ func _discard_source_draft() -> void:
 
 func _message(message: String) -> void:
 	status.text = message
+	status.visible = not message.is_empty()
 	# Keep creation failures in the dialog; rescan() can replace the status line
 	# with its normal informational text before the user sees the failure.
 	if is_instance_valid(_new_feedback) and is_instance_valid(_new_dialog):
