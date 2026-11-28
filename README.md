@@ -179,7 +179,7 @@ C# tutorial actions and explanations use C# method names, ownership, signals and
 
 The Timeline is a source-backed view of runtime Tweens, not a keyframe or Animation resource editor. **Add Tween** inserts a regular Godot Tween call at a chosen method and location. The call then appears as a timeline entry with its source line, parameters, and estimated timing. Selecting an entry lets you edit supported arguments or jump to its code.
 
-The toolbar and empty-state button run the same Add Tween action; there is no separate Add key feature. A timeline entry represents the code call itself, not an independent keyframe. Tweenimation keeps the source readable and lets you work with changing runtime values while preserving normal Godot Tween behavior. Computed values, branches, and loops can make timing uncertain, so run the scene to see exact gameplay behavior.
+The **Add Tween** button stays in the toolbar; the empty-state notice explains the result when no calls are found. A timeline entry represents the code call itself, not an independent keyframe. There is no separate Add key feature. Tweenimation keeps the source readable and lets you work with changing runtime values while preserving normal Godot Tween behavior. Computed values, branches, and loops can make timing uncertain, so run the scene to see exact gameplay behavior.
 
 ## Source editor regression checks
 

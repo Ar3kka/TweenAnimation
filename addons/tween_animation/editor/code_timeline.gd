@@ -14,11 +14,12 @@ var documents: Array[Dictionary] = []
 var operations: Array[Dictionary] = []
 var visible_operations: Array[Dictionary] = []
 var method_picker: OptionButton
-var node_picker: OptionButton
 var status: Label
 var description: Label
 var graph: Control
 var empty_state_panel: Control
+var empty_state_title: Label
+var empty_state_detail: Label
 var inspector: VBoxContainer
 var source_editor: CodeEdit
 var source_panel: VBoxContainer
@@ -47,25 +48,25 @@ func build(editor_plugin: EditorPlugin) -> void:
 	plugin = editor_plugin
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override("separation", 12)
-	var toolbar := HFlowContainer.new()
-	toolbar.add_theme_constant_override("h_separation", 8)
+	var toolbar := HBoxContainer.new()
+	toolbar.add_theme_constant_override("separation", 8)
 	add_child(toolbar)
-	node_picker = OptionButton.new()
-	node_picker.fit_to_longest_item = false
-	node_picker.custom_minimum_size.x = 210
-	node_picker.item_selected.connect(_pick_node)
-	toolbar.add_child(node_picker)
 	method_picker = OptionButton.new()
 	method_picker.fit_to_longest_item = false
-	method_picker.custom_minimum_size.x = 250
+	method_picker.custom_minimum_size.x = 220
+	method_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	method_picker.item_selected.connect(func(_index: int): _filter())
 	toolbar.add_child(method_picker)
-	_button(toolbar, "Rescan", "Reload", rescan)
+	var rescan_button := _button(toolbar, "", "Reload", rescan)
+	rescan_button.custom_minimum_size.x = 36
+	rescan_button.tooltip_text = "Rescan Tween calls in the open scene"
 	add_button = _button(toolbar, "Add Tween", "Add", _open_new_key)
+	add_button.custom_minimum_size.x = 112
 	add_button.tooltip_text = "Insert a Tween call at a chosen method and line."
 	jump_button = _button(toolbar, "Source line", "Script", _jump_source)
+	jump_button.custom_minimum_size.x = 102
 	jump_button.disabled = true
-	description = _label("Select a node to discover its code-driven animations.", 16)
+	description = _label("Select a node in the Scene tree to map its Tween calls.", 16)
 	description.add_theme_font_size_override("font_size", 18)
 	add_child(description)
 	status = _label("Each lane maps one method call sequence. Select a bar to inspect its Tween and edit supported values.", 13)
@@ -122,7 +123,6 @@ func build(editor_plugin: EditorPlugin) -> void:
 	source_panel.add_child(source_editor)
 	_style_source()
 	set_content_mode(mode)
-	_refresh_node_picker()
 
 
 func set_content_mode(value: int) -> void:
@@ -136,37 +136,7 @@ func set_node(node: Node) -> void:
 	if node == selected_node and is_instance_valid(node):
 		return
 	selected_node = node
-	_refresh_node_picker()
 	rescan()
-
-
-func _refresh_node_picker() -> void:
-	if not is_instance_valid(node_picker):
-		return
-	node_picker.clear()
-	node_picker.add_item("Choose scene node…")
-	var root := plugin.get_editor_interface().get_edited_scene_root()
-	if root == null:
-		return
-	var nodes: Array[Node] = [root]
-	for child in root.find_children("*", "Node", true, false):
-		nodes.append(child)
-	for node in nodes:
-		var type := "Control" if node is Control else ("Node3D" if node is Node3D else ("Node2D" if node is Node2D else "Node"))
-		node_picker.add_icon_item(_icon(type), str(root.get_path_to(node)))
-		node_picker.set_item_metadata(node_picker.item_count - 1, weakref(node))
-		if node == selected_node:
-			node_picker.select(node_picker.item_count - 1)
-
-
-func _pick_node(index: int) -> void:
-	var reference: Variant = node_picker.get_item_metadata(index)
-	if not reference is WeakRef or not is_instance_valid(reference.get_ref()):
-		return
-	var selection := plugin.get_editor_interface().get_selection()
-	selection.clear()
-	selection.add_node(reference.get_ref())
-	set_node(reference.get_ref())
 
 
 func rescan() -> void:
@@ -232,11 +202,12 @@ func _filter() -> void:
 	graph.custom_minimum_size.y = maxf(250, mini(16, visible_operations.size()) * 54 + 56)
 	graph.queue_redraw()
 	if visible_operations.is_empty():
-		add_button.hide()
+		add_button.show()
 		_operation = {}
 		jump_button.disabled = true
 		_clear(inspector)
 		inspector_scroll.hide()
+		_refresh_empty_state()
 		empty_state_panel.show()
 		source_panel.hide()
 	else:
@@ -369,20 +340,22 @@ func _empty_state() -> Control:
 	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	copy.add_theme_constant_override("separation", 2)
 	body.add_child(copy)
-	var has_target := is_instance_valid(selected_node)
-	var title := _label("No Tween calls found" if has_target else "Make code-driven Tweens readable", 16)
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	copy.add_child(title)
-	var message := "Add Tween inserts a native call at a chosen method and line. The timeline then shows its timing, source and editable parameters." if has_target else "Select a scene node to map its calls. Add Tween writes a call at a chosen method and line, then makes it easy to inspect and edit here."
-	var detail := _label(message, 12)
-	detail.modulate.a = 0.76
-	copy.add_child(detail)
-	var add := _button(body, "Add Tween", "Add", _open_new_key)
-	add.custom_minimum_size = Vector2(132, 34)
-	add.disabled = not has_target
-	add.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	add.tooltip_text = "Choose a method and placement, then set the Tween parameters."
+	empty_state_title = _label("", 16)
+	empty_state_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	copy.add_child(empty_state_title)
+	empty_state_detail = _label("", 12)
+	empty_state_detail.modulate.a = 0.76
+	copy.add_child(empty_state_detail)
+	_refresh_empty_state()
 	return card
+
+
+func _refresh_empty_state() -> void:
+	if not is_instance_valid(empty_state_title) or not is_instance_valid(empty_state_detail):
+		return
+	var has_target := is_instance_valid(selected_node)
+	empty_state_title.text = "No Tween calls found" if has_target else "Select a scene node"
+	empty_state_detail.text = "Add Tween inserts a native call at a chosen method and line. The timeline then shows its timing, source and editable parameters." if has_target else "Select a node in Godot's Scene tree to map its calls. Add Tween writes the code and shows it here for visual editing."
 
 
 func _add_legend(parent: HBoxContainer, title: String, color: Color) -> void:
@@ -478,6 +451,7 @@ func _anchors(method: Dictionary) -> Array[Dictionary]:
 
 func _open_new_key() -> void:
 	if not is_instance_valid(selected_node):
+		_message("Select a scene node first. Add Tween uses the current Scene tree selection.")
 		return
 	var script: Script = selected_node.get_script()
 	var eligible: Array[Dictionary] = []
@@ -489,6 +463,8 @@ func _open_new_key() -> void:
 	if eligible.is_empty():
 		if script == null:
 			_create_script()
+		elif script.resource_path.is_empty() or "::" in script.resource_path:
+			_message("This node's script is built in and cannot be edited here. Attach an external GDScript or add a method in the Script editor, then rescan.")
 		else:
 			_add_ready_method(script)
 		return
@@ -615,10 +591,13 @@ func _create_key() -> void:
 
 func _add_ready_method(script: Script) -> void:
 	var path := script.resource_path
+	if path.is_empty() or "::" in path:
+		_message("This script is embedded in the scene and has no editable file path. Attach an external script or create one through Add Tween.")
+		return
 	var original := _document_source(path)
 	var suffix := "\n\nfunc _ready() -> void:\n\tpass\n" if MODEL.language(path) == "gd" else ""
 	if suffix.is_empty():
-		_message("No editable instance method found. C# method creation requires a standard Node class; use an existing method or a GDScript scene script.")
+		_message("No editable instance method found. For C#, add a method in the Script editor and rescan; Add Tween can then place a call inside it.")
 		return
 	if _commit_result(path, original, {"ok": true, "source": original + suffix}, "Create animation entry point"):
 		_open_new_key()
