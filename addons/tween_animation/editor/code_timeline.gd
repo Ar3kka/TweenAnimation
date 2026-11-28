@@ -484,24 +484,24 @@ func _open_new_key() -> void:
 	_new_dialog.title = "Add Tween"
 	_new_dialog.dialog_hide_on_ok = false
 	_new_dialog.unresizable = false
-	var body := VBoxContainer.new()
+	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 10)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_new_dialog.add_child(body)
 	var location := VBoxContainer.new()
-	location.custom_minimum_size.x = 740
+	location.custom_minimum_size.x = 540
 	location.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	location.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	location.add_theme_constant_override("separation", 10)
 	var location_scroll := ScrollContainer.new()
-	location_scroll.custom_minimum_size = Vector2(780, 660)
+	location_scroll.custom_minimum_size = Vector2(580, 660)
 	location_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	location_scroll.size_flags_stretch_ratio = 1.7
 	location_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	location_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	body.add_child(location_scroll)
 	location_scroll.add_child(location)
-	_section(location, "Animation", "NEW ANIMATION", "Animate " + str(selected_node.name))
+	location.add_child(_label("Preview", 20))
 	_new_method_picker = OptionButton.new()
 	_new_method_picker.fit_to_longest_item = false
 	for document in eligible:
@@ -526,7 +526,16 @@ func _open_new_key() -> void:
 	var settings := VBoxContainer.new()
 	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings.add_theme_constant_override("separation", 10)
-	location.add_child(settings)
+	var divider := VSeparator.new()
+	body.add_child(divider)
+	var settings_scroll := ScrollContainer.new()
+	settings_scroll.custom_minimum_size = Vector2(330, 540)
+	settings_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settings_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	settings_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.add_child(settings_scroll)
+	settings_scroll.add_child(settings)
+	settings.add_child(_label("Configuration", 20))
 	_new_property_picker = OptionButton.new()
 	_new_property_picker.fit_to_longest_item = false
 	_new_property_picker.get_popup().max_size = Vector2i(460, 380)
@@ -592,7 +601,7 @@ func _open_new_key() -> void:
 	_new_sequence_picker.fit_to_longest_item = false
 	_new_sequence_picker.get_popup().max_size = Vector2i(460, 220)
 	settings.add_child(_new_sequence_picker)
-	var fields := HBoxContainer.new()
+	var fields := VBoxContainer.new()
 	fields.add_theme_constant_override("separation", 14)
 	settings.add_child(fields)
 	_new_feedback = _label("", 12)
@@ -602,7 +611,6 @@ func _open_new_key() -> void:
 	_new_method_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
 	_new_property_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
 	_new_sequence_picker.item_selected.connect(func(_index: int): _refresh_generated_preview())
-	location.move_child(settings, location.get_child_count() - 3)
 	_new_key_fields(fields)
 	_new_dialog.get_ok_button().text = "Add Tween"
 	_new_dialog.confirmed.connect(_create_key)
