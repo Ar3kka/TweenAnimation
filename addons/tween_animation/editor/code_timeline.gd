@@ -331,8 +331,8 @@ func _empty_state() -> Control:
 	var card := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
-	style.border_color = EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
-	style.border_width_left = 3
+	style.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.22)
+	style.set_border_width_all(1)
 	style.set_corner_radius_all(8)
 	style.set_content_margin_all(10)
 	card.add_theme_stylebox_override("panel", style)
@@ -1020,7 +1020,7 @@ func _section(parent: Node, icon_name: String, eyebrow: String, title: String) -
 	text.custom_minimum_size.x = 220
 	row.add_child(text)
 	var badge := _label(eyebrow, 12)
-	badge.modulate = EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
+	badge.modulate.a = 0.7
 	text.add_child(badge)
 	var title_label := _label(title, 16)
 	title_label.custom_minimum_size.x = 220

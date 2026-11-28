@@ -15,7 +15,7 @@ func build() -> void:
 	add_theme_constant_override("separation", 12)
 	var badge := Label.new()
 	badge.text = "PRACTICE · SAMPLE DATA ONLY"
-	badge.modulate = Color("92c6ee")
+	badge.modulate.a = 0.75
 	add_child(badge)
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
@@ -134,13 +134,13 @@ func _journey(left: String, left_icon: String, right: String, right_icon: String
 			var arrow := Label.new()
 			arrow.text = "→"
 			arrow.add_theme_font_size_override("font_size", 24)
-			arrow.modulate = _accent
+			arrow.modulate.a = 0.7
 			row.add_child(arrow)
 		var tile := PanelContainer.new()
 		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color(_accent, 0.07)
-		style.border_color = Color(_accent, 0.35)
+		style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
+		style.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.25)
 		style.set_border_width_all(1)
 		style.set_corner_radius_all(8)
 		style.set_content_margin_all(12)
@@ -153,7 +153,7 @@ func _journey(left: String, left_icon: String, right: String, right_icon: String
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.custom_minimum_size = Vector2(24, 24)
-		icon.modulate = _accent
+		icon.modulate = Color.WHITE
 		content.add_child(icon)
 		var label := Label.new()
 		label.text = spec[0]

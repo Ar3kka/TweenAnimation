@@ -176,7 +176,7 @@ func _build_navigation_bar(layout: VBoxContainer) -> void:
 
 func _style_bar_button(button: Button, index: int, segmented: bool) -> void:
 	var editor := get_editor_interface().get_base_control()
-	var accent := editor.get_theme_color("accent_color", "Editor")
+	var foreground := editor.get_theme_color("font_color", "Label")
 	var base := editor.get_theme_color("dark_color_2", "Editor")
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = base if segmented else Color.TRANSPARENT
@@ -192,16 +192,16 @@ func _style_bar_button(button: Button, index: int, segmented: bool) -> void:
 		normal.corner_radius_top_right = 5 if index == 2 else 0
 		normal.corner_radius_bottom_right = 5 if index == 2 else 0
 	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = base.lerp(accent, 0.2)
+	hover.bg_color = base.lerp(foreground, 0.08)
 	var pressed := normal.duplicate() as StyleBoxFlat
-	pressed.bg_color = accent if segmented else base
-	pressed.border_color = accent
-	pressed.border_width_bottom = 3
+	pressed.bg_color = base.lerp(foreground, 0.12)
+	pressed.border_color = foreground * Color(1, 1, 1, 0.5)
+	pressed.set_border_width_all(1)
 	button.add_theme_stylebox_override("normal", normal)
 	button.add_theme_stylebox_override("hover", hover)
 	button.add_theme_stylebox_override("pressed", pressed)
 	button.add_theme_stylebox_override("hover_pressed", pressed)
-	var active_text := (Color.BLACK if accent.get_luminance() > 0.179 else Color.WHITE) if segmented else accent
+	var active_text := foreground
 	button.add_theme_color_override("font_pressed_color", active_text)
 	button.add_theme_color_override("font_hover_pressed_color", active_text)
 	button.add_theme_color_override("icon_pressed_color", active_text)

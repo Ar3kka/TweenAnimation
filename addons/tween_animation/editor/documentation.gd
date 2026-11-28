@@ -258,8 +258,8 @@ func _card(child: Control, accent: Color = Color.TRANSPARENT) -> PanelContainer:
 	style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
 	style.set_corner_radius_all(6)
 	if accent.a > 0.0:
-		style.border_color = accent
-		style.border_width_left = 4
+		style.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.25)
+		style.set_border_width_all(1)
 	style.content_margin_left = 14
 	style.content_margin_right = 14
 	style.content_margin_top = 12
@@ -320,10 +320,8 @@ func _add_example(source: String) -> void:
 
 
 func _kind_color(is_guide: bool) -> Color:
-	var editor := EditorInterface.get_base_control()
-	if not is_guide:
-		return editor.get_theme_color("accent_color", "Editor")
-	return Color("72d7bb") if editor.get_theme_color("dark_color_2", "Editor").get_luminance() < 0.5 else Color("147257")
+	var foreground := EditorInterface.get_base_control().get_theme_color("font_color", "Label")
+	return Color(foreground, 0.65 if is_guide else 0.9)
 
 
 func _kind_icon(is_guide: bool) -> Texture2D:

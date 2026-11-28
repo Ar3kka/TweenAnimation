@@ -73,14 +73,14 @@ func build(logo_texture: Texture2D) -> void:
 		choice.pressed.connect(_show_guide.bind(index))
 		choices.add_child(choice)
 		var normal := StyleBoxFlat.new()
-		normal.bg_color = Color(0.18, 0.19, 0.21)
-		normal.border_color = colors[index].darkened(0.35)
-		normal.border_width_top = 3
+		normal.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_2", "Editor")
+		normal.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.25)
+		normal.set_border_width_all(1)
 		normal.set_corner_radius_all(10)
 		choice.add_theme_stylebox_override("normal", normal)
 		var hover := normal.duplicate() as StyleBoxFlat
-		hover.bg_color = colors[index].darkened(0.75)
-		hover.border_color = colors[index]
+		hover.bg_color = normal.bg_color.lerp(EditorInterface.get_base_control().get_theme_color("font_color", "Label"), 0.08)
+		hover.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.5)
 		choice.add_theme_stylebox_override("hover", hover)
 		choice.add_theme_stylebox_override("focus", hover)
 		var content := VBoxContainer.new()
@@ -164,7 +164,7 @@ func build(logo_texture: Texture2D) -> void:
 	var progress_style := StyleBoxFlat.new()
 	card_style = progress_style
 	progress_style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
-	progress_style.border_width_top = 3
+	progress_style.set_border_width_all(1)
 	progress_style.content_margin_left = 26
 	progress_style.content_margin_right = 26
 	progress_style.content_margin_top = 16
@@ -328,13 +328,13 @@ func _render_step() -> void:
 	step_title.text = str(steps[step_index]["title"])
 	start_button.visible = content_mode == 2 or lesson_path != 2
 	action_label.text = str(steps[step_index].get("action", "Try it in your scene, then continue when you are ready."))
-	action_label.modulate = [Color("a1ccff"), Color("ffb4b5"), Color("ace8c5")][selected_mode]
+	action_label.modulate = Color.WHITE
 	guide.text = str(steps[step_index]["body"])
 	visual.set("caption", str(steps[step_index].get("visual", "READ  →  TRY  →  CONTINUE")))
 	visual.set("mode", selected_mode)
 	visual.set("step", step_index)
 	visual.set("elapsed", 0.0)
-	card_style.border_color = [Color("78b9ff"), Color("ff8f91"), Color("8fdfb3")][selected_mode]
+	card_style.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.25)
 	var visual_only := content_mode == 2
 	visual.visible = not visual_only
 	code_practice.visible = visual_only
@@ -598,8 +598,8 @@ func _snippet(parent: VBoxContainer, view: CodeEdit, caption: String) -> Button:
 	var style := StyleBoxFlat.new()
 	style.bg_color = view.get_theme_color("background_color")
 	style.set_corner_radius_all(6)
-	style.border_width_left = 3
-	style.border_color = Color("72d7bb") if caption == "TWEENIMATION" else EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
+	style.set_border_width_all(1)
+	style.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.2)
 	style.content_margin_left = 8
 	style.content_margin_right = 8
 	style.content_margin_top = 6
