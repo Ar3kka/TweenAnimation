@@ -77,7 +77,7 @@ func _build_ui() -> void:
 	setup.open_requested.connect(_open_timeline)
 	tabs.add_child(setup)
 	var timeline_scroll := ScrollContainer.new()
-	timeline_scroll.name = "Tween Timeline"
+	timeline_scroll.name = "Timeline"
 	timeline_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	tabs.add_child(timeline_scroll)
 	code_timeline = preload("res://addons/tween_animation/editor/code_timeline.gd").new()
@@ -146,7 +146,7 @@ func _build_navigation_bar(layout: VBoxContainer) -> void:
 	var page_group := ButtonGroup.new()
 	for index in range(3):
 		var button := Button.new()
-		button.text = ["Setup", "Tween Timeline", "Documentation"][index]
+		button.text = ["Setup", "Timeline", "Documentation"][index]
 		button.icon = [_editor_icon("Node"), ADDON_ICON, _editor_icon("Help")][index]
 		button.toggle_mode = true
 		button.button_group = page_group

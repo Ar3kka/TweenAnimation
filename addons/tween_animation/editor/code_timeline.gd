@@ -18,7 +18,6 @@ var node_picker: OptionButton
 var status: Label
 var description: Label
 var graph: Control
-var navigation: ItemList
 var inspector: VBoxContainer
 var source_editor: CodeEdit
 var source_panel: VBoxContainer
@@ -62,11 +61,14 @@ func build(editor_plugin: EditorPlugin) -> void:
 	toolbar.add_child(method_picker)
 	_button(toolbar, "Rescan", "Reload", rescan)
 	add_button = _button(toolbar, "Add key", "Add", _open_new_key)
+	add_button.tooltip_text = "Create a Tween call at a chosen place in a method. Existing code is preserved."
 	jump_button = _button(toolbar, "Source line", "Script", _jump_source)
 	jump_button.disabled = true
 	description = _label("Select a node to discover its code-driven animations.", 16)
+	description.add_theme_font_size_override("font_size", 18)
 	add_child(description)
-	status = _label("Code keys are source calls. Methods run separately; runtime-dependent timing is labelled instead of guessed.", 13)
+	status = _label("Each lane maps one method call sequence. Select a bar to inspect its Tween and edit supported values.", 13)
+	status.modulate.a = 0.72
 	add_child(status)
 	var split := HSplitContainer.new()
 	split.split_offset = 720
@@ -75,17 +77,25 @@ func build(editor_plugin: EditorPlugin) -> void:
 	var timeline_body := VBoxContainer.new()
 	timeline_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(timeline_body)
+	var lane_header := HBoxContainer.new()
+	lane_header.add_theme_constant_override("separation", 14)
+	timeline_body.add_child(lane_header)
+	var lane_title := _label("METHOD LANES", 12)
+	lane_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lane_title.modulate.a = 0.72
+	lane_header.add_child(lane_title)
+	_add_legend(lane_header, "Tween", EditorInterface.get_base_control().get_theme_color("accent_color", "Editor"))
+	_add_legend(lane_header, "Wait", Color("d9a84e"))
+	_add_legend(lane_header, "Runtime", Color("9b8abd"))
 	graph = Control.new()
-	graph.custom_minimum_size.y = 220
+	graph.custom_minimum_size.y = 250
 	graph.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	graph.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	graph.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	graph.tooltip_text = "Click a Tween bar to inspect its parameters and source line."
 	graph.draw.connect(_draw_graph)
 	graph.gui_input.connect(_graph_input)
 	timeline_body.add_child(graph)
-	navigation = ItemList.new()
-	navigation.custom_minimum_size.y = 190
-	navigation.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	navigation.item_selected.connect(_select_operation)
-	timeline_body.add_child(navigation)
 	inspector_scroll = ScrollContainer.new()
 	inspector_scroll.custom_minimum_size.x = 330
 	inspector_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -114,7 +124,7 @@ func build(editor_plugin: EditorPlugin) -> void:
 func set_content_mode(value: int) -> void:
 	mode = clampi(value, 0, 2)
 	if is_instance_valid(source_panel):
-		source_panel.visible = mode != 2
+		source_panel.visible = mode != 2 and not _operation.is_empty()
 		inspector_scroll.visible = true
 
 
@@ -200,69 +210,86 @@ func rescan() -> void:
 						method_picker.set_item_metadata(method_picker.item_count - 1, method)
 			script = script.get_base_script()
 	var type := "UI" if selected_node is Control else ("3D" if selected_node is Node3D else ("2D" if selected_node is Node2D else selected_node.get_class()))
-	description.text = "%s · %s · %d source operations" % [selected_node.name, type, operations.size()]
+	description.text = "%s · %s · %d Tween calls" % [selected_node.name, type, operations.size()]
 	status.text = "Source-backed model of scripts on the open scene. Unresolved targets are possible matches; conditional, repeated or computed timing is runtime-dependent."
 	_filter()
 
 
 func _filter() -> void:
 	visible_operations.clear()
-	navigation.clear()
 	var filter: Variant = method_picker.get_item_metadata(method_picker.selected) if method_picker.selected >= 0 else null
 	_span = 1.0
 	for operation in operations:
 		if filter is Dictionary and (operation.path != filter.path or operation.method.id != filter.id or operation.method.owner != filter.owner):
 			continue
 		visible_operations.append(operation)
-		var when := "Runtime" if operation.start == null else "%.3f s" % float(operation.start)
-		var label := "%s · %s() · %s · L%d%s" % [when, operation.api, operation.method.name, operation.line, (" · same sequence" if operation.get("related_sequence", false) else " · possible target") if not operation.relevant else ""]
-		navigation.add_item(label, _icon("Key"))
-		navigation.set_item_tooltip(navigation.item_count - 1, operation.path + ":" + str(operation.line) + "\n" + str(operation.statement.text))
 		if operation.end != null:
 			_span = maxf(_span, float(operation.end))
-	graph.custom_minimum_size.y = maxf(180, mini(16, visible_operations.size()) * 38 + 35)
+	graph.custom_minimum_size.y = maxf(250, mini(16, visible_operations.size()) * 54 + 56)
 	graph.queue_redraw()
 	if visible_operations.is_empty():
+		_operation = {}
+		jump_button.disabled = true
 		_clear(inspector)
-		inspector.add_child(_label("No recognized Tween calls for this selection. Add key can create a regular Godot Tween in an existing method or create a script through the file picker.", 15))
+		inspector.add_child(_empty_state())
+		source_panel.hide()
 	else:
-		navigation.select(0)
 		_select_operation(0)
 
 
 func _draw_graph() -> void:
 	var foreground := get_theme_color("font_color", "Label")
 	var accent := EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
-	var width := maxf(graph.size.x - 165, 1.0)
+	var editor := EditorInterface.get_base_control()
+	var background := editor.get_theme_color("dark_color_2", "Editor")
+	graph.draw_rect(Rect2(Vector2.ZERO, graph.size), background)
+	var width := maxf(graph.size.x - 180, 1.0)
 	var font := get_theme_font("font", "Label")
 	for tick in range(6):
-		var x := 150 + width * tick / 5.0
-		graph.draw_line(Vector2(x, 25), Vector2(x, graph.size.y), Color(foreground, 0.12))
-		graph.draw_string(font, Vector2(x, 16), "%.2f" % (_span * tick / 5.0), HORIZONTAL_ALIGNMENT_LEFT, 40, 12, foreground)
+		var x := 168 + width * tick / 5.0
+		graph.draw_line(Vector2(x, 34), Vector2(x, graph.size.y - 12), Color(foreground, 0.13))
+		graph.draw_string(font, Vector2(x - 18, 23), "%.2f" % (_span * tick / 5.0), HORIZONTAL_ALIGNMENT_CENTER, 44, 12, Color(foreground, 0.78))
+	if visible_operations.is_empty():
+		var empty_message := "Choose a scene node to map its Tween calls" if not is_instance_valid(selected_node) else "Your Tween lanes will appear here"
+		graph.draw_string(font, Vector2(24, 96), "TIMELINE OVERVIEW", HORIZONTAL_ALIGNMENT_LEFT, 220, 12, Color(accent, 0.9))
+		graph.draw_string(font, Vector2(24, 132), empty_message, HORIZONTAL_ALIGNMENT_LEFT, maxf(graph.size.x - 48, 100), 18, Color(foreground, 0.82))
+		graph.draw_string(font, Vector2(24, 158), "Time is estimated from calls inside each method. Runtime-dependent timing is shown as unknown.", HORIZONTAL_ALIGNMENT_LEFT, maxf(graph.size.x - 48, 100), 13, Color(foreground, 0.62))
+		return
 	for index in mini(visible_operations.size(), 16):
 		var operation := visible_operations[index]
-		var y := 34.0 + index * 38
+		var y := 43.0 + index * 54
 		var selected: bool = not _operation.is_empty() and _operation.id == operation.id
-		graph.draw_string(font, Vector2(2, y + 17), str(operation.method.name) + " · L" + str(operation.line), HORIZONTAL_ALIGNMENT_LEFT, 143, 12, foreground)
+		var lane := Rect2(8, y - 4, graph.size.x - 16, 46)
+		graph.draw_rect(lane, Color(accent, 0.10) if selected else Color(foreground, 0.025))
+		graph.draw_rect(Rect2(8, y - 4, 3, 46), accent if selected else Color(foreground, 0.18))
+		graph.draw_string(font, Vector2(20, y + 12), str(operation.method.name) + "()", HORIZONTAL_ALIGNMENT_LEFT, 132, 14, foreground)
+		graph.draw_string(font, Vector2(20, y + 31), "LINE " + str(operation.line), HORIZONTAL_ALIGNMENT_LEFT, 132, 11, Color(foreground, 0.6))
 		if operation.start == null or operation.duration == null:
-			graph.draw_rect(Rect2(150, y, width, 27), Color(accent, 0.12))
-			graph.draw_string(font, Vector2(158, y + 18), operation.api + " · runtime order/value", HORIZONTAL_ALIGNMENT_LEFT, width - 10, 13, foreground)
+			var unknown := Rect2(168, y + 3, width, 34)
+			var runtime_color := Color("9b8abd")
+			graph.draw_rect(unknown, Color(runtime_color, 0.18))
+			graph.draw_rect(unknown, Color(runtime_color, 0.7), false, 1.0)
+			graph.draw_string(font, Vector2(180, y + 25), operation.api + "  ·  runtime timing", HORIZONTAL_ALIGNMENT_LEFT, width - 22, 13, foreground)
 		else:
-			var x := 150 + width * float(operation.start) / _span
-			var extent := maxf(5, width * float(operation.duration) / _span)
-			graph.draw_rect(Rect2(x, y, extent, 27), (Color(0.9, 0.7, 0.25, 0.6) if operation.api == "tween_interval" else Color(accent, 0.8 if selected else 0.4)))
+			var x := 168 + width * float(operation.start) / _span
+			var extent := maxf(12, width * float(operation.duration) / _span)
+			var effect_color := Color("d9a84e") if operation.api == "tween_interval" else accent
+			var effect := Rect2(x, y + 3, extent, 34)
+			graph.draw_rect(effect, Color(effect_color, 0.9 if selected else 0.62))
+			graph.draw_circle(Vector2(x, y + 20), 4.5, effect_color.lightened(0.16))
+			graph.draw_circle(Vector2(x + extent, y + 20), 4.5, effect_color.lightened(0.16))
 			if operation.interval != null and float(operation.interval) > 0:
-				graph.draw_rect(Rect2(x + extent, y, width * float(operation.interval) / _span, 27), Color(0.9, 0.7, 0.25, 0.5))
-			graph.draw_string(font, Vector2(x + 5, y + 18), operation.api, HORIZONTAL_ALIGNMENT_LEFT, maxf(extent - 8, 20), 12, foreground)
-		if selected:
-			graph.draw_rect(Rect2(149, y - 1, width + 2, 29), accent, false, 1.5)
+				var pause := Rect2(x + extent, y + 3, width * float(operation.interval) / _span, 34)
+				graph.draw_rect(pause, Color("d9a84e", 0.35))
+				graph.draw_line(pause.position, pause.position + Vector2(pause.size.x, 0), Color("d9a84e", 0.8), 1.0)
+			var label_color := Color.BLACK if effect_color.get_luminance() > 0.55 else Color.WHITE
+			graph.draw_string(font, Vector2(x + 9, y + 25), operation.api, HORIZONTAL_ALIGNMENT_LEFT, maxf(extent - 18, 34), 12, label_color)
 
 
 func _graph_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var index := int((event.position.y - 34) / 38)
+		var index := int(floor((event.position.y - 43) / 54))
 		if index >= 0 and index < mini(16, visible_operations.size()):
-			navigation.select(index)
 			_select_operation(index)
 
 
@@ -311,6 +338,55 @@ func _select_operation(index: int) -> void:
 	_button(inspector, "Jump to source line", "Script", _jump_source)
 	_show_source(_operation.path, _operation.line)
 	graph.queue_redraw()
+
+
+func _empty_state() -> Control:
+	var card := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
+	style.border_color = EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
+	style.border_width_left = 3
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(14)
+	card.add_theme_stylebox_override("panel", style)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 12)
+	card.add_child(body)
+	var icon := TextureRect.new()
+	icon.texture = _icon("Animation")
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(36, 36)
+	body.add_child(icon)
+	var title := _label("Start with a Tween", 18)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(title)
+	var message := "Select a node in the Scene tree to see its Tween calls." if not is_instance_valid(selected_node) else "No matching calls yet. Add a Tween to an existing method, then inspect it here."
+	var detail := _label(message, 13)
+	detail.modulate.a = 0.76
+	body.add_child(detail)
+	for item in ["01  Select a node", "02  Add or find a Tween call", "03  Edit values or jump to its code"]:
+		var step := _label(item, 12)
+		step.modulate.a = 0.82
+		body.add_child(step)
+	var add := _button(body, "Add Tween call", "Add", _open_new_key)
+	add.disabled = not is_instance_valid(selected_node)
+	add.tooltip_text = "Choose a method and placement, then set the Tween parameters."
+	return card
+
+
+func _add_legend(parent: HBoxContainer, title: String, color: Color) -> void:
+	var item := HBoxContainer.new()
+	item.add_theme_constant_override("separation", 5)
+	parent.add_child(item)
+	var swatch := ColorRect.new()
+	swatch.color = color
+	swatch.custom_minimum_size = Vector2(9, 9)
+	swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	item.add_child(swatch)
+	var label := _label(title, 12)
+	label.modulate.a = 0.78
+	item.add_child(label)
 
 
 func _apply_parameters() -> void:
@@ -654,6 +730,7 @@ func _show_source(path: String, line: int) -> void:
 		source_editor.text = _document_source(path)
 		_source_dirty = false
 	_source_path = path
+	source_panel.visible = mode != 2
 	source_editor.set_caret_line(maxi(0, line - 1))
 	source_editor.center_viewport_to_caret()
 	if mode != 2 and ((mode == 0 and MODEL.language(path) == "cs") or (mode == 1 and MODEL.language(path) == "gd")):
