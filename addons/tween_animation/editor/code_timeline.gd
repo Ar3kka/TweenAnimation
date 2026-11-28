@@ -696,11 +696,11 @@ func _refresh_generated_preview() -> void:
 	_new_manager_row.visible = helper
 	_new_manager.visible = helper
 	_new_name.visible = helper
-	_new_sequence_picker.visible = not helper
+	_new_sequence_picker.visible = true
 	var source := _document_source(_new_method.path)
 	var anchor: Dictionary = _new_anchors[_new_place_picker.selected]
 	var property := _new_property_picker.get_item_text(_new_property_picker.selected)
-	var result := WRITER.insert_property(source, _new_method, anchor, selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "own" if _new_backend.current_tab == 1 else ("auto" if _new_sequence_picker.selected == 0 else "own"), _new_manager_config())
+	var result := WRITER.insert_property(source, _new_method, anchor, selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "auto" if _new_sequence_picker.selected == 0 else "own", _new_manager_config())
 	if not result.ok:
 		_new_feedback.text = "Preview unavailable · " + str(result.get("error", "Check the selected values."))
 		return
@@ -759,7 +759,7 @@ func _create_key() -> void:
 		if data.mode == "constant" and (not (data.value is float or data.value is int) or float(data.value) < 0 or not is_finite(float(data.value))):
 			_new_feedback.text = "Duration and wait must be finite, non-negative numbers."
 			return
-	var result := WRITER.insert_property(original, _new_method, _new_anchors[_new_place_picker.selected], selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "own" if _new_backend.current_tab == 1 else ("auto" if _new_sequence_picker.selected == 0 else "own"), _new_manager_config())
+	var result := WRITER.insert_property(original, _new_method, _new_anchors[_new_place_picker.selected], selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "auto" if _new_sequence_picker.selected == 0 else "own", _new_manager_config())
 	if _commit_result(_new_method.path, original, result, "Add Tween call"):
 		_new_dialog.queue_free()
 	elif _new_feedback.text.is_empty():

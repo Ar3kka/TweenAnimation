@@ -17,6 +17,7 @@ var ease_type: Tween.EaseType = Tween.EASE_IN_OUT
 var auto_center_pivot := true
 var _active: Dictionary = {}
 var _origins: Dictionary = {}
+var _sequence_tween: Tween
 
 
 ## No Tween is needed at construction. An optional Node binds created Tweens.
@@ -137,10 +138,28 @@ func _channel(target: Object, property: NodePath) -> String:
 	return str(target.get_instance_id()) + ":" + str(property)
 
 
+## Append helper effects to an existing live Tween. The returned adapter shares
+## its sequence; it does not replace active effects or create another Tween.
+func on_tween(tween: Tween) -> Tweenimator:
+	if not is_instance_valid(tween) or not tween.is_valid():
+		push_error("on_tween() needs a live Tween; completed Tweens cannot be reused.")
+		return null
+	var adapter := Tweenimator.new(node, transition_type)
+	adapter.ease_type = ease_type
+	adapter.auto_center_pivot = auto_center_pivot
+	adapter._sequence_tween = tween
+	return adapter
+
+
 func _effect(target: Object, property: NodePath, duration: float, transition: int = -1) -> Tween:
 	if not is_instance_valid(target) or not is_finite(duration) or duration < 0.0:
 		push_error("Tweenimator needs a valid target and a finite, non-negative duration.")
 		return null
+	if _sequence_tween != null:
+		if not _sequence_tween.is_valid():
+			push_error("The connected Tween has finished or was killed.")
+			return null
+		return _sequence_tween.chain()
 	var key := _channel(target, property)
 	if _active.has(key):
 		var previous: Tween = _active[key]

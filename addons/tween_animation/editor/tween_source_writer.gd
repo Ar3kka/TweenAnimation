@@ -176,6 +176,18 @@ static func insert_property(source: String, method: Dictionary, anchor: Dictiona
 				var assigned := pattern.search(statement.text)
 				if assigned:
 					receiver = assigned.get_string(1)
+	var previous_receiver := receiver
+	if sequence == "auto" and not manager.is_empty():
+		var bindings: Dictionary = MODEL._bindings(source.left(int(method.start)))
+		for statement in method.statements:
+			if statement.end > place.offset or statement.conditional or statement.block:
+				continue
+			var local: Dictionary = MODEL._bindings(str(statement.text))
+			bindings.merge(local, true)
+			for variable in local:
+				if MODEL._handle_kind(str(local[variable]), bindings) == "created":
+					previous_receiver = str(variable)
+		receiver = ""
 	var declarations := ""
 	if receiver.is_empty():
 		receiver = "tweenimation_step"
@@ -236,11 +248,14 @@ static func insert_property(source: String, method: Dictionary, anchor: Dictiona
 		args += value_text + ", " + resolved_duration.text
 		if not (interval.get("mode", "constant") == "constant" and float(interval.get("value", 0.0)) == 0.0):
 			args += (", -1" if api == "custom" else "") + ", " + resolved_interval.text
+		var effect_instance := helper_instance
+		if sequence == "auto" and not previous_receiver.is_empty():
+			effect_instance = helper_instance + ".on_tween(" + previous_receiver + ")" if method.language == "gd" else "((Godot.GodotObject)" + helper_instance + '.Call("on_tween", ' + previous_receiver + ').AsGodotObject())'
 		if method.language == "gd":
-			call = "var " + receiver + " := " + helper_instance + "." + api + "(" + args + ")"
+			call = "var " + receiver + " := " + effect_instance + "." + api + "(" + args + ")"
 			call += "\n" + str(place.indent) + helper_instance + ".store(&" + JSON.stringify(helper_name) + ", " + receiver + ")"
 		else:
-			call = "var " + receiver + " = (Tween)" + helper_instance + '.Call("' + api + '", ' + args + ').AsGodotObject();'
+			call = "var " + receiver + " = (Tween)" + effect_instance + '.Call("' + api + '", ' + args + ').AsGodotObject();'
 			call += "\n" + str(place.indent) + helper_instance + '.Call("store", new StringName(' + JSON.stringify(helper_name) + '), ' + receiver + ');'
 	var insertion: String = "\n" + str(place.indent) + declarations + call + "\n\n" + str(place.indent)
 	var offset := int(place.offset)

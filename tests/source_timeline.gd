@@ -158,6 +158,22 @@ public partial class Actor : Node2D {
  check(new_entry.ok and new_entry.source.count("func _ready(")==1,"Empty script gets exactly one ready method")
  var second_entry := WRITER.ensure_ready_method(new_entry.source,"gd")
  check(second_entry.ok and second_entry.source==new_entry.source,"Repeated entry creation is idempotent")
+ var runtime_manager := Tweenimator.new(owner)
+ owner.position = Vector2.ZERO
+ var first_effect := runtime_manager.move_to(owner,Vector2(10,0),0.5)
+ var next_effect := runtime_manager.on_tween(first_effect).move_to(owner,Vector2(20,0),0.5,0.2)
+ check(first_effect==next_effect and first_effect.is_valid(),"Connected helper uses same live Tween without cancellation")
+ first_effect.custom_step(0.5)
+ check(owner.position.is_equal_approx(Vector2(10,0)),"First effect finishes before connected helper")
+ first_effect.custom_step(0.5)
+ check(owner.position.is_equal_approx(Vector2(20,0)),"Connected helper finishes second")
+ first_effect.custom_step(0.3)
+ for predecessor in ["var earlier := create_tween()\n earlier.tween_interval(0.2)", "var earlier := animations.move_to(self, Vector2(10,0), 0.2)"]:
+  var join_base: String = "extends Node2D\nvar animations := Tweenimator.new()\nfunc animate() -> void:\n " + predecessor + "\n pass\n"
+  var join_doc := MODEL.analyze(join_base,"res://join.gd",owner,owner)
+  var joined := WRITER.insert_property(join_base,join_doc.methods[0],{"kind":"end"},owner,"position",relative,duration,interval,"auto",{"instance":"animations","name":"joined"})
+  check(joined.ok and ".on_tween(earlier).move_by(" in joined.source,"Join native and helper predecessors")
+  check(WRITER.validate(joined.source,"gd").ok,"Connected generated helper compiles")
  var file := FileAccess.open("res://write_test.gd",FileAccess.WRITE)
  file.store_string(source)
  file.close()
@@ -169,3 +185,4 @@ public partial class Actor : Node2D {
  owner.free()
  print("SOURCE_CHECK_FAILURES=",failures)
  quit(failures)
+

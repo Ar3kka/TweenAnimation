@@ -184,3 +184,17 @@ The **Add Tween** button stays in the toolbar; the empty-state notice explains t
 ## Source editor regression checks
 
 Run `tests/run_source_checks.ps1 -Godot <path-to-Godot-console.exe>`. It creates and removes an isolated test project inside this checkout, checks plugin loading, and tests source discovery, sequential/parallel/await timing, typed bindings, safe argument edits, placement, write conflicts, and actual dynamic motion on Node2D, Node3D and Control. C# checks cover source indexing and generation, not compilation.
+
+
+### Connect helper effects to a sequence
+
+`animator.on_tween(existing).move_to(target, destination, 0.4)` appends the
+helper effect to an existing live Godot Tween, whether native code or a helper
+created it. It returns that same Tween. The connected effect follows the previous
+step, including when the sequence used parallel steps. It preserves the sequence's
+easing and does not replace an earlier effect on the same property. Completed or
+killed Tweens cannot be reused. Store the result by name as usual.
+
+The Add Tween dialog offers **Join earlier top-level Tween if available** in both
+generation modes. It uses a preceding detected Tween in the selected method;
+otherwise it creates an independent Tween. Independent remains the default.
