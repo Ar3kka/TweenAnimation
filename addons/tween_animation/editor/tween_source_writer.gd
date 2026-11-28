@@ -281,6 +281,20 @@ static func move_statement(source: String, operation: Dictionary, method: Dictio
 	return _edits(source, edits)
 
 
+static func ensure_ready_method(source: String, language: String) -> Dictionary:
+	if language != "gd":
+		return {"ok": false, "error": "No editable instance method found. Add a method in Godot .NET and rescan."}
+	for method in SYNTAX.methods(source, language):
+		if not method.static:
+			return {"ok": true, "existing": true, "source": source}
+	# Also guard declarations the source index cannot fully parse yet.
+	var declaration := RegEx.new()
+	declaration.compile("(?m)^[ \t]*(?:static[ \t]+)?func[ \t]+_ready[ \t]*\\(")
+	if declaration.search(SYNTAX.mask(source)):
+		return {"ok": false, "error": "_ready() already exists but could not be indexed. Check its syntax in Godot; no duplicate was added."}
+	return {"ok": true, "source": source + "\n\nfunc _ready() -> void:\n\tpass\n"}
+
+
 static func validate(source: String, language: String) -> Dictionary:
 	if language == "cs":
 		# Do not pretend the standard Godot build can compile C#.

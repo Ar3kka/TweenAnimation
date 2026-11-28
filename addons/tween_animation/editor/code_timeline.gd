@@ -463,6 +463,8 @@ func _open_new_key() -> void:
 	if not is_instance_valid(selected_node):
 		_message("Select a scene node first. Add Tween uses the current Scene tree selection.")
 		return
+	# A script may have just been attached or edited since the last selection.
+	rescan()
 	var script: Script = selected_node.get_script()
 	var eligible: Array[Dictionary] = []
 	var seen_paths := {}
@@ -726,12 +728,16 @@ func _add_ready_method(script: Script) -> void:
 		_message("This script is embedded in the scene and has no editable file path. Attach an external script or create one through Add Tween.")
 		return
 	var original := _document_source(path)
-	var suffix := "\n\nfunc _ready() -> void:\n\tpass\n" if MODEL.language(path) == "gd" else ""
-	if suffix.is_empty():
-		_message("No editable instance method found. For C#, add a method in the Script editor and rescan; Add Tween can then place a call inside it.")
+	var entry := WRITER.ensure_ready_method(original, MODEL.language(path))
+	if not entry.ok:
+		_message(entry.error)
 		return
-	if _commit_result(path, original, {"ok": true, "source": original + suffix}, "Create animation entry point"):
+	if entry.get("existing", false):
+		_message("This script already has instance methods. Rescan the timeline to select one; no extra _ready() was added.")
+		return
+	if _commit_result(path, original, entry, "Create animation entry point"):
 		_open_new_key()
+
 
 
 func _create_script() -> void:

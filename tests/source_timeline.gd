@@ -151,6 +151,13 @@ public partial class Actor : Node2D {
   check(not mapped.operations.is_empty(),"Generated helper remains visible in source timeline")
  var unnamed := WRITER.insert_property(named_base,named_doc.methods[0],{"kind":"start"},owner,"position",relative,duration,interval,"own",{"instance":"animations","name":""})
  check(not unnamed.ok,"Empty registry name rejected")
+ for ready_source in ["extends Control\nfunc _ready() -> void:\n pass\n", "extends Control\r\nfunc _ready():\r\n\tpass\r\n"]:
+  var existing_ready := WRITER.ensure_ready_method(ready_source,"gd")
+  check(existing_ready.ok and existing_ready.existing and existing_ready.source==ready_source,"Existing ready method is never duplicated")
+ var new_entry := WRITER.ensure_ready_method("extends Control\n","gd")
+ check(new_entry.ok and new_entry.source.count("func _ready(")==1,"Empty script gets exactly one ready method")
+ var second_entry := WRITER.ensure_ready_method(new_entry.source,"gd")
+ check(second_entry.ok and second_entry.source==new_entry.source,"Repeated entry creation is idempotent")
  var file := FileAccess.open("res://write_test.gd",FileAccess.WRITE)
  file.store_string(source)
  file.close()
