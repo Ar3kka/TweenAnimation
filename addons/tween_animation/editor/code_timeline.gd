@@ -278,7 +278,12 @@ func _select_operation(index: int) -> void:
 	_fields.clear()
 	_clear(inspector)
 	jump_button.disabled = false
-	_section(inspector, "Script", "TWEEN CALL", str(_operation.api) + "()")
+	var operation_icon := "Animation"
+	if _operation.api == "tween_property":
+		operation_icon = "Edit"
+	elif _operation.api == "tween_callback":
+		operation_icon = "Signal"
+	_section(inspector, operation_icon, "TWEEN CALL", str(_operation.api) + "()")
 	inspector.add_child(_label(_operation.path.get_file() + " · " + str(_operation.method.name) + "() · line " + str(_operation.line), 13))
 	inspector.add_child(_label(("Tracked property: " + str(_operation.property)) if not str(_operation.property).is_empty() else "Callback/control operation · original target preserved", 14))
 	if not _operation.relevant and not _operation.get("related_sequence", false):
@@ -331,7 +336,7 @@ func _empty_state() -> Control:
 	body.add_theme_constant_override("separation", 10)
 	card.add_child(body)
 	var icon := TextureRect.new()
-	icon.texture = _icon("Script")
+	icon.texture = _icon("Animation")
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.custom_minimum_size = Vector2(24, 24)
@@ -523,7 +528,8 @@ func _open_new_key() -> void:
 	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings.add_theme_constant_override("separation", 10)
 	scroll.add_child(settings)
-	_section(settings, "Script", "02 · SHAPE IT", "Animate " + str(selected_node.name))
+	var target_icon := "Control" if selected_node is Control else "Node3D" if selected_node is Node3D else "Node2D"
+	_section(settings, target_icon, "02 · SHAPE IT", "Animate " + str(selected_node.name))
 	_new_property_picker = OptionButton.new()
 	_new_property_picker.fit_to_longest_item = false
 	for property in OPTIONS.properties(selected_node):
