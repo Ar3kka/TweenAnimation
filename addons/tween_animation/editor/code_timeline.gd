@@ -77,11 +77,11 @@ func build(editor_plugin: EditorPlugin) -> void:
 	var timeline_body := VBoxContainer.new()
 	timeline_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(timeline_body)
-	var lane_header := HBoxContainer.new()
+	var lane_header := HFlowContainer.new()
 	lane_header.add_theme_constant_override("separation", 14)
 	timeline_body.add_child(lane_header)
 	var lane_title := _label("METHOD LANES", 12)
-	lane_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lane_title.custom_minimum_size.x = 120
 	lane_title.modulate.a = 0.72
 	lane_header.add_child(lane_title)
 	_add_legend(lane_header, "Tween", EditorInterface.get_base_control().get_theme_color("accent_color", "Editor"))
