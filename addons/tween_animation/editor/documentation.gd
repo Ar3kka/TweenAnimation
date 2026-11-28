@@ -320,8 +320,10 @@ func _add_example(source: String) -> void:
 
 
 func _kind_color(is_guide: bool) -> Color:
-	var foreground := EditorInterface.get_base_control().get_theme_color("font_color", "Label")
-	return Color(foreground, 0.65 if is_guide else 0.9)
+	var editor := EditorInterface.get_base_control()
+	if not is_guide:
+		return editor.get_theme_color("accent_color", "Editor")
+	return Color("72d7bb") if editor.get_theme_color("dark_color_2", "Editor").get_luminance() < 0.5 else Color("147257")
 
 
 func _kind_icon(is_guide: bool) -> Texture2D:
