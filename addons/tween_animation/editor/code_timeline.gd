@@ -480,16 +480,21 @@ func _open_new_key() -> void:
 	_new_dialog = ConfirmationDialog.new()
 	_new_dialog.title = "Add Tween · choose method and placement"
 	_new_dialog.dialog_hide_on_ok = false
+	_new_dialog.unresizable = false
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 18)
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_new_dialog.add_child(body)
 	var location := VBoxContainer.new()
-	location.custom_minimum_size.x = 400
+	location.custom_minimum_size.x = 540
+	location.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	location.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	location.add_theme_constant_override("separation", 10)
 	var location_scroll := ScrollContainer.new()
-	location_scroll.custom_minimum_size = Vector2(430, 540)
+	location_scroll.custom_minimum_size = Vector2(580, 660)
 	location_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	location_scroll.size_flags_stretch_ratio = 1.7
+	location_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	location_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	body.add_child(location_scroll)
 	location_scroll.add_child(location)
@@ -508,7 +513,8 @@ func _open_new_key() -> void:
 	_new_place_picker.hide()
 	_new_placement = preload("res://addons/tween_animation/editor/placement_picker.gd").new()
 	_new_placement.build()
-	_new_placement.editor.custom_minimum_size.y = 220
+	_new_placement.editor.custom_minimum_size.y = 350
+	_new_placement.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	location.add_child(_new_placement)
 	_new_placement.placement_selected.connect(func(index: int): _new_place_picker.select(index); _refresh_manager_choices(); _refresh_generated_preview())
 	_new_place_picker.item_selected.connect(func(index: int): _new_placement.select_anchor(index); _refresh_generated_preview())
@@ -578,7 +584,7 @@ func _open_new_key() -> void:
 	_new_dialog.confirmed.connect(_create_key)
 	_new_dialog.canceled.connect(_new_dialog.queue_free)
 	add_child(_new_dialog)
-	_new_dialog.popup_centered_clamped(Vector2i(960, 660), 0.9)
+	_new_dialog.popup_centered_clamped(Vector2i(1180, 820), 0.9)
 
 
 func _new_key_fields(container: VBoxContainer) -> void:

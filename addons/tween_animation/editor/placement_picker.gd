@@ -38,13 +38,14 @@ func build() -> void:
 	editor = CodeEdit.new()
 	editor.editable = false
 	editor.gutters_draw_line_numbers = true
-	editor.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	editor.wrap_mode = TextEdit.LINE_WRAPPING_NONE
 	editor.add_gutter()
 	_gutter = editor.get_gutter_count() - 1
 	editor.set_gutter_type(_gutter, TextEdit.GUTTER_TYPE_STRING)
 	editor.set_gutter_width(_gutter, 24)
 	editor.custom_minimum_size = Vector2(0, 250)
 	editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	editor.caret_changed.connect(_pick_line)
 	editor.tooltip_text = "Click a code line to choose a gap. Existing code is preserved. Multiline statements stay together."
 	add_child(editor)
