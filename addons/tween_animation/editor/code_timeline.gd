@@ -683,13 +683,21 @@ func _commit_result(path: String, original: String, result: Dictionary, title: S
 	if not checked.ok:
 		_message(checked.error)
 		return false
+	# Apply the first write synchronously. UndoRedo's do-method is for redo;
+	# depending on the editor context it may run after this dialog checks success.
+	_busy = true
+	var saved := WRITER.write(path, original.sha256_text(), result.source)
+	_busy = false
+	if not saved.ok:
+		_message(saved.error)
+		return false
 	var history := plugin.get_undo_redo()
 	history.create_action(title, UndoRedo.MERGE_DISABLE, selected_node)
 	history.add_do_method(self, "_write_revision", path, original.sha256_text(), result.source)
 	history.add_undo_method(self, "_write_revision", path, str(result.source).sha256_text(), original)
-	_last_write_ok = false
-	history.commit_action()
-	return _last_write_ok
+	history.commit_action(false)
+	_refresh_source(path, result.source, saved.get("note", ""))
+	return true
 
 
 func _write_revision(path: String, expected: String, source: String) -> void:
@@ -711,6 +719,10 @@ func _write_revision(path: String, expected: String, source: String) -> void:
 	if not result.ok:
 		_message(result.error)
 		return
+	_refresh_source(path, source, result.get("note", ""))
+
+
+func _refresh_source(path: String, source: String, note: String) -> void:
 	_source_dirty = false
 	var script: Script = load(path)
 	if script != null:
@@ -724,7 +736,7 @@ func _write_revision(path: String, expected: String, source: String) -> void:
 			buffer.tag_saved_version()
 	plugin.get_editor_interface().get_resource_filesystem().update_file(path)
 	rescan()
-	_message("Source updated. Timeline entries were refreshed from the code. " + str(result.get("note", "")))
+	_message("Source updated. Timeline entries were refreshed from the code. " + str(note))
 
 
 func _show_source(path: String, line: int) -> void:
