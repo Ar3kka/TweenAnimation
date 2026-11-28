@@ -15,6 +15,8 @@ var selected := 0
 var _updating := false
 var _marked_line := -1
 var _gutter := -1
+var preview_start := -1
+var preview_lines := 0
 
 
 func build() -> void:
@@ -29,6 +31,7 @@ func build() -> void:
 	side.add_item("Insert before ↓")
 	side.add_item("Insert after ↑")
 	side.item_selected.connect(func(_index: int): _pick_line())
+	side.hide()
 	tools.add_child(side)
 	editor = CodeEdit.new()
 	editor.editable = false
@@ -65,6 +68,8 @@ func build() -> void:
 
 
 func configure(text: String, chosen_method: Dictionary, locations: Array[Dictionary], index: int) -> void:
+	preview_start = -1
+	preview_lines = 0
 	source = text
 	method = chosen_method
 	anchors = locations
@@ -107,7 +112,13 @@ func select_anchor(index: int) -> void:
 func _pick_line() -> void:
 	if _updating or method.is_empty():
 		return
-	choose_line(editor.get_caret_line(), side.selected == 1)
+	var line := editor.get_caret_line()
+	if preview_start >= 0:
+		if line >= preview_start and line < preview_start + preview_lines:
+			return
+		if line >= preview_start + preview_lines:
+			line -= preview_lines
+	choose_line(line, false)
 
 
 func choose_line(line: int, after: bool = false) -> void:
@@ -140,3 +151,15 @@ func choose_line(line: int, after: bool = false) -> void:
 		best = 0 if line <= first else anchors.size() - 1
 	select_anchor(best)
 	placement_selected.emit(best)
+
+
+func show_generated(text: String, offset: int, added_length: int) -> void:
+	_updating = true
+	editor.text = text
+	preview_start = SYNTAX.line_at(source, offset) - 1
+	preview_lines = text.substr(offset, added_length).count("\n")
+	for line in range(preview_start, mini(preview_start + preview_lines, editor.get_line_count())):
+		editor.set_line_background_color(line, Color(0.3, 0.65, 1.0, 0.2))
+	editor.set_caret_line(preview_start)
+	editor.center_viewport_to_caret()
+	_updating = false

@@ -124,6 +124,18 @@ public partial class Actor : Node2D {
   get_processed_tweens()[-1].custom_step(1.0)
   check(probe.get("position")==offset*2,"Relative " + probe.get_class() + " offset reevaluates current position")
   probe.free()
+ # Named generation must compile, register the live Tween, and preserve following code.
+ var named_base := "extends Node2D\nvar animations := Tweenimator.new()\nfunc animate() -> void:\n pass\n"
+ var named_doc := MODEL.analyze(named_base,"res://named.gd",owner,owner)
+ for instance in ["", "animations"]:
+  var named := WRITER.insert_property(named_base,named_doc.methods[0],{"kind":"before","start":named_doc.methods[0].statements[0].start},owner,"position",relative,duration,interval,"own",{"instance":instance,"name":"intro"})
+  check(named.ok and '.create(&"intro", self)' in named.source,"Named Tween uses selected registry")
+  var named_script := GDScript.new()
+  named_script.source_code = named.source
+  check(named_script.reload()==OK,"Named Tween source compiles")
+  check(named.source.find("tween_property") < named.source.find("pass"),"Insertion pushes existing statement below")
+ var unnamed := WRITER.insert_property(named_base,named_doc.methods[0],{"kind":"start"},owner,"position",relative,duration,interval,"own",{"instance":"animations","name":""})
+ check(not unnamed.ok,"Empty registry name rejected")
  var file := FileAccess.open("res://write_test.gd",FileAccess.WRITE)
  file.store_string(source)
  file.close()

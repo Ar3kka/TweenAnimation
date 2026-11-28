@@ -153,7 +153,7 @@ static func location(source: String, method: Dictionary, anchor: Dictionary) -> 
 	return {"ok": true, "offset": offset, "indent": indent}
 
 
-static func insert_property(source: String, method: Dictionary, anchor: Dictionary, target: Node, property: String, destination: Dictionary, duration: Dictionary, interval: Dictionary, sequence: String = "auto") -> Dictionary:
+static func insert_property(source: String, method: Dictionary, anchor: Dictionary, target: Node, property: String, destination: Dictionary, duration: Dictionary, interval: Dictionary, sequence: String = "auto", manager: Dictionary = {}) -> Dictionary:
 	if source.sha256_text() != method.hash:
 		return {"ok": false, "error": "The script changed. Rescan before adding a key."}
 	if method.static:
@@ -184,13 +184,32 @@ static func insert_property(source: String, method: Dictionary, anchor: Dictiona
 			receiver = "tweenimation_step_" + str(suffix)
 			suffix += 1
 		declarations = ("var " + receiver + " := create_tween()" if method.language == "gd" else "var " + receiver + " = CreateTween();") + "\n" + str(place.indent)
+	if not manager.is_empty():
+		var instance := str(manager.get("instance", ""))
+		var tween_name := str(manager.get("name", "")).strip_edges()
+		if tween_name.is_empty():
+			return {"ok": false, "error": "Give this Tween a name for its Tweenimator registry."}
+		var manager_declaration := ""
+		if instance.is_empty():
+			instance = "tweenimator"
+			while instance in source:
+				instance += "_new"
+			manager_declaration = ("var " + instance + " := Tweenimator.new(self)" if method.language == "gd" else "var " + instance + ' = GD.Load<Script>("res://addons/tween_animation/src/tweenimator.gd").New(this);') + "\n" + str(place.indent)
+		var creator := instance + ".create(&" + JSON.stringify(tween_name) + ", self)" if method.language == "gd" else '(Tween)' + instance + '.Call("create", new StringName(' + JSON.stringify(tween_name) + '), this).AsGodotObject()'
+		declarations = manager_declaration + ("var " + receiver + " := " + creator if method.language == "gd" else "var " + receiver + " = " + creator + ";") + "\n" + str(place.indent)
 	var node := node_expression(method.owner, target, method.language)
 	var call: String = receiver + (".tween_property(" if method.language == "gd" else ".TweenProperty(") + node + ", " + JSON.stringify(property) + ", " + resolved_value.text + ", " + resolved_duration.text + ")" + ("" if method.language == "gd" else ";")
 	var wait: String = resolved_interval.text
 	if not (interval.get("mode", "constant") == "constant" and float(interval.get("value", 0.0)) == 0.0):
 		call += "\n" + str(place.indent) + receiver + (".tween_interval(" if method.language == "gd" else ".TweenInterval(") + wait + ")" + ("" if method.language == "gd" else ";")
-	var insertion: String = "\n" + str(place.indent) + declarations + call + "\n" + str(place.indent)
-	return {"ok": true, "source": source.left(place.offset) + insertion + source.substr(place.offset), "line": SYNTAX.line_at(source, place.offset) + 1, "sequence": receiver}
+	var insertion: String = "\n" + str(place.indent) + declarations + call + "\n\n" + str(place.indent)
+	var offset := int(place.offset)
+	if str(anchor.get("kind", "")) == "before":
+		var line_start := source.rfind("\n", maxi(0, offset - 1)) + 1
+		if source.substr(line_start, offset - line_start).strip_edges().is_empty():
+			offset = line_start
+			insertion = str(place.indent) + declarations + call + "\n\n"
+	return {"ok": true, "source": source.left(offset) + insertion + source.substr(offset), "line": SYNTAX.line_at(source, offset), "offset": offset, "inserted_length": insertion.length(), "sequence": receiver}
 
 
 static func move_statement(source: String, operation: Dictionary, method: Dictionary, anchor: Dictionary) -> Dictionary:

@@ -36,7 +36,9 @@ var _span := 1.0
 var _new_placement
 var _new_dialog: ConfirmationDialog
 var _new_feedback: Label
-var _new_code_preview: CodeEdit
+var _new_backend: OptionButton
+var _new_manager: OptionButton
+var _new_name: LineEdit
 var _new_fields: Dictionary = {}
 var _new_method_picker: OptionButton
 var _new_place_picker: OptionButton
@@ -500,10 +502,6 @@ func _open_new_key() -> void:
 				_new_method_picker.add_item(str(method.owner.name) + " / " + str(method.name) + "() · L" + str(method.line))
 				_new_method_picker.set_item_metadata(_new_method_picker.item_count - 1, method)
 	location.add_child(_new_method_picker)
-	var placement_modes := TabBar.new()
-	placement_modes.add_tab("Pick a code line", _icon("Script"))
-	placement_modes.add_tab("Quick locations", _icon("ListSelect"))
-	location.add_child(placement_modes)
 	_new_place_picker = OptionButton.new()
 	_new_place_picker.fit_to_longest_item = false
 	location.add_child(_new_place_picker)
@@ -512,23 +510,10 @@ func _open_new_key() -> void:
 	_new_placement.build()
 	_new_placement.editor.custom_minimum_size.y = 220
 	location.add_child(_new_placement)
-	_new_placement.placement_selected.connect(func(index: int): _new_place_picker.select(index); _refresh_generated_preview())
+	_new_placement.placement_selected.connect(func(index: int): _new_place_picker.select(index); _refresh_manager_choices(); _refresh_generated_preview())
 	_new_place_picker.item_selected.connect(func(index: int): _new_placement.select_anchor(index); _refresh_generated_preview())
-	placement_modes.tab_changed.connect(func(index: int): _new_placement.visible = index == 0; _new_place_picker.visible = index == 1)
-	var location_hint := _label("Read-only preview · choose a line, then Before or After. Complete statements stay together.", 13)
-	location_hint.custom_minimum_size.x = 320
+	var location_hint := _label("Click a statement to insert above it. Existing code moves down; the highlighted code is a live preview.", 13)
 	location.add_child(location_hint)
-	var code_preview_title := _label("GENERATED CALL · UPDATES LIVE", 12)
-	code_preview_title.modulate = EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
-	location.add_child(code_preview_title)
-	_new_code_preview = CodeEdit.new()
-	_new_code_preview.editable = false
-	_new_code_preview.gutters_draw_line_numbers = false
-	_new_code_preview.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
-	_new_code_preview.custom_minimum_size.y = 72
-	_new_code_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	location.add_child(_new_code_preview)
-	_style_generated_preview()
 	var divider := VSeparator.new()
 	body.add_child(divider)
 	var scroll := ScrollContainer.new()
@@ -553,6 +538,21 @@ func _open_new_key() -> void:
 		if _new_property_picker.get_item_text(index) == ("modulate:a" if selected_node is Control else "position"):
 			position_index = index
 	_new_property_picker.select(position_index)
+	_new_backend = OptionButton.new()
+	_new_backend.add_item("Godot Tween")
+	_new_backend.add_item("Tweenimator  -  named Tween")
+	settings.add_child(_new_backend)
+	_new_manager = OptionButton.new()
+	_new_manager.fit_to_longest_item = false
+	_new_manager.get_popup().max_size = Vector2i(460, 300)
+	settings.add_child(_new_manager)
+	_new_name = LineEdit.new()
+	_new_name.placeholder_text = "Tween name  -  e.g. menu_intro"
+	_new_name.text = "intro"
+	settings.add_child(_new_name)
+	_new_backend.item_selected.connect(func(_index: int): _refresh_generated_preview())
+	_new_manager.item_selected.connect(func(_index: int): _refresh_generated_preview())
+	_new_name.text_changed.connect(func(_text: String): _refresh_generated_preview())
 	_new_sequence_picker = OptionButton.new()
 	_new_sequence_picker.add_item("Join earlier top-level Tween if available")
 	_new_sequence_picker.add_item("Create an independent Tween")
@@ -587,7 +587,7 @@ func _new_key_fields(container: VBoxContainer) -> void:
 	_new_place_picker.clear()
 	for anchor in _new_anchors:
 		_new_place_picker.add_item(anchor.label)
-	_new_place_picker.select(old_selection if old_selection >= 0 else _new_place_picker.item_count - 1)
+	_new_place_picker.select(old_selection if old_selection >= 0 else mini(1, _new_place_picker.item_count - 1))
 	_new_placement.configure(_document_source(_new_method.path), _new_method, _new_anchors, _new_place_picker.selected)
 	var property := _new_property_picker.get_item_text(_new_property_picker.selected)
 	var sample: Variant = selected_node.get_indexed(NodePath(property))
@@ -601,43 +601,66 @@ func _new_key_fields(container: VBoxContainer) -> void:
 		field.changed.connect(_refresh_generated_preview)
 		if name == "value" and property == "position":
 			field.choose("relative")
+	_refresh_manager_choices()
 	_refresh_generated_preview()
 
 
 func _refresh_generated_preview() -> void:
-	if not is_instance_valid(_new_code_preview) or _new_fields.size() != 3 or _new_anchors.is_empty() or not is_instance_valid(selected_node):
+	if not is_instance_valid(_new_backend) or _new_fields.size() != 3 or _new_anchors.is_empty() or not is_instance_valid(selected_node):
 		return
+	var helper := _new_backend.selected == 1
+	_new_manager.visible = helper
+	_new_name.visible = helper
+	_new_sequence_picker.visible = not helper
 	var source := _document_source(_new_method.path)
 	var anchor: Dictionary = _new_anchors[_new_place_picker.selected]
 	var property := _new_property_picker.get_item_text(_new_property_picker.selected)
-	var result := WRITER.insert_property(source, _new_method, anchor, selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "auto" if _new_sequence_picker.selected == 0 else "own")
+	var result := WRITER.insert_property(source, _new_method, anchor, selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "own" if _new_backend.selected == 1 else ("auto" if _new_sequence_picker.selected == 0 else "own"), _new_manager_config())
 	if not result.ok:
-		_new_code_preview.text = "Preview unavailable · " + str(result.get("error", "Check the selected values."))
+		_new_feedback.text = "Preview unavailable · " + str(result.get("error", "Check the selected values."))
 		return
 	var location := WRITER.location(source, _new_method, anchor)
 	if not location.ok:
-		_new_code_preview.text = "Preview unavailable · " + str(location.get("error", "Choose another insertion point."))
+		_new_feedback.text = "Preview unavailable · " + str(location.get("error", "Choose another insertion point."))
 		return
-	var prefix_length: int = source.left(int(location.offset)).length()
-	var suffix_length: int = source.substr(int(location.offset)).length()
+	var prefix_length: int = result.offset
+	var suffix_length: int = source.substr(prefix_length).length()
 	var inserted_length: int = result.source.length() - prefix_length - suffix_length
-	_new_code_preview.text = str(result.source).substr(prefix_length, inserted_length).strip_edges()
+	_new_feedback.text = ""
+	_new_placement.show_generated(str(result.source), prefix_length, inserted_length)
 
 
-func _style_generated_preview() -> void:
-	var foreground := EditorInterface.get_base_control().get_theme_color("font_color", "Label")
-	_new_code_preview.add_theme_color_override("font_readonly_color", foreground)
-	var syntax := CodeHighlighter.new()
-	syntax.symbol_color = foreground
-	syntax.member_variable_color = foreground
-	syntax.number_color = Color("a8d6a0")
-	syntax.function_color = Color("8bc9ef")
-	syntax.add_color_region('"', '"', Color("e8ca95"))
-	syntax.add_color_region("#", "", Color("94a3b8"), true)
-	syntax.add_color_region("//", "", Color("94a3b8"), true)
-	for keyword in ["var", "func", "extends", "await", "if", "return", "public", "private", "void", "new", "class"]:
-		syntax.add_keyword_color(keyword, Color("c8a6e6"))
-	_new_code_preview.syntax_highlighter = syntax
+func _new_manager_config() -> Dictionary:
+	if _new_backend.selected == 0:
+		return {}
+	return {"instance": str(_new_manager.get_item_metadata(_new_manager.selected)), "name": _new_name.text}
+
+
+func _refresh_manager_choices() -> void:
+	var previous := str(_new_manager.get_item_metadata(_new_manager.selected)) if _new_manager.selected >= 0 else ""
+	_new_manager.clear()
+	_new_manager.add_item("Create a new Tweenimator here")
+	_new_manager.set_item_metadata(0, "")
+	var source := _document_source(_new_method.path)
+	var place := WRITER.location(source, _new_method, _new_anchors[_new_place_picker.selected])
+	if not place.ok:
+		return
+	var candidates := source
+	# Only class fields and preceding statements in this method are in scope.
+	var methods := SYNTAX.methods(source, MODEL.language(_new_method.path))
+	for index in range(methods.size() - 1, -1, -1):
+		var entry: Dictionary = methods[index]
+		candidates = candidates.left(entry.start) + " ".repeat(entry.end - entry.start) + candidates.substr(entry.end)
+	for statement in _new_method.statements:
+		if not statement.conditional and not statement.block and statement.end <= place.offset:
+			candidates += "\n" + str(statement.text)
+	var bindings: Dictionary = MODEL._bindings(candidates)
+	for variable in bindings:
+		if "Tweenimator" in str(bindings[variable]) or "tweenimator.gd" in str(bindings[variable]):
+			_new_manager.add_item(str(variable))
+			_new_manager.set_item_metadata(_new_manager.item_count - 1, str(variable))
+			if str(variable) == previous:
+				_new_manager.select(_new_manager.item_count - 1)
 
 
 func _create_key() -> void:
@@ -648,7 +671,7 @@ func _create_key() -> void:
 		if data.mode == "constant" and (not (data.value is float or data.value is int) or float(data.value) < 0 or not is_finite(float(data.value))):
 			_new_feedback.text = "Duration and wait must be finite, non-negative numbers."
 			return
-	var result := WRITER.insert_property(original, _new_method, _new_anchors[_new_place_picker.selected], selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "auto" if _new_sequence_picker.selected == 0 else "own")
+	var result := WRITER.insert_property(original, _new_method, _new_anchors[_new_place_picker.selected], selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "own" if _new_backend.selected == 1 else ("auto" if _new_sequence_picker.selected == 0 else "own"), _new_manager_config())
 	if _commit_result(_new_method.path, original, result, "Add Tween call"):
 		_new_dialog.queue_free()
 	elif _new_feedback.text.is_empty():
