@@ -706,15 +706,15 @@ const ITEMS := {
 const SOURCE := {
 	"guide_source_create": {
 		"group": "Start here",
-		"title": "Create a code-backed key",
+		"title": "Add a Tween call",
 		"summary": "Enter data and choose a method location; no source typing required.",
 		"steps": [
-			"Select a scene node and choose Code Tweens > Add key.",
+			"Select a scene node and choose Timeline > Add Tween.",
 			"Choose an instance method, then click a line in the read-only code preview. Select Before or After; existing code moves down. Quick locations also offers method boundaries. A node without a script can create one through the file picker.",
 			"Choose a property, destination binding, duration and optional wait. Offset reads current state when called; Method parameter uses gameplay input.",
-			"Join an earlier top-level Tween or create an independent one, then Create code-backed key."
+			"Join an earlier top-level Tween or create an independent one, then add the call to your selected method."
 		],
-		"notes": "New keys generate native Godot TweenProperty/tween_property calls. They do not require Tweenimator. A method only runs when the game calls it. Existing built-in scripts are read-only here. C# requires an existing method and Godot .NET for compilation.",
+		"notes": "Add Tween inserts a regular Godot Tween call in your script and creates its timeline entry in the same action. The entry maps the call's method, source line, parameters, and estimated timing; it is not a separate keyframe. Tweenimator is optional. The method still runs only when the game calls it.",
 		"targets": [
 			"2D",
 			"3D",
@@ -730,15 +730,15 @@ const SOURCE := {
 	},
 	"guide_source_create_visual": {
 		"group": "Start here",
-		"title": "Create a code-backed key",
+		"title": "Add a Tween call",
 		"summary": "Enter data and choose a method location; no source typing required.",
 		"steps": [
-			"Select a scene node and choose Code Tweens > Add key.",
+			"Select a scene node and choose Timeline > Add Tween.",
 			"Choose an instance method, then click a line in the read-only code preview. Select Before or After; existing code moves down. Quick locations also offers method boundaries. A node without a script can create one through the file picker.",
 			"Choose a property, destination binding, duration and optional wait. Offset reads current state when called; Method parameter uses gameplay input.",
-			"Join an earlier top-level Tween or create an independent one, then Create code-backed key."
+			"Join an earlier top-level Tween or create an independent one, then add the call to your selected method."
 		],
-		"notes": "New keys generate native Godot TweenProperty/tween_property calls. They do not require Tweenimator. A method only runs when the game calls it. Existing built-in scripts are read-only here. C# requires an existing method and Godot .NET for compilation.",
+		"notes": "Add Tween inserts a regular Godot Tween call in your script and creates its timeline entry in the same action. The entry maps the call's method, source line, parameters, and estimated timing; it is not a separate keyframe. Tweenimator is optional. The method still runs only when the game calls it.",
 		"targets": [
 			"2D",
 			"3D",
@@ -754,13 +754,13 @@ const SOURCE := {
 	},
 	"guide_source_inspect": {
 		"group": "Start here",
-		"title": "Inspect, edit and move code keys",
+		"title": "Inspect, edit and move Tween calls",
 		"summary": "A source call remains the source of truth.",
 		"steps": [
-			"Select a key to inspect its method, source line, parameters and runtime bindings.",
+			"Select a Tween call in the timeline to inspect its method, source line, parameters and runtime bindings.",
 			"Choose Value, Offset, Method parameter or Node property instead of typing an expression. Apply changes only edited arguments.",
 			"Move this call changes statement placement inside the same method. Source line opens the actual script at its call.",
-			"Rescan regenerates keys after external edits. Save Godot script buffers first; stale edits are rejected. Undo restores the prior source."
+			"Rescan refreshes timeline entries after external edits. Save Godot script buffers first; stale edits are rejected. Undo restores the prior source."
 		],
 		"notes": "Moving between methods is not offered because local variable scope may change. Unknown receiver types are read-only. Callback bodies and computed property names are preserved; edit those in the optional source view. C# source edits are not compiled by standard Godot.",
 		"targets": [
@@ -778,13 +778,13 @@ const SOURCE := {
 	},
 	"guide_source_inspect_visual": {
 		"group": "Start here",
-		"title": "Inspect, edit and move code keys",
+		"title": "Inspect, edit and move Tween calls",
 		"summary": "A source call remains the source of truth.",
 		"steps": [
-			"Select a key to inspect its method, source line, parameters and runtime bindings.",
+			"Select a Tween call in the timeline to inspect its method, source line, parameters and runtime bindings.",
 			"Choose Value, Offset, Method parameter or Node property instead of typing an expression. Apply changes only edited arguments.",
 			"Move this call changes statement placement inside the same method. Source line opens the actual script at its call.",
-			"Rescan regenerates keys after external edits. Save Godot script buffers first; stale edits are rejected. Undo restores the prior source."
+			"Rescan refreshes timeline entries after external edits. Save Godot script buffers first; stale edits are rejected. Undo restores the prior source."
 		],
 		"notes": "Moving between methods is not offered because local variable scope may change. Unknown receiver types are read-only. Callback bodies and computed property names are preserved; edit those in the optional source view. C# source edits are not compiled by standard Godot.",
 		"targets": [

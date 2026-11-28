@@ -90,23 +90,23 @@ func configure(mode: int, phase: int) -> void:
 		_picker("Sequence", ["Join earlier Tween · append a step", "Independent Tween · starts alongside others"])
 		_label("Appending to a sequential Tween waits for earlier steps. Independent Tweens start together unless control flow awaits them.")
 	elif step == 4:
-		_journey("Select key", "Key", "Edit its values", "Edit")
-		var key := Button.new()
-		key.text = "position   ━━━ 0.4 s ━━━   ░ wait 0.2 s"
-		key.icon = EditorInterface.get_base_control().get_theme_icon("Key", "EditorIcons")
-		key.custom_minimum_size.y = 48
-		key.toggle_mode = true
-		stage.add_child(key)
+		_journey("Select call", "Script", "Edit its values", "Edit")
+		var call_item := Button.new()
+		call_item.text = "move_right()   ━━━ 0.4 s ━━━   ░ wait 0.2 s"
+		call_item.icon = EditorInterface.get_base_control().get_theme_icon("Script", "EditorIcons")
+		call_item.custom_minimum_size.y = 48
+		call_item.toggle_mode = true
+		stage.add_child(call_item)
 		readout = Label.new()
 		readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		readout.text = "Click the sample key."
+		readout.text = "Click the sample call."
 		stage.add_child(readout)
-		key.pressed.connect(func(): readout.text = "move_right() · actor.gd · line 12\nPosition · offset X +100 · duration 0.4 s · wait 0.2 s\nIn the real workspace, edit these fields and Apply; Move this call changes its method location.")
+		call_item.pressed.connect(func(): readout.text = "move_right() · actor.gd · line 12\nPosition · offset X +100 · duration 0.4 s · wait 0.2 s\nIn the real workspace, edit these fields and Apply; Move this call changes its method location.")
 	else:
-		_journey("Tween call", "Script", "Editable timeline", "Key")
-		_label("Create code-backed key writes the selected parameters at your chosen method location. Undo restores the previous source. Rescan reads later script changes.")
+		_journey("Tween call", "Script", "Editable timeline", "Call")
+		_label("Add Tween inserts a native call at your chosen method location. Its timeline entry shows where and how long it runs; edit its supported parameters here or jump to its code. Undo restores the previous source.")
 		_label("Runtime means the order or duration depends on live data, branches or loops. It is not an exact playback time. Source line is optional: visual editing does not require writing code.")
-		_label("Tweenimation maps recognizable runtime Tween calls to editable keys. Run your scene to see gameplay behavior; computed values and branches are marked Runtime.")
+		_label("Tweenimation maps recognizable runtime Tween calls to editable timeline entries. Run your scene to see gameplay behavior; computed values and branches are marked Runtime.")
 
 
 func _label(text: String) -> void:

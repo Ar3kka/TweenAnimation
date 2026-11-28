@@ -61,8 +61,8 @@ func build(editor_plugin: EditorPlugin) -> void:
 	method_picker.item_selected.connect(func(_index: int): _filter())
 	toolbar.add_child(method_picker)
 	_button(toolbar, "Rescan", "Reload", rescan)
-	add_button = _button(toolbar, "Add key", "Add", _open_new_key)
-	add_button.tooltip_text = "Create a Tween call at a chosen place in a method. Existing code is preserved."
+	add_button = _button(toolbar, "Add Tween", "Add", _open_new_key)
+	add_button.tooltip_text = "Insert a Tween call at a chosen method and line."
 	jump_button = _button(toolbar, "Source line", "Script", _jump_source)
 	jump_button.disabled = true
 	description = _label("Select a node to discover its code-driven animations.", 16)
@@ -232,6 +232,7 @@ func _filter() -> void:
 	graph.custom_minimum_size.y = maxf(250, mini(16, visible_operations.size()) * 54 + 56)
 	graph.queue_redraw()
 	if visible_operations.is_empty():
+		add_button.hide()
 		_operation = {}
 		jump_button.disabled = true
 		_clear(inspector)
@@ -239,6 +240,7 @@ func _filter() -> void:
 		empty_state_panel.show()
 		source_panel.hide()
 	else:
+		add_button.show()
 		empty_state_panel.hide()
 		inspector_scroll.show()
 		_select_operation(0)
@@ -304,7 +306,7 @@ func _select_operation(index: int) -> void:
 	_fields.clear()
 	_clear(inspector)
 	jump_button.disabled = false
-	_section(inspector, "Key", "TWEEN DETAILS", str(_operation.api) + "()")
+	_section(inspector, "Script", "TWEEN CALL", str(_operation.api) + "()")
 	inspector.add_child(_label(_operation.path.get_file() + " · " + str(_operation.method.name) + "() · line " + str(_operation.line), 13))
 	inspector.add_child(_label(("Tracked property: " + str(_operation.property)) if not str(_operation.property).is_empty() else "Callback/control operation · original target preserved", 14))
 	if not _operation.relevant and not _operation.get("related_sequence", false):
@@ -351,45 +353,35 @@ func _empty_state() -> Control:
 	style.border_color = EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
 	style.border_width_left = 3
 	style.set_corner_radius_all(8)
-	style.set_content_margin_all(14)
+	style.set_content_margin_all(10)
 	card.add_theme_stylebox_override("panel", style)
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 12)
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 10)
 	card.add_child(body)
-	var intro := HBoxContainer.new()
-	intro.add_theme_constant_override("separation", 12)
-	body.add_child(intro)
 	var icon := TextureRect.new()
-	icon.texture = _icon("Animation")
+	icon.texture = _icon("Script")
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.custom_minimum_size = Vector2(36, 36)
-	intro.add_child(icon)
+	icon.custom_minimum_size = Vector2(24, 24)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	body.add_child(icon)
 	var copy := VBoxContainer.new()
 	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	copy.add_theme_constant_override("separation", 4)
-	intro.add_child(copy)
-	var title := _label("Start with a Tween", 18)
+	copy.add_theme_constant_override("separation", 2)
+	body.add_child(copy)
+	var has_target := is_instance_valid(selected_node)
+	var title := _label("No Tween calls found" if has_target else "Make code-driven Tweens readable", 16)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	copy.add_child(title)
-	var message := "Select a node in the Scene tree to see its Tween calls." if not is_instance_valid(selected_node) else "No matching calls yet. Add a Tween to an existing method, then inspect it here."
-	var detail := _label(message, 13)
+	var message := "Add Tween inserts a native call at a chosen method and line. The timeline then shows its timing, source and editable parameters." if has_target else "Select a scene node to map its calls. Add Tween writes a call at a chosen method and line, then makes it easy to inspect and edit here."
+	var detail := _label(message, 12)
 	detail.modulate.a = 0.76
 	copy.add_child(detail)
-	var add := _button(intro, "Add Tween call", "Add", _open_new_key)
-	add.custom_minimum_size.x = 146
-	add.disabled = not is_instance_valid(selected_node)
+	var add := _button(body, "Add Tween", "Add", _open_new_key)
+	add.custom_minimum_size = Vector2(132, 34)
+	add.disabled = not has_target
+	add.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	add.tooltip_text = "Choose a method and placement, then set the Tween parameters."
-	var steps := HFlowContainer.new()
-	steps.add_theme_constant_override("h_separation", 8)
-	steps.add_theme_constant_override("v_separation", 4)
-	body.add_child(steps)
-	for item in ["01 · Select a node", "02 · Add or find a Tween", "03 · Edit values or jump to code"]:
-		var step := _label(item, 12)
-		step.custom_minimum_size.x = 170
-		step.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		step.modulate.a = 0.82
-		steps.add_child(step)
 	return card
 
 
@@ -501,7 +493,7 @@ func _open_new_key() -> void:
 			_add_ready_method(script)
 		return
 	_new_dialog = ConfirmationDialog.new()
-	_new_dialog.title = "New Tween key · data and method placement"
+	_new_dialog.title = "Add Tween · choose method and placement"
 	_new_dialog.dialog_hide_on_ok = false
 	var body := HBoxContainer.new()
 	body.add_theme_constant_override("separation", 18)
@@ -554,7 +546,7 @@ func _open_new_key() -> void:
 	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings.add_theme_constant_override("separation", 10)
 	scroll.add_child(settings)
-	_section(settings, "Key", "02 · SHAPE IT", "Animate " + str(selected_node.name))
+	_section(settings, "Script", "02 · SHAPE IT", "Animate " + str(selected_node.name))
 	_new_property_picker = OptionButton.new()
 	_new_property_picker.fit_to_longest_item = false
 	for property in OPTIONS.properties(selected_node):
@@ -617,7 +609,7 @@ func _create_key() -> void:
 			_message("Duration/interval must be finite and non-negative.")
 			return
 	var result := WRITER.insert_property(original, _new_method, _new_anchors[_new_place_picker.selected], selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "auto" if _new_sequence_picker.selected == 0 else "own")
-	if _commit_result(_new_method.path, original, result, "Create Tween key"):
+	if _commit_result(_new_method.path, original, result, "Add Tween call"):
 		_new_dialog.queue_free()
 
 
@@ -740,7 +732,7 @@ func _write_revision(path: String, expected: String, source: String) -> void:
 			buffer.tag_saved_version()
 	plugin.get_editor_interface().get_resource_filesystem().update_file(path)
 	rescan()
-	_message("Source updated. Visual keys were regenerated from the code. " + str(result.get("note", "")))
+	_message("Source updated. Timeline entries were refreshed from the code. " + str(result.get("note", "")))
 
 
 func _show_source(path: String, line: int) -> void:
