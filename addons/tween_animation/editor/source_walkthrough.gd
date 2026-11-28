@@ -42,18 +42,23 @@ func configure(mode: int, phase: int) -> void:
 	title.add_theme_font_size_override("font_size", 20)
 	context.add_child(title)
 	var detail := Label.new()
-	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	detail.text = selected_node.get_class() + " · " + str(selected_node.get_path()) if has_node else "The timeline follows Godot's Scene tree selection. Its node name will appear here automatically."
+	detail.autowrap_mode = TextServer.AUTOWRAP_OFF
+	detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var scene_path := preload("res://addons/tween_animation/editor/scene_node_info.gd").path_in_scene(selected_node, EditorInterface.get_edited_scene_root())
+	detail.text = selected_node.get_class() + (" · " + scene_path if not scene_path.is_empty() else "") if has_node else "The current Scene tree selection will appear here."
+	detail.tooltip_text = detail.text
 	context.add_child(detail)
 	var flow := Label.new()
 	flow.text = ["GODOT SCENE TREE  →  CURRENT TARGET", "ADD TWEEN  →  LOCATION", "CONFIGURATION  →  ANIMATED PROPERTY  →  VALUE", "CONFIGURATION  →  DURATION / WAIT / SEQUENCE", "TIMELINE BAR  →  PARAMETERS  →  APPLY", "RUN SCENE  →  CHECK RESULT  →  REFINE"][clampi(step, 0, 5)]
 	flow.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	flow.modulate.a = 0.75
+	flow.visible = step > 0
 	stage.add_child(flow)
 	var explanation := Label.new()
 	explanation.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	explanation.text = [
-		"This node is the target of the timeline edits. Choose another node in Godot's Scene tree whenever you want to change the target; this card and the Timeline tab update together.",
+		"This is the node your Tween will animate. To edit a different target, click it in Godot's Scene tree. Next explains where to place the animation call.",
 		"Open Add Tween. Under Location, Run inside method chooses when the game runs the animation. Click a statement in that method: the new lines appear above it and the original code moves down. All generated lines are highlighted, including a new script-level Tweenimator.",
 		"Under Configuration, choose Godot Tween or Tweenimator. Tweenimator defaults to a new script instance outside methods; the Tween name stores the returned Tween in that instance. Animated property chooses what changes. Offset adds to the node's value when called; Value supplies an absolute destination; Method parameter uses a value supplied by gameplay.",
 		"Duration is movement time. Wait is a hold afterwards. Independent creates its own Tween. Join earlier top-level Tween appends to a recognized preceding sequence in this method when available; otherwise it creates its own. Add Tween commits the highlighted source and refreshes the map. Close the dialog to cancel without saving.",
@@ -65,10 +70,7 @@ func configure(mode: int, phase: int) -> void:
 	action.text = "Open Add Tween for " + str(selected_node.name) if has_node and step in [1, 2, 3] else "Open Timeline"
 	action.icon = editor.get_theme_icon("Add" if step in [1, 2, 3] else "Animation", "EditorIcons")
 	action.disabled = not has_node
+	action.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	action.custom_minimum_size = Vector2(200, 34)
 	action.pressed.connect(func(): workspace_requested.emit(step in [1, 2, 3]))
 	stage.add_child(action)
-	var note := Label.new()
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.text = "These actions open the real workspace for the node shown above. Next and Back only change the explanation; they do not edit your scene or unlock controls."
-	note.modulate.a = 0.7
-	stage.add_child(note)

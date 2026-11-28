@@ -179,7 +179,7 @@ func _update_node_summary() -> void:
 	var has_node := is_instance_valid(selected_node)
 	_node_icon.texture = _icon(selected_node.get_class() if has_node else "Node")
 	description.text = str(selected_node.name) if has_node else "Select a scene node"
-	description.tooltip_text = str(selected_node.get_path()) if has_node else "Select a node in the Scene tree to view its Tween calls."
+	description.tooltip_text = preload("res://addons/tween_animation/editor/scene_node_info.gd").path_in_scene(selected_node, EditorInterface.get_edited_scene_root()) if has_node else "Select a node in the Scene tree to view its Tween calls."
 	_node_type.visible = has_node
 	if has_node:
 		var kind := "UI" if selected_node is Control else ("3D" if selected_node is Node3D else ("2D" if selected_node is Node2D else "Node"))

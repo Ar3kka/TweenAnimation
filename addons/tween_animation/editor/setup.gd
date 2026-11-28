@@ -340,6 +340,8 @@ func _render_step() -> void:
 	visual.set("elapsed", 0.0)
 	card_style.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.25)
 	var visual_only := content_mode == 2
+	action_label.visible = not visual_only
+	guide.visible = not visual_only
 	visual.visible = not visual_only
 	code_practice.visible = visual_only
 	code_view.get_parent().get_parent().visible = not visual_only
