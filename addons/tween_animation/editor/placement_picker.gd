@@ -66,7 +66,7 @@ func build() -> void:
 	marker.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	marker.custom_minimum_size.x = 280
 	marker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	marker.modulate = Color("92d6b0")
+	marker.modulate.a = 0.8
 	add_child(marker)
 
 
@@ -100,9 +100,9 @@ func select_anchor(index: int) -> void:
 		editor.set_line_background_color(_marked_line, Color.TRANSPARENT)
 		editor.set_line_gutter_text(_marked_line, _gutter, "")
 	_marked_line = line
-	editor.set_line_background_color(line, Color(0.3, 0.65, 1.0, 0.22))
+	editor.set_line_background_color(line, _highlight_color())
 	editor.set_line_gutter_text(line, _gutter, "↱" if anchor.kind == "after" else "↳")
-	editor.set_line_gutter_item_color(line, _gutter, Color("92d6b0"))
+	editor.set_line_gutter_item_color(line, _gutter, EditorInterface.get_base_control().get_theme_color("font_color", "Label"))
 	editor.set_caret_line(line)
 	editor.center_viewport_to_caret()
 	if anchor.kind in ["before", "after"]:
@@ -175,9 +175,14 @@ func show_generated(text: String, offset: int, added_length: int, global_offset:
 		editor.set_line_background_color(line, Color.TRANSPARENT)
 	if global_start >= 0:
 		for line in range(global_start, mini(global_start + global_lines, editor.get_line_count())):
-			editor.set_line_background_color(line, Color(0.3, 0.65, 1.0, 0.2))
+			editor.set_line_background_color(line, _highlight_color())
 	for line in range(preview_start, mini(preview_start + preview_lines, editor.get_line_count())):
-		editor.set_line_background_color(line, Color(0.3, 0.65, 1.0, 0.2))
+		editor.set_line_background_color(line, _highlight_color())
 	editor.set_caret_line(preview_start)
 	editor.center_viewport_to_caret()
 	_updating = false
+
+
+func _highlight_color() -> Color:
+	var foreground := EditorInterface.get_base_control().get_theme_color("font_color", "Label")
+	return Color(foreground, 0.12)

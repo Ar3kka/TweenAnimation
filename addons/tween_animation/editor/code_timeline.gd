@@ -501,7 +501,7 @@ func _open_new_key() -> void:
 	location_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	body.add_child(location_scroll)
 	location_scroll.add_child(location)
-	location.add_child(_label("Select location", 20))
+	_dialog_heading(location, "Script", "Location")
 	_new_method_picker = OptionButton.new()
 	_new_method_picker.fit_to_longest_item = false
 	for document in eligible:
@@ -535,7 +535,7 @@ func _open_new_key() -> void:
 	settings_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	body.add_child(settings_scroll)
 	settings_scroll.add_child(settings)
-	settings.add_child(_label("Configuration", 20))
+	_dialog_heading(settings, "Edit", "Configuration")
 	_new_property_picker = OptionButton.new()
 	_new_property_picker.fit_to_longest_item = false
 	_new_property_picker.get_popup().max_size = Vector2i(460, 380)
@@ -553,9 +553,11 @@ func _open_new_key() -> void:
 	_new_backend.tab_alignment = TabBar.ALIGNMENT_CENTER
 	_new_backend.current_tab = 1
 	var editor_theme := EditorInterface.get_base_control()
-	var accent := editor_theme.get_theme_color("accent_color", "Editor")
+	var foreground := editor_theme.get_theme_color("font_color", "Label")
 	var selected_style := StyleBoxFlat.new()
-	selected_style.bg_color = accent
+	selected_style.bg_color = editor_theme.get_theme_color("dark_color_1", "Editor")
+	selected_style.border_color = foreground * Color(1, 1, 1, 0.6)
+	selected_style.set_border_width_all(1)
 	selected_style.set_corner_radius_all(5)
 	selected_style.content_margin_left = 18
 	selected_style.content_margin_right = 18
@@ -563,10 +565,11 @@ func _open_new_key() -> void:
 	selected_style.content_margin_bottom = 9
 	var idle_style := selected_style.duplicate() as StyleBoxFlat
 	idle_style.bg_color = editor_theme.get_theme_color("dark_color_2", "Editor")
+	idle_style.border_color = Color.TRANSPARENT
 	_new_backend.add_theme_stylebox_override("tab_selected", selected_style)
 	_new_backend.add_theme_stylebox_override("tab_unselected", idle_style)
 	_new_backend.add_theme_stylebox_override("tab_hovered", idle_style)
-	_new_backend.add_theme_color_override("font_selected_color", Color.BLACK if accent.get_luminance() > 0.179 else Color.WHITE)
+	_new_backend.add_theme_color_override("font_selected_color", foreground)
 	_new_backend.add_theme_color_override("font_unselected_color", editor_theme.get_theme_color("font_color", "Label"))
 
 	settings.add_child(_new_backend)
@@ -591,7 +594,8 @@ func _open_new_key() -> void:
 	_new_name.tooltip_text = "Name of the Tween in the selected Tweenimator registry"
 	var name_control := _labeled_control(_new_manager_row, "Tween name", _new_name)
 	_new_manager_row.move_child(name_control, 0)
-	_new_backend.tab_changed.connect(func(_index: int): _refresh_generated_preview())
+	_new_backend.tab_changed.connect(func(_index: int): _sync_generation_mode(); _refresh_generated_preview())
+	_sync_generation_mode()
 	_new_manager.item_selected.connect(func(_index: int): _refresh_generated_preview())
 	_new_name.text_changed.connect(func(_text: String): _refresh_generated_preview())
 	_new_sequence_picker = OptionButton.new()
@@ -617,6 +621,25 @@ func _open_new_key() -> void:
 	_new_dialog.canceled.connect(_new_dialog.queue_free)
 	add_child(_new_dialog)
 	_new_dialog.popup_centered_clamped(Vector2i(1180, 820), 0.9)
+
+
+func _dialog_heading(parent: Node, icon_name: String, title: String) -> void:
+	var heading := HBoxContainer.new()
+	heading.add_theme_constant_override("separation", 10)
+	var icon := TextureRect.new()
+	icon.texture = _icon(icon_name)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(24, 24)
+	heading.add_child(icon)
+	heading.add_child(_label(title, 20))
+	parent.add_child(heading)
+
+
+func _sync_generation_mode() -> void:
+	for index in _new_backend.tab_count:
+		var title := "Godot Tween" if index == 0 else "Tweenimator"
+		_new_backend.set_tab_title(index, ("✓ " if index == _new_backend.current_tab else "") + title)
 
 
 func _labeled_control(parent: Node, caption: String, control: Control) -> VBoxContainer:
