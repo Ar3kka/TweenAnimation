@@ -375,7 +375,7 @@ func _empty_state() -> Control:
 	return card
 
 
-func _add_legend(parent: HBoxContainer, title: String, color: Color) -> void:
+func _add_legend(parent: HFlowContainer, title: String, color: Color) -> void:
 	var item := HBoxContainer.new()
 	item.add_theme_constant_override("separation", 5)
 	parent.add_child(item)
