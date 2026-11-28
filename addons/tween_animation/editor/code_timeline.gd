@@ -501,7 +501,7 @@ func _open_new_key() -> void:
 	location_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	body.add_child(location_scroll)
 	location_scroll.add_child(location)
-	location.add_child(_label("Preview", 20))
+	location.add_child(_label("Select location", 20))
 	_new_method_picker = OptionButton.new()
 	_new_method_picker.fit_to_longest_item = false
 	for document in eligible:
@@ -569,12 +569,12 @@ func _open_new_key() -> void:
 	_new_backend.add_theme_color_override("font_selected_color", Color.BLACK if accent.get_luminance() > 0.179 else Color.WHITE)
 	_new_backend.add_theme_color_override("font_unselected_color", editor_theme.get_theme_color("font_color", "Label"))
 
-	location.add_child(_new_backend)
-	location.move_child(_new_backend, 1)
+	settings.add_child(_new_backend)
+	settings.move_child(_new_backend, 1)
 	_new_manager_row = HBoxContainer.new()
 	_new_manager_row.add_theme_constant_override("separation", 8)
-	location.add_child(_new_manager_row)
-	location.move_child(_new_manager_row, 2)
+	settings.add_child(_new_manager_row)
+	settings.move_child(_new_manager_row, 2)
 	_new_manager = OptionButton.new()
 	_new_manager.fit_to_longest_item = false
 	_new_manager.get_popup().max_size = Vector2i(460, 300)
