@@ -18,6 +18,7 @@ var node_picker: OptionButton
 var status: Label
 var description: Label
 var graph: Control
+var empty_state_panel: Control
 var inspector: VBoxContainer
 var source_editor: CodeEdit
 var source_panel: VBoxContainer
@@ -88,6 +89,8 @@ func build(editor_plugin: EditorPlugin) -> void:
 	_add_legend(lane_header, "Tween", EditorInterface.get_base_control().get_theme_color("accent_color", "Editor"))
 	_add_legend(lane_header, "Wait", Color("d9a84e"))
 	_add_legend(lane_header, "Runtime", Color("9b8abd"))
+	empty_state_panel = _empty_state()
+	timeline_body.add_child(empty_state_panel)
 	graph = Control.new()
 	graph.custom_minimum_size.y = 250
 	graph.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -232,9 +235,12 @@ func _filter() -> void:
 		_operation = {}
 		jump_button.disabled = true
 		_clear(inspector)
-		inspector.add_child(_empty_state())
+		inspector_scroll.hide()
+		empty_state_panel.show()
 		source_panel.hide()
 	else:
+		empty_state_panel.hide()
+		inspector_scroll.show()
 		_select_operation(0)
 
 
@@ -252,10 +258,6 @@ func _draw_graph() -> void:
 		graph.draw_line(Vector2(x, 34), Vector2(x, graph.size.y - 12), Color(foreground, 0.13))
 		graph.draw_string(font, Vector2(x - 18, 23), "%.2f" % (_span * tick / 5.0), HORIZONTAL_ALIGNMENT_CENTER, 44, 12, Color(foreground, 0.78))
 	if visible_operations.is_empty():
-		var empty_message := "Choose a scene node to map its Tween calls" if not is_instance_valid(selected_node) else "Your Tween lanes will appear here"
-		graph.draw_string(font, Vector2(24, 96), "TIMELINE OVERVIEW", HORIZONTAL_ALIGNMENT_LEFT, 220, 12, Color(accent, 0.9))
-		graph.draw_string(font, Vector2(24, 132), empty_message, HORIZONTAL_ALIGNMENT_LEFT, maxf(graph.size.x - 48, 100), 18, Color(foreground, 0.82))
-		graph.draw_string(font, Vector2(24, 158), "Time is estimated from calls inside each method. Runtime-dependent timing is shown as unknown.", HORIZONTAL_ALIGNMENT_LEFT, maxf(graph.size.x - 48, 100), 13, Color(foreground, 0.62))
 		return
 	for index in mini(visible_operations.size(), 16):
 		var operation := visible_operations[index]
@@ -354,26 +356,40 @@ func _empty_state() -> Control:
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override("separation", 12)
 	card.add_child(body)
+	var intro := HBoxContainer.new()
+	intro.add_theme_constant_override("separation", 12)
+	body.add_child(intro)
 	var icon := TextureRect.new()
 	icon.texture = _icon("Animation")
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.custom_minimum_size = Vector2(36, 36)
-	body.add_child(icon)
+	intro.add_child(icon)
+	var copy := VBoxContainer.new()
+	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	copy.add_theme_constant_override("separation", 4)
+	intro.add_child(copy)
 	var title := _label("Start with a Tween", 18)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_child(title)
+	copy.add_child(title)
 	var message := "Select a node in the Scene tree to see its Tween calls." if not is_instance_valid(selected_node) else "No matching calls yet. Add a Tween to an existing method, then inspect it here."
 	var detail := _label(message, 13)
 	detail.modulate.a = 0.76
-	body.add_child(detail)
-	for item in ["01  Select a node", "02  Add or find a Tween call", "03  Edit values or jump to its code"]:
-		var step := _label(item, 12)
-		step.modulate.a = 0.82
-		body.add_child(step)
-	var add := _button(body, "Add Tween call", "Add", _open_new_key)
+	copy.add_child(detail)
+	var add := _button(intro, "Add Tween call", "Add", _open_new_key)
+	add.custom_minimum_size.x = 146
 	add.disabled = not is_instance_valid(selected_node)
 	add.tooltip_text = "Choose a method and placement, then set the Tween parameters."
+	var steps := HFlowContainer.new()
+	steps.add_theme_constant_override("h_separation", 8)
+	steps.add_theme_constant_override("v_separation", 4)
+	body.add_child(steps)
+	for item in ["01 · Select a node", "02 · Add or find a Tween", "03 · Edit values or jump to code"]:
+		var step := _label(item, 12)
+		step.custom_minimum_size.x = 170
+		step.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		step.modulate.a = 0.82
+		steps.add_child(step)
 	return card
 
 
