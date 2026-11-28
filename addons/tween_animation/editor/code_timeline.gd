@@ -18,12 +18,10 @@ var status: Label
 var description: Label
 var _node_icon: TextureRect
 var _node_type: Label
+var _node_hint: Label
 var _tween_count: Label
 var _node_summary: PanelContainer
 var graph: Control
-var empty_state_panel: Control
-var empty_state_title: Label
-var empty_state_detail: Label
 var inspector: VBoxContainer
 var source_editor: CodeEdit
 var source_panel: VBoxContainer
@@ -98,8 +96,6 @@ func build(editor_plugin: EditorPlugin) -> void:
 	_add_legend(lane_header, "Tween", EditorInterface.get_base_control().get_theme_color("accent_color", "Editor"))
 	_add_legend(lane_header, "Wait", Color("d9a84e"))
 	_add_legend(lane_header, "Runtime", Color("9b8abd"))
-	empty_state_panel = _empty_state()
-	timeline_body.add_child(empty_state_panel)
 	graph = Control.new()
 	graph.custom_minimum_size.y = 250
 	graph.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -156,8 +152,15 @@ func _build_node_summary() -> void:
 	description = _label("Select a node", 16)
 	description.autowrap_mode = TextServer.AUTOWRAP_OFF
 	description.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	description.custom_minimum_size.x = 90
+	description.size_flags_horizontal = Control.SIZE_FILL
 	row.add_child(description)
+	_node_hint = _label("", 13)
+	_node_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_node_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_node_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_node_hint.modulate.a = 0.7
+	row.add_child(_node_hint)
 	_node_type = _label("", 13)
 	_node_type.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_node_type.modulate.a = 0.7
@@ -180,6 +183,9 @@ func _update_node_summary() -> void:
 		var kind := "UI" if selected_node is Control else ("3D" if selected_node is Node3D else ("2D" if selected_node is Node2D else "Node"))
 		_node_type.text = selected_node.get_class() + " · " + kind
 	_tween_count.text = "%d Tween call%s" % [operations.size(), "" if operations.size() == 1 else "s"]
+	_node_hint.text = "Add Tween to choose a method and edit its animation." if has_node and operations.is_empty() else ("" if has_node else "Select a node in the Scene tree to map its Tween calls.")
+	_node_hint.tooltip_text = _node_hint.text
+
 
 
 func set_content_mode(value: int) -> void:
@@ -263,12 +269,9 @@ func _filter() -> void:
 		jump_button.disabled = true
 		_clear(inspector)
 		inspector_scroll.hide()
-		_refresh_empty_state()
-		empty_state_panel.show()
 		source_panel.hide()
 	else:
 		add_button.show()
-		empty_state_panel.hide()
 		inspector_scroll.show()
 		_select_operation(0)
 
@@ -376,47 +379,6 @@ func _select_operation(index: int) -> void:
 	_button(inspector, "Jump to source line", "Script", _jump_source)
 	_show_source(_operation.path, _operation.line)
 	graph.queue_redraw()
-
-
-func _empty_state() -> Control:
-	var card := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
-	style.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.22)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	style.set_content_margin_all(10)
-	card.add_theme_stylebox_override("panel", style)
-	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 10)
-	card.add_child(body)
-	var icon := TextureRect.new()
-	icon.texture = _icon("Animation")
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.custom_minimum_size = Vector2(24, 24)
-	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	body.add_child(icon)
-	var copy := VBoxContainer.new()
-	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	copy.add_theme_constant_override("separation", 2)
-	body.add_child(copy)
-	empty_state_title = _label("", 16)
-	empty_state_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	copy.add_child(empty_state_title)
-	empty_state_detail = _label("", 12)
-	empty_state_detail.modulate.a = 0.76
-	copy.add_child(empty_state_detail)
-	_refresh_empty_state()
-	return card
-
-
-func _refresh_empty_state() -> void:
-	if not is_instance_valid(empty_state_title) or not is_instance_valid(empty_state_detail):
-		return
-	var has_target := is_instance_valid(selected_node)
-	empty_state_title.text = "No Tween calls found" if has_target else "Select a scene node"
-	empty_state_detail.text = "Add Tween inserts a native call at a chosen method and line. The timeline then shows its timing, source and editable parameters." if has_target else "Select a node in Godot's Scene tree to map its calls. Add Tween writes the code and shows it here for visual editing."
 
 
 func _add_legend(parent: HBoxContainer, title: String, color: Color) -> void:
