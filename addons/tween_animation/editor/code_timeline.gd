@@ -102,6 +102,8 @@ func build(editor_plugin: EditorPlugin) -> void:
 	graph.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	graph.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	graph.tooltip_text = "Click a Tween bar to inspect its parameters and source line."
+	graph.clip_contents = true
+	graph.resized.connect(graph.queue_redraw)
 	graph.draw.connect(_draw_graph)
 	graph.gui_input.connect(_graph_input)
 	timeline_body.add_child(graph)
@@ -281,14 +283,25 @@ func _draw_graph() -> void:
 	var accent := EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
 	var editor := EditorInterface.get_base_control()
 	var background := editor.get_theme_color("dark_color_2", "Editor")
-	graph.draw_rect(Rect2(Vector2.ZERO, graph.size), background)
-	var axis_start := 168.0 if not visible_operations.is_empty() else 12.0
-	var width := maxf(graph.size.x - axis_start - 12.0, 1.0)
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = background
+	frame_style.border_color = Color(foreground, 0.14)
+	frame_style.set_border_width_all(1)
+	frame_style.set_corner_radius_all(10)
+	graph.draw_style_box(frame_style, Rect2(Vector2.ONE, graph.size - Vector2(2, 2)))
+	var axis_start := 168.0 if not visible_operations.is_empty() else 32.0
+	var width := maxf(graph.size.x - axis_start - 36.0, 1.0)
 	var font := get_theme_font("font", "Label")
+	graph.draw_line(Vector2(axis_start, 34), Vector2(axis_start + width, 34), Color(foreground, 0.14))
+	for minor in range(1, 25):
+		if minor % 5 == 0:
+			continue
+		var minor_x := axis_start + width * minor / 25.0
+		graph.draw_line(Vector2(minor_x, 30), Vector2(minor_x, 34), Color(foreground, 0.16))
 	for tick in range(6):
 		var x := axis_start + width * tick / 5.0
-		graph.draw_line(Vector2(x, 34), Vector2(x, graph.size.y - 12), Color(foreground, 0.13))
-		graph.draw_string(font, Vector2(x - 18, 23), "%.2f" % (_span * tick / 5.0), HORIZONTAL_ALIGNMENT_CENTER, 44, 12, Color(foreground, 0.78))
+		graph.draw_line(Vector2(x, 34), Vector2(x, graph.size.y - 16), Color(foreground, 0.08))
+		graph.draw_string(font, Vector2(x - 22, 23), "%.2f" % (_span * tick / 5.0), HORIZONTAL_ALIGNMENT_CENTER, 44, 12, Color(foreground, 0.78))
 	if visible_operations.is_empty():
 		return
 	for index in mini(visible_operations.size(), 16):
@@ -296,8 +309,13 @@ func _draw_graph() -> void:
 		var y := 43.0 + index * 54
 		var selected: bool = not _operation.is_empty() and _operation.id == operation.id
 		var lane := Rect2(8, y - 4, graph.size.x - 16, 46)
-		graph.draw_rect(lane, Color(accent, 0.10) if selected else Color(foreground, 0.025))
-		graph.draw_rect(Rect2(8, y - 4, 3, 46), accent if selected else Color(foreground, 0.18))
+		var lane_style := StyleBoxFlat.new()
+		lane_style.bg_color = Color(foreground, 0.07 if selected else 0.025)
+		lane_style.set_corner_radius_all(5)
+		if selected:
+			lane_style.border_color = Color(foreground, 0.22)
+			lane_style.set_border_width_all(1)
+		graph.draw_style_box(lane_style, lane)
 		graph.draw_string(font, Vector2(20, y + 12), str(operation.method.name) + "()", HORIZONTAL_ALIGNMENT_LEFT, 132, 14, foreground)
 		graph.draw_string(font, Vector2(20, y + 31), "LINE " + str(operation.line), HORIZONTAL_ALIGNMENT_LEFT, 132, 11, Color(foreground, 0.6))
 		if operation.start == null or operation.duration == null:
