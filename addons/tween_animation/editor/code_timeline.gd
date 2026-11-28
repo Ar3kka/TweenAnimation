@@ -726,12 +726,9 @@ func _commit_result(path: String, original: String, result: Dictionary, title: S
 		if document.path == path and document.script.get_source_code() != original:
 			_message("Godot has a different script buffer. Save it there and rescan before applying visual edits.")
 			return false
-	for open_editor in plugin.get_editor_interface().get_script_editor().get_open_script_editors():
-		var edited: Resource = open_editor.get_edited_resource()
-		var buffer: Control = open_editor.get_base_editor()
-		if edited is Script and edited.resource_path == path and buffer is TextEdit and buffer.text != original:
-			_message("This script has an unsaved Godot editor buffer. Save it and rescan before applying visual edits.")
-			return false
+	if path in plugin.get_editor_interface().get_script_editor().get_unsaved_files():
+		_message("This script has an unsaved Godot editor buffer. Save it and rescan before applying visual edits.")
+		return false
 	var checked := WRITER.validate(result.source, MODEL.language(path))
 	if not checked.ok:
 		_message(checked.error)
@@ -758,13 +755,9 @@ func _write_revision(path: String, expected: String, source: String) -> void:
 	if _source_dirty and _source_path == path:
 		_message("Save or discard your source draft before Undo/Redo can replace this script.")
 		return
-	var disk := FileAccess.get_file_as_string(path)
-	for open_editor in plugin.get_editor_interface().get_script_editor().get_open_script_editors():
-		var edited: Resource = open_editor.get_edited_resource()
-		var buffer: Control = open_editor.get_base_editor()
-		if edited is Script and edited.resource_path == path and buffer is TextEdit and buffer.text != disk:
-			_message("An unsaved Godot script buffer was preserved. Save it before applying this history action.")
-			return
+	if path in plugin.get_editor_interface().get_script_editor().get_unsaved_files():
+		_message("An unsaved Godot script buffer was preserved. Save it before applying this history action.")
+		return
 	_busy = true
 	var result := WRITER.write(path, expected, source)
 	_busy = false
@@ -781,12 +774,7 @@ func _refresh_source(path: String, source: String, note: String) -> void:
 	if script != null:
 		script.set_source_code(source)
 		script.reload(true)
-	for open_editor in plugin.get_editor_interface().get_script_editor().get_open_script_editors():
-		var edited: Resource = open_editor.get_edited_resource()
-		var buffer: Control = open_editor.get_base_editor()
-		if edited is Script and edited.resource_path == path and buffer is TextEdit:
-			buffer.text = source
-			buffer.tag_saved_version()
+	plugin.get_editor_interface().get_script_editor().reload_open_files()
 	plugin.get_editor_interface().get_resource_filesystem().update_file(path)
 	rescan()
 	_message("Source updated. Timeline entries were refreshed from the code. " + str(note))
