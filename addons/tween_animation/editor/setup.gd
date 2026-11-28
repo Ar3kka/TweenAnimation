@@ -303,8 +303,7 @@ func _show_guide(index: int) -> void:
 		node_path = "$Panel"
 	steps = _source_lessons()
 	_build_code_lesson(node_path, property, end_value)
-	if lesson_path == 2:
-		_build_code_lesson(node_path, property, end_value)
+	_attach_comparisons(node_path, property, end_value, start_value)
 	steps.insert(2, _direction_lesson())
 	steps.insert(3, _press_lesson())
 	steps.insert(4, _owner_lesson(node_path, property, end_value))
@@ -350,10 +349,11 @@ func _render_step() -> void:
 		details.scroll_vertical = 0
 		return
 	var examples := preload("res://addons/tween_animation/editor/tutorial_examples.gd")
-	var title := str(steps[step_index]["title"])
+	var current_step: Dictionary = steps[step_index]
+	var title := str(current_step.get("title", "Tween guide"))
 	if language_picker.selected == 0:
-		code_view.text = examples.gdscript(str(steps[step_index]["native"]), step_index == 0)
-		helper_view.text = examples.gdscript(str(steps[step_index]["helper"]), step_index == 0)
+		code_view.text = examples.gdscript(str(current_step.get("native", current_step.get("code", ""))), step_index == 0)
+		helper_view.text = examples.gdscript(str(current_step.get("helper", current_step.get("code", ""))), step_index == 0)
 		snippet_context.text = "Add step 1 variables to your existing Node script. Run later action lines inside _ready() or an input handler; add any shown function definitions at script scope."
 	else:
 		var instructions := preload("res://addons/tween_animation/editor/tutorial_copy.gd").for_csharp(title)
@@ -368,7 +368,7 @@ func _render_step() -> void:
 	helper_view.show()
 	copy_button.show()
 	copy_button.tooltip_text = "Copy regular Godot Tween example"
-	comparison.text = str(steps[step_index]["comparison"]).get_slice("\n\n[b]Defaults:", 0)
+	comparison.text = str(current_step.get("comparison", "")).get_slice("\n\n[b]Defaults:", 0)
 	comparison.visible = content_mode == 0 and not comparison.text.is_empty()
 	previous.disabled = step_index == 0
 	next_button.text = "Let's animate →" if step_index == steps.size() - 1 else "Next step →"
