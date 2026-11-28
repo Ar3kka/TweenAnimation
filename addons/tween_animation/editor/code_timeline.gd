@@ -481,27 +481,27 @@ func _open_new_key() -> void:
 			_add_ready_method(script)
 		return
 	_new_dialog = ConfirmationDialog.new()
-	_new_dialog.title = "Add Tween · choose method and placement"
+	_new_dialog.title = "Add Tween"
 	_new_dialog.dialog_hide_on_ok = false
 	_new_dialog.unresizable = false
-	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 18)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 10)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_new_dialog.add_child(body)
 	var location := VBoxContainer.new()
-	location.custom_minimum_size.x = 540
+	location.custom_minimum_size.x = 740
 	location.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	location.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	location.add_theme_constant_override("separation", 10)
 	var location_scroll := ScrollContainer.new()
-	location_scroll.custom_minimum_size = Vector2(580, 660)
+	location_scroll.custom_minimum_size = Vector2(780, 660)
 	location_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	location_scroll.size_flags_stretch_ratio = 1.7
 	location_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	location_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	body.add_child(location_scroll)
 	location_scroll.add_child(location)
-	_section(location, "Script", "01 · PLACE IT", "Choose when your game runs this Tween")
+	_section(location, "Animation", "NEW ANIMATION", "Animate " + str(selected_node.name))
 	_new_method_picker = OptionButton.new()
 	_new_method_picker.fit_to_longest_item = false
 	for document in eligible:
@@ -509,7 +509,7 @@ func _open_new_key() -> void:
 			if not method.static:
 				_new_method_picker.add_item(str(method.owner.name) + " / " + str(method.name) + "() · L" + str(method.line))
 				_new_method_picker.set_item_metadata(_new_method_picker.item_count - 1, method)
-	location.add_child(_new_method_picker)
+	_labeled_control(location, "Run inside method", _new_method_picker)
 	_new_place_picker = OptionButton.new()
 	_new_place_picker.fit_to_longest_item = false
 	location.add_child(_new_place_picker)
@@ -523,25 +523,16 @@ func _open_new_key() -> void:
 	_new_place_picker.item_selected.connect(func(index: int): _new_placement.select_anchor(index); _refresh_generated_preview())
 	var location_hint := _label("Click a statement to insert above it. Existing code moves down; the highlighted code is a live preview.", 13)
 	location.add_child(location_hint)
-	var divider := VSeparator.new()
-	body.add_child(divider)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(330, 540)
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	body.add_child(scroll)
 	var settings := VBoxContainer.new()
 	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings.add_theme_constant_override("separation", 10)
-	scroll.add_child(settings)
-	var target_icon := "Control" if selected_node is Control else "Node3D" if selected_node is Node3D else "Node2D"
-	_section(settings, target_icon, "02 · SHAPE IT", "Animate " + str(selected_node.name))
+	location.add_child(settings)
 	_new_property_picker = OptionButton.new()
 	_new_property_picker.fit_to_longest_item = false
 	_new_property_picker.get_popup().max_size = Vector2i(460, 380)
 	for property in OPTIONS.properties(selected_node):
 		_new_property_picker.add_item(property)
-	settings.add_child(_new_property_picker)
+	_labeled_control(settings, "Animated property", _new_property_picker)
 	var position_index := 0
 	for index in _new_property_picker.item_count:
 		if _new_property_picker.get_item_text(index) == ("modulate:a" if selected_node is Control else "position"):
@@ -581,14 +572,16 @@ func _open_new_key() -> void:
 	_new_manager.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_new_manager.size_flags_stretch_ratio = 2.0
 	_new_manager.tooltip_text = "Choose where the Tweenimator instance is declared, or reuse an existing one."
-	_new_manager_row.add_child(_new_manager)
+	var manager_control := _labeled_control(_new_manager_row, "Tweenimator instance", _new_manager)
+	manager_control.size_flags_stretch_ratio = 2.0
 	_new_name = LineEdit.new()
 	_new_name.placeholder_text = "Tween name  -  e.g. menu_intro"
 	_new_name.text = "intro"
 	_new_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_new_name.custom_minimum_size.x = 130
 	_new_name.tooltip_text = "Name of the Tween in the selected Tweenimator registry"
-	_new_manager_row.add_child(_new_name)
+	var name_control := _labeled_control(_new_manager_row, "Tween name", _new_name)
+	_new_manager_row.move_child(name_control, 0)
 	_new_backend.tab_changed.connect(func(_index: int): _refresh_generated_preview())
 	_new_manager.item_selected.connect(func(_index: int): _refresh_generated_preview())
 	_new_name.text_changed.connect(func(_text: String): _refresh_generated_preview())
@@ -599,7 +592,7 @@ func _open_new_key() -> void:
 	_new_sequence_picker.fit_to_longest_item = false
 	_new_sequence_picker.get_popup().max_size = Vector2i(460, 220)
 	settings.add_child(_new_sequence_picker)
-	var fields := VBoxContainer.new()
+	var fields := HBoxContainer.new()
 	fields.add_theme_constant_override("separation", 14)
 	settings.add_child(fields)
 	_new_feedback = _label("", 12)
@@ -609,6 +602,7 @@ func _open_new_key() -> void:
 	_new_method_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
 	_new_property_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
 	_new_sequence_picker.item_selected.connect(func(_index: int): _refresh_generated_preview())
+	location.move_child(settings, location.get_child_count() - 3)
 	_new_key_fields(fields)
 	_new_dialog.get_ok_button().text = "Add Tween"
 	_new_dialog.confirmed.connect(_create_key)
@@ -617,7 +611,17 @@ func _open_new_key() -> void:
 	_new_dialog.popup_centered_clamped(Vector2i(1180, 820), 0.9)
 
 
-func _new_key_fields(container: VBoxContainer) -> void:
+func _labeled_control(parent: Node, caption: String, control: Control) -> VBoxContainer:
+	var field := VBoxContainer.new()
+	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	field.add_theme_constant_override("separation", 4)
+	field.add_child(_label(caption, 12))
+	field.add_child(control)
+	parent.add_child(field)
+	return field
+
+
+func _new_key_fields(container: BoxContainer) -> void:
 	_clear(container)
 	_new_fields.clear()
 	var chosen: Dictionary = _new_method_picker.get_item_metadata(_new_method_picker.selected)
@@ -636,6 +640,7 @@ func _new_key_fields(container: VBoxContainer) -> void:
 		if name == "value" and property == "position":
 			sample = Vector3(1, 0, 0) if sample is Vector3 else Vector2(100, 0)
 		field.build({"value": "Destination / offset", "duration": "Animation duration · seconds", "interval": "Wait after animation · seconds"}[name], "", sample if name == "value" else (0.4 if name == "duration" else 0.0), _new_method.parameters, OPTIONS.properties(selected_node), name == "value")
+		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		container.add_child(field)
 		_new_fields[name] = field
 		field.changed.connect(_refresh_generated_preview)
