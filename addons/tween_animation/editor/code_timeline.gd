@@ -77,11 +77,12 @@ func build(editor_plugin: EditorPlugin) -> void:
 	var timeline_body := VBoxContainer.new()
 	timeline_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(timeline_body)
-	var lane_header := HFlowContainer.new()
+	var lane_header := HBoxContainer.new()
 	lane_header.add_theme_constant_override("separation", 14)
 	timeline_body.add_child(lane_header)
 	var lane_title := _label("METHOD LANES", 12)
 	lane_title.custom_minimum_size.x = 120
+	lane_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lane_title.modulate.a = 0.72
 	lane_header.add_child(lane_title)
 	_add_legend(lane_header, "Tween", EditorInterface.get_base_control().get_theme_color("accent_color", "Editor"))
@@ -243,10 +244,11 @@ func _draw_graph() -> void:
 	var editor := EditorInterface.get_base_control()
 	var background := editor.get_theme_color("dark_color_2", "Editor")
 	graph.draw_rect(Rect2(Vector2.ZERO, graph.size), background)
-	var width := maxf(graph.size.x - 180, 1.0)
+	var axis_start := 168.0 if not visible_operations.is_empty() else 12.0
+	var width := maxf(graph.size.x - axis_start - 12.0, 1.0)
 	var font := get_theme_font("font", "Label")
 	for tick in range(6):
-		var x := 168 + width * tick / 5.0
+		var x := axis_start + width * tick / 5.0
 		graph.draw_line(Vector2(x, 34), Vector2(x, graph.size.y - 12), Color(foreground, 0.13))
 		graph.draw_string(font, Vector2(x - 18, 23), "%.2f" % (_span * tick / 5.0), HORIZONTAL_ALIGNMENT_CENTER, 44, 12, Color(foreground, 0.78))
 	if visible_operations.is_empty():
@@ -375,8 +377,9 @@ func _empty_state() -> Control:
 	return card
 
 
-func _add_legend(parent: HFlowContainer, title: String, color: Color) -> void:
+func _add_legend(parent: HBoxContainer, title: String, color: Color) -> void:
 	var item := HBoxContainer.new()
+	item.custom_minimum_size.x = 72
 	item.add_theme_constant_override("separation", 5)
 	parent.add_child(item)
 	var swatch := ColorRect.new()
@@ -385,6 +388,8 @@ func _add_legend(parent: HFlowContainer, title: String, color: Color) -> void:
 	swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	item.add_child(swatch)
 	var label := _label(title, 12)
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	label.custom_minimum_size.x = 44
 	label.modulate.a = 0.78
 	item.add_child(label)
 
