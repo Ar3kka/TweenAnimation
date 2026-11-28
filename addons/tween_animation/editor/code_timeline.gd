@@ -36,6 +36,7 @@ var _span := 1.0
 var _new_placement
 var _new_dialog: ConfirmationDialog
 var _new_feedback: Label
+var _new_code_preview: CodeEdit
 var _new_fields: Dictionary = {}
 var _new_method_picker: OptionButton
 var _new_place_picker: OptionButton
@@ -511,12 +512,23 @@ func _open_new_key() -> void:
 	_new_placement.build()
 	_new_placement.editor.custom_minimum_size.y = 220
 	location.add_child(_new_placement)
-	_new_placement.placement_selected.connect(func(index: int): _new_place_picker.select(index))
-	_new_place_picker.item_selected.connect(_new_placement.select_anchor)
+	_new_placement.placement_selected.connect(func(index: int): _new_place_picker.select(index); _refresh_generated_preview())
+	_new_place_picker.item_selected.connect(func(index: int): _new_placement.select_anchor(index); _refresh_generated_preview())
 	placement_modes.tab_changed.connect(func(index: int): _new_placement.visible = index == 0; _new_place_picker.visible = index == 1)
 	var location_hint := _label("Read-only preview · choose a line, then Before or After. Complete statements stay together.", 13)
 	location_hint.custom_minimum_size.x = 320
 	location.add_child(location_hint)
+	var code_preview_title := _label("GENERATED CALL · UPDATES LIVE", 12)
+	code_preview_title.modulate = EditorInterface.get_base_control().get_theme_color("accent_color", "Editor")
+	location.add_child(code_preview_title)
+	_new_code_preview = CodeEdit.new()
+	_new_code_preview.editable = false
+	_new_code_preview.gutters_draw_line_numbers = false
+	_new_code_preview.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	_new_code_preview.custom_minimum_size.y = 72
+	_new_code_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	location.add_child(_new_code_preview)
+	_style_generated_preview()
 	var divider := VSeparator.new()
 	body.add_child(divider)
 	var scroll := ScrollContainer.new()
@@ -532,6 +544,7 @@ func _open_new_key() -> void:
 	_section(settings, target_icon, "02 · SHAPE IT", "Animate " + str(selected_node.name))
 	_new_property_picker = OptionButton.new()
 	_new_property_picker.fit_to_longest_item = false
+	_new_property_picker.get_popup().max_size = Vector2i(460, 380)
 	for property in OPTIONS.properties(selected_node):
 		_new_property_picker.add_item(property)
 	settings.add_child(_new_property_picker)
@@ -544,6 +557,7 @@ func _open_new_key() -> void:
 	_new_sequence_picker.add_item("Join earlier top-level Tween if available")
 	_new_sequence_picker.add_item("Create an independent Tween")
 	_new_sequence_picker.fit_to_longest_item = false
+	_new_sequence_picker.get_popup().max_size = Vector2i(460, 220)
 	settings.add_child(_new_sequence_picker)
 	var fields := VBoxContainer.new()
 	fields.add_theme_constant_override("separation", 14)
@@ -554,6 +568,7 @@ func _open_new_key() -> void:
 	settings.add_child(_new_feedback)
 	_new_method_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
 	_new_property_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
+	_new_sequence_picker.item_selected.connect(func(_index: int): _refresh_generated_preview())
 	_new_key_fields(fields)
 	_new_dialog.get_ok_button().text = "Add Tween"
 	_new_dialog.confirmed.connect(_create_key)
@@ -583,8 +598,46 @@ func _new_key_fields(container: VBoxContainer) -> void:
 		field.build({"value": "Destination / offset", "duration": "Animation duration · seconds", "interval": "Wait after animation · seconds"}[name], "", sample if name == "value" else (0.4 if name == "duration" else 0.0), _new_method.parameters, OPTIONS.properties(selected_node), name == "value")
 		container.add_child(field)
 		_new_fields[name] = field
+		field.changed.connect(_refresh_generated_preview)
 		if name == "value" and property == "position":
 			field.choose("relative")
+	_refresh_generated_preview()
+
+
+func _refresh_generated_preview() -> void:
+	if not is_instance_valid(_new_code_preview) or _new_fields.size() != 3 or _new_anchors.is_empty() or not is_instance_valid(selected_node):
+		return
+	var source := _document_source(_new_method.path)
+	var anchor: Dictionary = _new_anchors[_new_place_picker.selected]
+	var property := _new_property_picker.get_item_text(_new_property_picker.selected)
+	var result := WRITER.insert_property(source, _new_method, anchor, selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "auto" if _new_sequence_picker.selected == 0 else "own")
+	if not result.ok:
+		_new_code_preview.text = "Preview unavailable · " + str(result.get("error", "Check the selected values."))
+		return
+	var location := WRITER.location(source, _new_method, anchor)
+	if not location.ok:
+		_new_code_preview.text = "Preview unavailable · " + str(location.get("error", "Choose another insertion point."))
+		return
+	var prefix_length: int = source.left(int(location.offset)).length()
+	var suffix_length: int = source.substr(int(location.offset)).length()
+	var inserted_length := result.source.length() - prefix_length - suffix_length
+	_new_code_preview.text = str(result.source).substr(prefix_length, inserted_length).strip_edges()
+
+
+func _style_generated_preview() -> void:
+	var foreground := EditorInterface.get_base_control().get_theme_color("font_color", "Label")
+	_new_code_preview.add_theme_color_override("font_readonly_color", foreground)
+	var syntax := CodeHighlighter.new()
+	syntax.symbol_color = foreground
+	syntax.member_variable_color = foreground
+	syntax.number_color = Color("a8d6a0")
+	syntax.function_color = Color("8bc9ef")
+	syntax.add_color_region('"', '"', Color("e8ca95"))
+	syntax.add_color_region("#", "", Color("94a3b8"), true)
+	syntax.add_color_region("//", "", Color("94a3b8"), true)
+	for keyword in ["var", "func", "extends", "await", "if", "return", "public", "private", "void", "new", "class"]:
+		syntax.add_keyword_color(keyword, Color("c8a6e6"))
+	_new_code_preview.syntax_highlighter = syntax
 
 
 func _create_key() -> void:
