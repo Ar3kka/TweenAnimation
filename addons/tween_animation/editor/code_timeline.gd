@@ -528,8 +528,7 @@ func _open_new_key() -> void:
 	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings.add_theme_constant_override("separation", 10)
 	scroll.add_child(settings)
-	var target_icon := "Control" if selected_node is Control else "Node3D" if selected_node is Node3D else "Node2D"
-	_section(settings, target_icon, "02 · SHAPE IT", "Animate " + str(selected_node.name))
+	_section(settings, "Edit", "02 · SHAPE IT", "Animate " + str(selected_node.name))
 	_new_property_picker = OptionButton.new()
 	_new_property_picker.fit_to_longest_item = false
 	for property in OPTIONS.properties(selected_node):
