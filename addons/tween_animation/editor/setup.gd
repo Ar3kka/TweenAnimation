@@ -5,9 +5,10 @@ extends MarginContainer
 signal start_requested(mode: String)
 signal code_start_requested
 signal open_requested
+signal visual_workspace_requested(add_tween: bool)
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 26
+const UI_REVISION := 27
 var selected_mode := 0
 var _logo_texture: Texture2D
 var menu: CenterContainer
@@ -35,6 +36,7 @@ var snippet_context: Label
 var content_mode := 0
 var navigation_hint: Label
 var code_practice
+var _selected_node: Node
 var code_guide := true
 
 
@@ -148,6 +150,8 @@ func build(logo_texture: Texture2D) -> void:
 	body.add_child(lesson_row)
 	code_practice = preload("res://addons/tween_animation/editor/source_walkthrough.gd").new()
 	code_practice.build()
+	code_practice.set_node(_selected_node)
+	code_practice.workspace_requested.connect(func(add_tween: bool): visual_workspace_requested.emit(add_tween))
 	language_picker = OptionButton.new()
 	language_picker.add_item("GDScript")
 	language_picker.add_item("C# · Godot .NET")
@@ -270,14 +274,14 @@ func _show_guide(index: int) -> void:
 	_ensure_ui()
 	selected_mode = index
 	start_button.text = "Open " + MODES[index] + " timeline →"
-	navigation_hint.text = "Next / Back show prepared practice examples. Open timeline shows the Tween calls found in your project scripts." if content_mode == 2 else "Next / Back change the lesson. Run copied code in your scene, or use Open timeline to try the editor steps."
+	navigation_hint.text = "Next / Back explain the workflow. Actions open the workspace for the node shown below." if content_mode == 2 else "Next / Back change the lesson. Run copied code in your scene, or use Open timeline to try the editor steps."
 	menu.hide()
 	details.show()
 	lesson_picker.get_parent().visible = content_mode != 2
 	if content_mode == 2:
 		steps = _source_lessons()
-		start_button.text = "Open Tween timeline"
-		navigation_hint.text = "Practice controls use isolated sample data. Next changes the explanation; Open takes you to your project."
+		start_button.text = "Open Timeline"
+		navigation_hint.text = "The node shown is your current Godot selection. Next explains the workflow; the action buttons open the real workspace."
 		step_index = 0
 		_render_step()
 		return
@@ -671,12 +675,22 @@ func set_content_mode(value: int) -> void:
 		show_menu()
 
 
+func set_node(node: Node) -> void:
+	_selected_node = node
+	if content_mode == 2 and is_instance_valid(node):
+		selected_mode = 2 if node is Control else (1 if node is Node3D else 0)
+	if is_instance_valid(code_practice):
+		code_practice.set_node(node)
+	if content_mode == 2 and is_instance_valid(details) and details.visible:
+		_render_step()
+
+
 func _source_lessons() -> Array[Dictionary]:
 	return [
-		{"title": "Choose who moves", "action": "Try selecting the practice node below.", "body": "[b]Selection gives the timeline its target.[/b] Choose a scene node in your project. Tweenimation detects 2D, 3D or UI and reads recognizable Tween calls from scripts attached to the open scene. This practice selection does not unlock or block Next."},
-		{"title": "Choose when your game asks it to move", "action": "Click a sample code line, then choose Before or After.", "body": "[b]A timeline entry represents a Tween call in your script.[/b] Add Tween shows the existing method as a read-only preview. Click a line to pick a gap before or after its statement. Existing code moves down; nothing is replaced. If the node has no script, a file picker can create a GDScript entry point. You enter data and locations; the addon writes the call."},
-		{"title": "Let the destination change", "action": "Try Offset, Value or Method parameter below.", "body": "[b]This is where Tweens shine.[/b] Offset reads the current property each time the call runs. Move a character, then call the same animation again: its starting position can be different. A method parameter supplies a destination chosen by gameplay. The fields stay visual."},
-		{"title": "Give motion a rhythm", "action": "Try a duration, a wait and a sequence choice.", "body": "[b]Duration moves; interval waits afterwards.[/b] Join an earlier Tween to append a step, or create an independent Tween that runs alongside it. The map shows known timing within each method invocation. Different methods are not one shared playback sequence."},
-		{"title": "A call you can understand", "action": "Click the sample Tween call to reveal its details.", "body": "[b]Select a timeline entry to see its source method, line and editable parameters.[/b] Apply writes only changed arguments. Original runtime expressions are kept until you choose a replacement. Move this call changes placement inside its method; Source line is optional for coders."},
-		{"title": "Read your Tween map", "action": "Open the Tween timeline and select a scene node.", "body": "[b]Your timeline is a readable map of runtime Tween calls.[/b] Select an operation to inspect its method, source line, target and parameters. Edit values visually or jump to the source. Branches and runtime values remain marked as such; run the scene to see gameplay behavior."}
+		{"title": "Your current animation target", "action": "The node shown below is the one being edited.", "body": "[b]The tutorial and Timeline follow the same Godot selection.[/b] Change it through Godot's Scene tree whenever needed. No separate tutorial target needs to be selected."},
+		{"title": "Location: when the animation runs", "action": "Use Add Tween → Location in the real workspace.", "body": "[b]A method determines when the game starts the Tween.[/b] Run inside method selects the entry point; clicking a code statement places the generated calls above it. The read-only preview highlights every new line. Existing code moves down."},
+		{"title": "Configuration: what changes", "action": "Choose the generation mode, property and destination.", "body": "[b]These settings animate the node shown below.[/b] Tweenimator uses named helper effects and a registry; Godot Tween uses the native API. Value, Offset and Method parameter determine where the destination comes from at runtime. The live code preview updates as you edit."},
+		{"title": "Timing and connection", "action": "Set Duration, Wait and the sequence choice, then Add Tween.", "body": "[b]Duration moves; Wait holds afterwards.[/b] Independent is the default. Join earlier top-level Tween appends to a detected preceding Tween in the chosen method when possible. Add Tween writes the previewed calls and refreshes the timeline."},
+		{"title": "Edit the animation from its timeline bar", "action": "Open Timeline and click a bar for the current node.", "body": "[b]Each bar comes from a source call.[/b] Its inspector shows the method, line and editable parameters. Apply parameters to source saves your changes. Move this call changes placement; Source line opens code if you want it."},
+		{"title": "Run it and understand the result", "action": "Run the scene and trigger the chosen method.", "body": "[b]The timeline maps code; the game executes it.[/b] _ready runs when the node enters the scene; a signal handler needs its signal. Separate methods are separate invocations. Runtime timing stays uncertain for branches, loops and computed values."}
 	]

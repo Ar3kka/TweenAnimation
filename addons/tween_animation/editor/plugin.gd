@@ -78,6 +78,7 @@ func _build_ui() -> void:
 	setup.start_requested.connect(_start_setup)
 	setup.code_start_requested.connect(_open_timeline)
 	setup.open_requested.connect(_open_timeline)
+	setup.visual_workspace_requested.connect(_open_visual_workspace)
 	tabs.add_child(setup)
 	var timeline_scroll := ScrollContainer.new()
 	timeline_scroll.name = "Timeline"
@@ -108,11 +109,20 @@ func _open_timeline() -> void:
 	code_timeline.rescan()
 
 
+func _open_visual_workspace(add_tween: bool) -> void:
+	_open_timeline()
+	if add_tween:
+		code_timeline.call("_open_new_key")
+
+
 func _selection_changed() -> void:
 	if not is_instance_valid(code_timeline):
 		return
 	var nodes := get_editor_interface().get_selection().get_selected_nodes()
-	code_timeline.set_node(nodes[0] if not nodes.is_empty() else null)
+	var selected: Node = nodes[0] if not nodes.is_empty() else null
+	code_timeline.set_node(selected)
+	if is_instance_valid(tabs) and tabs.get_tab_count() > 0:
+		tabs.get_child(0).call("set_node", selected)
 
 
 func _set_content_mode(index: int) -> void:

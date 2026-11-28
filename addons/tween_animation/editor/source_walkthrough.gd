@@ -1,165 +1,74 @@
 @tool
 extends VBoxContainer
-## A focused, isolated preview of the code-backed workflow; never edits project files.
-
+## Live context for the visual guide. Actions open the actual timeline workspace.
+signal workspace_requested(add_tween: bool)
+var selected_node: Node
 var step := 0
 var target_mode := 0
-var selected := false
-var target_button: Button
 var stage: VBoxContainer
-var readout: Label
-var _accent := Color("92c6ee")
-
 
 func build() -> void:
-	add_theme_constant_override("separation", 12)
-	var badge := Label.new()
-	badge.text = "PRACTICE · SAMPLE DATA ONLY"
-	badge.modulate.a = 0.75
-	add_child(badge)
-	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_2", "Editor")
-	style.set_corner_radius_all(10)
-	style.set_content_margin_all(16)
-	panel.add_theme_stylebox_override("panel", style)
-	add_child(panel)
 	stage = VBoxContainer.new()
 	stage.add_theme_constant_override("separation", 12)
-	panel.add_child(stage)
+	add_child(stage)
 
+func set_node(node: Node) -> void:
+	selected_node = node
+	if is_instance_valid(stage):
+		configure(target_mode, step)
 
 func configure(mode: int, phase: int) -> void:
 	target_mode = mode
 	step = phase
-	_accent = [Color("8dc6ff"), Color("ffa7aa"), Color("9eddb7")][mode]
 	for child in stage.get_children():
 		stage.remove_child(child)
 		child.queue_free()
-	var names := ["Sprite2D", "MeshInstance3D", "Panel"]
-	var icons := ["Node2D", "Node3D", "Control"]
-	if step == 0:
-		_journey("Scene", "Node", "Select target", icons[mode])
-		target_button = Button.new()
-		target_button.text = "  " + names[mode] + ("  ✓ selected" if selected else "  · click to select")
-		target_button.icon = EditorInterface.get_base_control().get_theme_icon(icons[mode], "EditorIcons")
-		target_button.toggle_mode = true
-		target_button.set_pressed_no_signal(selected)
-		target_button.pressed.connect(func(): selected = target_button.button_pressed; configure(mode, phase))
-		target_button.custom_minimum_size.y = 46
-		stage.add_child(target_button)
-		_label("The real timeline follows Godot’s Scene selection. This practice target stands in for your scene node.")
-	elif step == 1:
-		_journey("Choose method", "Script", "Pick a gap", "MoveDown")
-		var source := "extends Node\n\nfunc _on_button_pressed() -> void:\n    $Panel.show()\n    $ClickSound.play()\n"
-		var syntax = preload("res://addons/tween_animation/editor/source_syntax.gd")
-		var method: Dictionary = syntax.methods(source, "gd")[0]
-		method.statements = syntax.statements(source, method)
-		var anchors: Array[Dictionary] = []
-		for statement in method.statements:
-			anchors.append({"kind": "before", "start": statement.start, "label": "Before line " + str(statement.line)})
-			anchors.append({"kind": "after", "start": statement.start, "label": "After line " + str(statement.line)})
-		var placement = preload("res://addons/tween_animation/editor/placement_picker.gd").new()
-		placement.build()
-		placement.editor.custom_minimum_size.y = 150
-		stage.add_child(placement)
-		placement.configure(source, method, anchors, 2)
-		_label("Try clicking a line, then Before or After. The highlight marks the gap; existing code moves down. This sample never changes your project.")
-
-	elif step == 2:
-		_journey("Current position", icons[mode], "Your offset", "MoveRight")
-		var field = preload("res://addons/tween_animation/editor/source_value_field.gd").new()
-		field.build("Destination / offset", "", Vector3(1, 0, 0) if mode == 1 else Vector2(100, 0), [{"name": "destination", "type": "Vector3" if mode == 1 else "Vector2"}], PackedStringArray(["position", "scale"]), true)
-		stage.add_child(field)
-		field.choose("relative")
-		_label("Offset reads the current position each time the method runs. Value uses a fixed destination; Method parameter uses data supplied by your game.")
-	elif step == 3:
-		_journey("Move · 0.4 s", "Play", "Wait · 0.2 s", "Timer")
-		for spec in [["Duration · seconds", 0.4], ["Wait afterwards · seconds", 0.2]]:
-			var row := HBoxContainer.new()
-			var label := Label.new()
-			label.text = spec[0]
-			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			row.add_child(label)
-			var input := SpinBox.new()
-			input.step = 0.05
-			input.max_value = 60
-			input.value = spec[1]
-			row.add_child(input)
-			stage.add_child(row)
-		_picker("Sequence", ["Join earlier Tween · append a step", "Independent Tween · starts alongside others"])
-		_label("Appending to a sequential Tween waits for earlier steps. Independent Tweens start together unless control flow awaits them.")
-	elif step == 4:
-		_journey("Select call", "Script", "Edit its values", "Edit")
-		var call_item := Button.new()
-		call_item.text = "move_right()   ━━━ 0.4 s ━━━   ░ wait 0.2 s"
-		call_item.icon = EditorInterface.get_base_control().get_theme_icon("Script", "EditorIcons")
-		call_item.custom_minimum_size.y = 48
-		call_item.toggle_mode = true
-		stage.add_child(call_item)
-		readout = Label.new()
-		readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		readout.text = "Click the sample call."
-		stage.add_child(readout)
-		call_item.pressed.connect(func(): readout.text = "move_right() · actor.gd · line 12\nPosition · offset X +100 · duration 0.4 s · wait 0.2 s\nIn the real workspace, edit these fields and Apply; Move this call changes its method location.")
-	else:
-		_journey("Tween call", "Script", "Editable timeline", "Call")
-		_label("Add Tween inserts a native call at your chosen method location. Its timeline entry shows where and how long it runs; edit its supported parameters here or jump to its code. Undo restores the previous source.")
-		_label("Runtime means the order or duration depends on live data, branches or loops. It is not an exact playback time. Source line is optional: visual editing does not require writing code.")
-		_label("Tweenimation maps recognizable runtime Tween calls to editable timeline entries. Run your scene to see gameplay behavior; computed values and branches are marked Runtime.")
-
-
-func _label(text: String) -> void:
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_font_size_override("font_size", 16)
-	stage.add_child(label)
-
-
-func _picker(title: String, options: Array) -> void:
-	_label(title)
-	var picker := OptionButton.new()
-	picker.fit_to_longest_item = false
-	for option in options:
-		picker.add_item(option)
-	stage.add_child(picker)
-
-
-func _journey(left: String, left_icon: String, right: String, right_icon: String) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	for spec in [[left, left_icon], [right, right_icon]]:
-		if row.get_child_count() > 0:
-			var arrow := Label.new()
-			arrow.text = "→"
-			arrow.add_theme_font_size_override("font_size", 24)
-			arrow.modulate.a = 0.7
-			row.add_child(arrow)
-		var tile := PanelContainer.new()
-		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var style := StyleBoxFlat.new()
-		style.bg_color = EditorInterface.get_base_control().get_theme_color("dark_color_1", "Editor")
-		style.border_color = EditorInterface.get_base_control().get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.25)
-		style.set_border_width_all(1)
-		style.set_corner_radius_all(8)
-		style.set_content_margin_all(12)
-		tile.add_theme_stylebox_override("panel", style)
-		var content := HBoxContainer.new()
-		content.add_theme_constant_override("separation", 10)
-		tile.add_child(content)
-		var icon := TextureRect.new()
-		icon.texture = EditorInterface.get_base_control().get_theme_icon(spec[1], "EditorIcons")
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.custom_minimum_size = Vector2(24, 24)
-		icon.modulate = Color.WHITE
-		content.add_child(icon)
-		var label := Label.new()
-		label.text = spec[0]
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.add_theme_font_size_override("font_size", 17)
-		content.add_child(label)
-		row.add_child(tile)
-	stage.add_child(row)
+	var has_node := is_instance_valid(selected_node)
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	var editor := EditorInterface.get_base_control()
+	style.bg_color = editor.get_theme_color("dark_color_2", "Editor")
+	style.border_color = editor.get_theme_color("font_color", "Label") * Color(1, 1, 1, 0.2)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(14)
+	panel.add_theme_stylebox_override("panel", style)
+	stage.add_child(panel)
+	var context := VBoxContainer.new()
+	context.add_theme_constant_override("separation", 6)
+	panel.add_child(context)
+	var title := Label.new()
+	title.text = "Editing: " + str(selected_node.name) if has_node else "Editing: no node selected in Godot"
+	title.add_theme_font_size_override("font_size", 20)
+	context.add_child(title)
+	var detail := Label.new()
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail.text = selected_node.get_class() + " · " + str(selected_node.get_path()) if has_node else "The timeline follows Godot's Scene tree selection. Its node name will appear here automatically."
+	context.add_child(detail)
+	var flow := Label.new()
+	flow.text = ["GODOT SCENE TREE  →  CURRENT TARGET", "ADD TWEEN  →  LOCATION", "CONFIGURATION  →  ANIMATED PROPERTY  →  VALUE", "CONFIGURATION  →  DURATION / WAIT / SEQUENCE", "TIMELINE BAR  →  PARAMETERS  →  APPLY", "RUN SCENE  →  CHECK RESULT  →  REFINE"][clampi(step, 0, 5)]
+	flow.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	flow.modulate.a = 0.75
+	stage.add_child(flow)
+	var explanation := Label.new()
+	explanation.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	explanation.text = [
+		"This node is the target of the timeline edits. Choose another node in Godot's Scene tree whenever you want to change the target; this card and the Timeline tab update together.",
+		"Open Add Tween. Under Location, Run inside method chooses when the game runs the animation. Click a statement in that method: the new lines appear above it and the original code moves down. All generated lines are highlighted, including a new script-level Tweenimator.",
+		"Under Configuration, choose Godot Tween or Tweenimator. Tweenimator defaults to a new script instance outside methods; the Tween name stores the returned Tween in that instance. Animated property chooses what changes. Offset adds to the node's value when called; Value supplies an absolute destination; Method parameter uses a value supplied by gameplay.",
+		"Duration is movement time. Wait is a hold afterwards. Independent creates its own Tween. Join earlier top-level Tween appends to a recognized preceding sequence in this method when available; otherwise it creates its own. Add Tween commits the highlighted source and refreshes the map. Close the dialog to cancel without saving.",
+		"In Timeline, click one of this node's bars to inspect its method, source line and parameters. Change the supported fields and press Apply parameters to source. Move this call changes its location inside the method. Source line is optional; it opens the code for developers who want to inspect it.",
+		"Run the scene to see the actual animation. The method you chose must be called by the game: _ready runs on entering the scene, while a button handler runs on that signal. Each method invocation is its own sequence. Runtime labels mean branches or computed values prevent exact timing from being known in the editor."
+	][clampi(step, 0, 5)]
+	stage.add_child(explanation)
+	var action := Button.new()
+	action.text = "Open Add Tween for " + str(selected_node.name) if has_node and step in [1, 2, 3] else "Open Timeline"
+	action.icon = editor.get_theme_icon("Add" if step in [1, 2, 3] else "Animation", "EditorIcons")
+	action.disabled = not has_node
+	action.pressed.connect(func(): workspace_requested.emit(step in [1, 2, 3]))
+	stage.add_child(action)
+	var note := Label.new()
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.text = "These actions open the real workspace for the node shown above. Next and Back only change the explanation; they do not edit your scene or unlock controls."
+	note.modulate.a = 0.7
+	stage.add_child(note)
