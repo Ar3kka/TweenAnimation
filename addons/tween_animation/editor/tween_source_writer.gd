@@ -248,14 +248,19 @@ static func write(path: String, expected_hash: String, source: String) -> Dictio
 	file.store_string(source)
 	file.flush()
 	file.close()
-	var moved := DirAccess.rename_absolute(path, backup)
+	# FileAccess accepts res:// paths, while DirAccess.rename_absolute requires
+	# absolute filesystem paths. Convert all three before the atomic replacement.
+	var absolute_path := ProjectSettings.globalize_path(path)
+	var absolute_temporary := ProjectSettings.globalize_path(temporary)
+	var absolute_backup := ProjectSettings.globalize_path(backup)
+	var moved := DirAccess.rename_absolute(absolute_path, absolute_backup)
 	if moved != OK:
-		DirAccess.remove_absolute(temporary)
+		DirAccess.remove_absolute(absolute_temporary)
 		return {"ok": false, "error": "Could not preserve the original source file."}
-	var replaced := DirAccess.rename_absolute(temporary, path)
+	var replaced := DirAccess.rename_absolute(absolute_temporary, absolute_path)
 	if replaced != OK:
-		DirAccess.rename_absolute(backup, path)
-		DirAccess.remove_absolute(temporary)
+		DirAccess.rename_absolute(absolute_backup, absolute_path)
+		DirAccess.remove_absolute(absolute_temporary)
 		return {"ok": false, "error": "Write failed; the original source was restored."}
-	DirAccess.remove_absolute(backup)
+	DirAccess.remove_absolute(absolute_backup)
 	return {"ok": true, "note": checked.get("note", "")}

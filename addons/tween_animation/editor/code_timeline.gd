@@ -35,6 +35,7 @@ var _last_write_ok := false
 var _span := 1.0
 var _new_placement
 var _new_dialog: ConfirmationDialog
+var _new_feedback: Label
 var _new_fields: Dictionary = {}
 var _new_method_picker: OptionButton
 var _new_place_picker: OptionButton
@@ -541,6 +542,10 @@ func _open_new_key() -> void:
 	var fields := VBoxContainer.new()
 	fields.add_theme_constant_override("separation", 14)
 	settings.add_child(fields)
+	_new_feedback = _label("", 12)
+	_new_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_new_feedback.add_theme_color_override("font_color", Color("ff8d8d"))
+	settings.add_child(_new_feedback)
 	_new_method_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
 	_new_property_picker.item_selected.connect(func(_index: int): _new_key_fields(fields))
 	_new_key_fields(fields)
@@ -582,11 +587,13 @@ func _create_key() -> void:
 	for name in ["duration", "interval"]:
 		var data: Dictionary = _new_fields[name].data()
 		if data.mode == "constant" and (not (data.value is float or data.value is int) or float(data.value) < 0 or not is_finite(float(data.value))):
-			_message("Duration/interval must be finite and non-negative.")
+			_new_feedback.text = "Duration and wait must be finite, non-negative numbers."
 			return
 	var result := WRITER.insert_property(original, _new_method, _new_anchors[_new_place_picker.selected], selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "auto" if _new_sequence_picker.selected == 0 else "own")
 	if _commit_result(_new_method.path, original, result, "Add Tween call"):
 		_new_dialog.queue_free()
+	else:
+		_new_feedback.text = status.text
 
 
 func _add_ready_method(script: Script) -> void:
