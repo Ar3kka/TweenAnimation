@@ -528,7 +528,8 @@ func _open_new_key() -> void:
 	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings.add_theme_constant_override("separation", 10)
 	scroll.add_child(settings)
-	_section(settings, "Edit", "02 · SHAPE IT", "Animate " + str(selected_node.name))
+	var target_icon := "Control" if selected_node is Control else "Node3D" if selected_node is Node3D else "Node2D"
+	_section(settings, target_icon, "02 · SHAPE IT", "Animate " + str(selected_node.name))
 	_new_property_picker = OptionButton.new()
 	_new_property_picker.fit_to_longest_item = false
 	for property in OPTIONS.properties(selected_node):
@@ -597,8 +598,8 @@ func _create_key() -> void:
 	var result := WRITER.insert_property(original, _new_method, _new_anchors[_new_place_picker.selected], selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "auto" if _new_sequence_picker.selected == 0 else "own")
 	if _commit_result(_new_method.path, original, result, "Add Tween call"):
 		_new_dialog.queue_free()
-	else:
-		_new_feedback.text = status.text
+	elif _new_feedback.text.is_empty():
+		_new_feedback.text = "Could not add this Tween. No source change was applied. Check the timeline status and Godot Output for details."
 
 
 func _add_ready_method(script: Script) -> void:
@@ -796,6 +797,10 @@ func _discard_source_draft() -> void:
 
 func _message(message: String) -> void:
 	status.text = message
+	# Keep creation failures in the dialog; rescan() can replace the status line
+	# with its normal informational text before the user sees the failure.
+	if is_instance_valid(_new_feedback) and is_instance_valid(_new_dialog):
+		_new_feedback.text = message
 
 
 func _clear(container: Node) -> void:
