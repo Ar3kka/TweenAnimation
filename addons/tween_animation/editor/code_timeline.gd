@@ -620,7 +620,7 @@ func _refresh_generated_preview() -> void:
 		return
 	var prefix_length: int = source.left(int(location.offset)).length()
 	var suffix_length: int = source.substr(int(location.offset)).length()
-	var inserted_length := result.source.length() - prefix_length - suffix_length
+	var inserted_length: int = result.source.length() - prefix_length - suffix_length
 	_new_code_preview.text = str(result.source).substr(prefix_length, inserted_length).strip_edges()
 
 

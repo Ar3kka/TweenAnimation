@@ -1,18 +1,21 @@
 @tool
 extends EditorPlugin
 
-const ADDON_ICON := preload("res://addons/tween_animation/icon.svg")
-const HEADER_LOGO := preload("res://addons/tween_animation/header_logo.svg")
-
 var frame: MarginContainer
 var tabs: TabContainer
 var code_timeline
+var addon_icon: Texture2D
+var header_logo: Texture2D
 var content_mode := 0
 var content_mode_buttons: Array[Button] = []
 var navigation_buttons: Array[Button] = []
 
 
 func _enter_tree() -> void:
+	addon_icon = _load_svg_texture("res://addons/tween_animation/icon.svg")
+	header_logo = _load_svg_texture("res://addons/tween_animation/header_logo.svg")
+	if header_logo == null:
+		header_logo = addon_icon
 	_build_ui()
 	get_editor_interface().get_editor_main_screen().add_child(frame)
 	set_process(true)
@@ -38,7 +41,7 @@ func _get_plugin_name() -> String:
 
 
 func _get_plugin_icon() -> Texture2D:
-	return ADDON_ICON
+	return addon_icon if addon_icon != null else _editor_icon("Node")
 
 
 func _make_visible(visible: bool) -> void:
@@ -71,7 +74,7 @@ func _build_ui() -> void:
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(tabs)
 	var setup := preload("res://addons/tween_animation/editor/setup.gd").new()
-	setup.build(HEADER_LOGO)
+	setup.build(header_logo)
 	setup.start_requested.connect(_start_setup)
 	setup.code_start_requested.connect(_open_timeline)
 	setup.open_requested.connect(_open_timeline)
@@ -87,7 +90,7 @@ func _build_ui() -> void:
 	documentation.build()
 	tabs.add_child(documentation)
 	tabs.set_tab_icon(0, _editor_icon("Node"))
-	tabs.set_tab_icon(1, ADDON_ICON)
+	tabs.set_tab_icon(1, addon_icon)
 	tabs.set_tab_icon(2, _editor_icon("Help"))
 	tabs.current_tab = 0
 	_set_content_mode(content_mode)
@@ -147,7 +150,7 @@ func _build_navigation_bar(layout: VBoxContainer) -> void:
 	for index in range(3):
 		var button := Button.new()
 		button.text = ["Setup", "Timeline", "Documentation"][index]
-		button.icon = [_editor_icon("Node"), ADDON_ICON, _editor_icon("Help")][index]
+		button.icon = [_editor_icon("Node"), addon_icon, _editor_icon("Help")][index]
 		button.toggle_mode = true
 		button.button_group = page_group
 		button.pressed.connect(_select_page.bind(index))
@@ -218,3 +221,13 @@ func _sync_navigation_buttons(index: int) -> void:
 func _editor_icon(name: String) -> Texture2D:
 	var editor := get_editor_interface().get_base_control()
 	return editor.get_theme_icon(name, "EditorIcons") if editor.has_theme_icon(name, "EditorIcons") else null
+
+
+func _load_svg_texture(path: String) -> Texture2D:
+	var source := FileAccess.get_file_as_string(path)
+	if source.is_empty():
+		return null
+	var image := Image.new()
+	if image.load_svg_from_string(source) != OK:
+		return null
+	return ImageTexture.create_from_image(image)

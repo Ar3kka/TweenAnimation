@@ -7,8 +7,9 @@ signal code_start_requested
 signal open_requested
 
 const MODES := ["2D", "3D", "UI"]
-const UI_REVISION := 25
+const UI_REVISION := 26
 var selected_mode := 0
+var _logo_texture: Texture2D
 var menu: CenterContainer
 var details: ScrollContainer
 var guide: RichTextLabel
@@ -38,6 +39,7 @@ var code_guide := true
 
 
 func build(logo_texture: Texture2D) -> void:
+	_logo_texture = logo_texture
 	set_meta("ui_revision", UI_REVISION)
 	name = "Setup"
 	menu = CenterContainer.new()
@@ -389,7 +391,7 @@ func _ensure_ui() -> bool:
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
-	build(preload("res://addons/tween_animation/header_logo.svg"))
+	build(_logo_texture)
 	lesson_picker.select(lesson_path)
 	return true
 

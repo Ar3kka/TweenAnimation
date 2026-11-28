@@ -29,7 +29,10 @@ static func properties(target: Object, prefix: String = "", depth: int = 0) -> P
 		priority = ["position", "global_position", "rotation", "rotation_degrees", "scale", "quaternion", "basis", "transform", "global_transform", "visible"]
 	elif target is Node2D:
 		priority = ["position", "global_position", "rotation", "rotation_degrees", "scale", "modulate", "modulate:a", "skew", "visible"]
-	result.sort_custom(func(a: String, b: String) -> bool:
+	var ordered: Array[String] = []
+	for property in result:
+		ordered.append(property)
+	ordered.sort_custom(func(a: String, b: String) -> bool:
 		var property_a := a.get_slice(":", 0)
 		var property_b := b.get_slice(":", 0)
 		var rank_a := priority.find(property_a)
@@ -44,6 +47,7 @@ static func properties(target: Object, prefix: String = "", depth: int = 0) -> P
 			return a < b
 		return rank_a < rank_b
 	)
+	result = PackedStringArray(ordered)
 	return result
 
 
