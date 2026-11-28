@@ -548,6 +548,24 @@ func _open_new_key() -> void:
 	_new_backend.add_tab("Godot Tween")
 	_new_backend.add_tab("Tweenimator")
 	_new_backend.tab_alignment = TabBar.ALIGNMENT_CENTER
+	_new_backend.current_tab = 1
+	var editor_theme := EditorInterface.get_base_control()
+	var accent := editor_theme.get_theme_color("accent_color", "Editor")
+	var selected_style := StyleBoxFlat.new()
+	selected_style.bg_color = accent
+	selected_style.set_corner_radius_all(5)
+	selected_style.content_margin_left = 18
+	selected_style.content_margin_right = 18
+	selected_style.content_margin_top = 9
+	selected_style.content_margin_bottom = 9
+	var idle_style := selected_style.duplicate() as StyleBoxFlat
+	idle_style.bg_color = editor_theme.get_theme_color("dark_color_2", "Editor")
+	_new_backend.add_theme_stylebox_override("tab_selected", selected_style)
+	_new_backend.add_theme_stylebox_override("tab_unselected", idle_style)
+	_new_backend.add_theme_stylebox_override("tab_hovered", idle_style)
+	_new_backend.add_theme_color_override("font_selected_color", Color.BLACK if accent.get_luminance() > 0.179 else Color.WHITE)
+	_new_backend.add_theme_color_override("font_unselected_color", editor_theme.get_theme_color("font_color", "Label"))
+
 	location.add_child(_new_backend)
 	location.move_child(_new_backend, 1)
 	_new_manager = OptionButton.new()
@@ -566,6 +584,7 @@ func _open_new_key() -> void:
 	_new_sequence_picker = OptionButton.new()
 	_new_sequence_picker.add_item("Join earlier top-level Tween if available")
 	_new_sequence_picker.add_item("Create an independent Tween")
+	_new_sequence_picker.select(1)
 	_new_sequence_picker.fit_to_longest_item = false
 	_new_sequence_picker.get_popup().max_size = Vector2i(460, 220)
 	settings.add_child(_new_sequence_picker)
@@ -646,7 +665,7 @@ func _new_manager_config() -> Dictionary:
 
 
 func _refresh_manager_choices() -> void:
-	var previous := str(_new_manager.get_item_metadata(_new_manager.selected)) if _new_manager.selected >= 0 else ""
+	var previous := str(_new_manager.get_item_metadata(_new_manager.selected)) if _new_manager.selected >= 0 else "@global"
 	_new_manager.clear()
 	_new_manager.add_item("New local Tweenimator · inside this function")
 	_new_manager.set_item_metadata(0, "")
