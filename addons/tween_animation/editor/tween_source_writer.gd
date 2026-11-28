@@ -186,6 +186,8 @@ static func insert_property(source: String, method: Dictionary, anchor: Dictiona
 		declarations = ("var " + receiver + " := create_tween()" if method.language == "gd" else "var " + receiver + " = CreateTween();") + "\n" + str(place.indent)
 	var global_declaration := ""
 	var global_offset := -1
+	var helper_instance := ""
+	var helper_name := ""
 	if not manager.is_empty():
 		var instance := str(manager.get("instance", ""))
 		var tween_name := str(manager.get("name", "")).strip_edges()
@@ -198,17 +200,48 @@ static func insert_property(source: String, method: Dictionary, anchor: Dictiona
 				instance += "_new"
 			manager_declaration = ("var " + instance + " := Tweenimator.new(self)" if method.language == "gd" else "var " + instance + ' = GD.Load<Script>("res://addons/tween_animation/src/tweenimator.gd").New(this);') + "\n" + str(place.indent)
 			if manager.get("scope", "local") == "global":
-				# The registry needs no owner until create(name, self) runs.
+				# Node-target helper methods infer their owner when the effect starts.
 				global_declaration = (str(method.indent) + "var " + instance + " := Tweenimator.new()" if method.language == "gd" else str(method.indent) + "private Godot.GodotObject " + instance + ' = GD.Load<Script>("res://addons/tween_animation/src/tweenimator.gd").New();') + "\n\n"
 				global_offset = source.rfind("\n", maxi(0, int(method.start) - 1)) + 1
 				manager_declaration = ""
-		var creator := instance + ".create(&" + JSON.stringify(tween_name) + ", self)" if method.language == "gd" else '(Tween)' + instance + '.Call("create", new StringName(' + JSON.stringify(tween_name) + '), this).AsGodotObject()'
-		declarations = manager_declaration + ("var " + receiver + " := " + creator if method.language == "gd" else "var " + receiver + " = " + creator + ";") + "\n" + str(place.indent)
+		helper_instance = instance
+		helper_name = tween_name
+		declarations = manager_declaration
 	var node := node_expression(method.owner, target, method.language)
 	var call: String = receiver + (".tween_property(" if method.language == "gd" else ".TweenProperty(") + node + ", " + JSON.stringify(property) + ", " + resolved_value.text + ", " + resolved_duration.text + ")" + ("" if method.language == "gd" else ";")
 	var wait: String = resolved_interval.text
 	if not (interval.get("mode", "constant") == "constant" and float(interval.get("value", 0.0)) == 0.0):
 		call += "\n" + str(place.indent) + receiver + (".tween_interval(" if method.language == "gd" else ".TweenInterval(") + wait + ")" + ("" if method.language == "gd" else ";")
+	if not manager.is_empty():
+		var api := "custom"
+		var value_text: String = resolved_value.text
+		if property == "position" and (target is Node2D or target is Node3D or target is Control):
+			api = "move_to"
+			if destination.get("mode", "constant") == "relative":
+				api = "move_by"
+				value_text = encode(destination.value, method.language)
+		elif property == "scale" and (target is Node2D or target is Node3D or target is Control):
+			api = "scale_to"
+		elif property == "rotation" and (target is Node2D or target is Node3D or target is Control):
+			api = "rotate_to"
+		elif property == "rotation_degrees" and (target is Node2D or target is Node3D):
+			api = "rotate_degrees"
+		elif property == "size" and target is Control:
+			api = "resize_to"
+		elif property == "modulate:a" and target is CanvasItem:
+			api = "fade_to"
+		var args := node + ", "
+		if api == "custom":
+			args += ("^" + JSON.stringify(property) if method.language == "gd" else "new Godot.NodePath(" + JSON.stringify(property) + ")") + ", "
+		args += value_text + ", " + resolved_duration.text
+		if not (interval.get("mode", "constant") == "constant" and float(interval.get("value", 0.0)) == 0.0):
+			args += (", -1" if api == "custom" else "") + ", " + resolved_interval.text
+		if method.language == "gd":
+			call = "var " + receiver + " := " + helper_instance + "." + api + "(" + args + ")"
+			call += "\n" + str(place.indent) + helper_instance + ".store(&" + JSON.stringify(helper_name) + ", " + receiver + ")"
+		else:
+			call = "var " + receiver + " = (Tween)" + helper_instance + '.Call("' + api + '", ' + args + ').AsGodotObject();'
+			call += "\n" + str(place.indent) + helper_instance + '.Call("store", new StringName(' + JSON.stringify(helper_name) + '), ' + receiver + ');'
 	var insertion: String = "\n" + str(place.indent) + declarations + call + "\n\n" + str(place.indent)
 	var offset := int(place.offset)
 	if str(anchor.get("kind", "")) == "before":

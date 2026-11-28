@@ -129,11 +129,11 @@ public partial class Actor : Node2D {
  var named_doc := MODEL.analyze(named_base,"res://named.gd",owner,owner)
  for instance in ["", "animations"]:
   var named := WRITER.insert_property(named_base,named_doc.methods[0],{"kind":"before","start":named_doc.methods[0].statements[0].start},owner,"position",relative,duration,interval,"own",{"instance":instance,"name":"intro"})
-  check(named.ok and '.create(&"intro", self)' in named.source,"Named Tween uses selected registry")
+  check(named.ok and '.store(&"intro", tweenimation_step)' in named.source and '.move_by(' in named.source,"Named Tween uses selected registry")
   var named_script := GDScript.new()
   named_script.source_code = named.source
   check(named_script.reload()==OK,"Named Tween source compiles")
-  check(named.source.find("tween_property") < named.source.find("pass"),"Insertion pushes existing statement below")
+  check(named.source.find(".move_by(") < named.source.find("pass"),"Insertion pushes existing statement below")
  var global_named := WRITER.insert_property(named_base,named_doc.methods[0],{"kind":"before","start":named_doc.methods[0].statements[0].start},owner,"position",relative,duration,interval,"own",{"instance":"","scope":"global","name":"shared_intro"})
  check(global_named.ok,"Script registry generated")
  var global_script := GDScript.new()
@@ -141,6 +141,14 @@ public partial class Actor : Node2D {
  check(global_script.reload()==OK,"Script registry source compiles")
  check(global_named.source.find("var tweenimator := Tweenimator.new()") < global_named.source.find("func animate"),"Registry lives outside method")
  check(global_named.global_lines==2 and global_named.global_length>0,"Preview tracks class field insertion")
+ for helper_case in [["position",Vector2(20,0),"move_to"],["scale",Vector2.ONE,"scale_to"],["rotation",0.5,"rotate_to"],["rotation_degrees",90.0,"rotate_degrees"],["modulate:a",0.5,"fade_to"],["position:x",20.0,"custom"]]:
+  var generated_helper_edit := WRITER.insert_property(named_base,named_doc.methods[0],{"kind":"before","start":named_doc.methods[0].statements[0].start},owner,helper_case[0],{"mode":"constant","value":helper_case[1]},duration,interval,"own",{"instance":"animations","name":"effect"})
+  var helper_script := GDScript.new()
+  helper_script.source_code = generated_helper_edit.source
+  check(helper_script.reload()==OK,"Generated helper compiles: " + str(helper_case[2]))
+  check(("." + str(helper_case[2]) + "(") in generated_helper_edit.source and not "tween_property(" in generated_helper_edit.source,"Dedicated helper used: " + str(helper_case[2]))
+  var mapped := MODEL.analyze(generated_helper_edit.source,"res://named.gd",owner,owner)
+  check(not mapped.operations.is_empty(),"Generated helper remains visible in source timeline")
  var unnamed := WRITER.insert_property(named_base,named_doc.methods[0],{"kind":"start"},owner,"position",relative,duration,interval,"own",{"instance":"animations","name":""})
  check(not unnamed.ok,"Empty registry name rejected")
  var file := FileAccess.open("res://write_test.gd",FileAccess.WRITE)
