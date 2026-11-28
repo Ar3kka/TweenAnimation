@@ -17,6 +17,8 @@ var _marked_line := -1
 var _gutter := -1
 var preview_start := -1
 var preview_lines := 0
+var global_start := -1
+var global_lines := 0
 
 
 func build() -> void:
@@ -70,6 +72,8 @@ func build() -> void:
 func configure(text: String, chosen_method: Dictionary, locations: Array[Dictionary], index: int) -> void:
 	preview_start = -1
 	preview_lines = 0
+	global_start = -1
+	global_lines = 0
 	source = text
 	method = chosen_method
 	anchors = locations
@@ -118,6 +122,11 @@ func _pick_line() -> void:
 			return
 		if line >= preview_start + preview_lines:
 			line -= preview_lines
+	if global_start >= 0:
+		if line >= global_start and line < global_start + global_lines:
+			return
+		if line >= global_start + global_lines:
+			line -= global_lines
 	choose_line(line, false)
 
 
@@ -153,10 +162,12 @@ func choose_line(line: int, after: bool = false) -> void:
 	placement_selected.emit(best)
 
 
-func show_generated(text: String, offset: int, added_length: int) -> void:
+func show_generated(text: String, offset: int, added_length: int, global_offset: int = -1, added_global_lines: int = 0) -> void:
 	_updating = true
 	editor.text = text
-	preview_start = SYNTAX.line_at(source, offset) - 1
+	preview_start = SYNTAX.line_at(text, offset) - 1
+	global_start = SYNTAX.line_at(source, global_offset) - 1 if global_offset >= 0 else -1
+	global_lines = added_global_lines
 	preview_lines = text.substr(offset, added_length).count("\n")
 	for line in range(preview_start, mini(preview_start + preview_lines, editor.get_line_count())):
 		editor.set_line_background_color(line, Color(0.3, 0.65, 1.0, 0.2))

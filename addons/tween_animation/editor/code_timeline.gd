@@ -36,7 +36,7 @@ var _span := 1.0
 var _new_placement
 var _new_dialog: ConfirmationDialog
 var _new_feedback: Label
-var _new_backend: OptionButton
+var _new_backend: TabBar
 var _new_manager: OptionButton
 var _new_name: LineEdit
 var _new_fields: Dictionary = {}
@@ -538,19 +538,23 @@ func _open_new_key() -> void:
 		if _new_property_picker.get_item_text(index) == ("modulate:a" if selected_node is Control else "position"):
 			position_index = index
 	_new_property_picker.select(position_index)
-	_new_backend = OptionButton.new()
-	_new_backend.add_item("Godot Tween")
-	_new_backend.add_item("Tweenimator  -  named Tween")
-	settings.add_child(_new_backend)
+	_new_backend = TabBar.new()
+	_new_backend.add_tab("Godot Tween")
+	_new_backend.add_tab("Tweenimator")
+	_new_backend.tab_alignment = TabBar.ALIGNMENT_CENTER
+	location.add_child(_new_backend)
+	location.move_child(_new_backend, 1)
 	_new_manager = OptionButton.new()
 	_new_manager.fit_to_longest_item = false
 	_new_manager.get_popup().max_size = Vector2i(460, 300)
-	settings.add_child(_new_manager)
+	location.add_child(_new_manager)
+	location.move_child(_new_manager, 2)
 	_new_name = LineEdit.new()
 	_new_name.placeholder_text = "Tween name  -  e.g. menu_intro"
 	_new_name.text = "intro"
-	settings.add_child(_new_name)
-	_new_backend.item_selected.connect(func(_index: int): _refresh_generated_preview())
+	location.add_child(_new_name)
+	location.move_child(_new_name, 3)
+	_new_backend.tab_changed.connect(func(_index: int): _refresh_generated_preview())
 	_new_manager.item_selected.connect(func(_index: int): _refresh_generated_preview())
 	_new_name.text_changed.connect(func(_text: String): _refresh_generated_preview())
 	_new_sequence_picker = OptionButton.new()
@@ -608,14 +612,14 @@ func _new_key_fields(container: VBoxContainer) -> void:
 func _refresh_generated_preview() -> void:
 	if not is_instance_valid(_new_backend) or _new_fields.size() != 3 or _new_anchors.is_empty() or not is_instance_valid(selected_node):
 		return
-	var helper := _new_backend.selected == 1
+	var helper := _new_backend.current_tab == 1
 	_new_manager.visible = helper
 	_new_name.visible = helper
 	_new_sequence_picker.visible = not helper
 	var source := _document_source(_new_method.path)
 	var anchor: Dictionary = _new_anchors[_new_place_picker.selected]
 	var property := _new_property_picker.get_item_text(_new_property_picker.selected)
-	var result := WRITER.insert_property(source, _new_method, anchor, selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "own" if _new_backend.selected == 1 else ("auto" if _new_sequence_picker.selected == 0 else "own"), _new_manager_config())
+	var result := WRITER.insert_property(source, _new_method, anchor, selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "own" if _new_backend.current_tab == 1 else ("auto" if _new_sequence_picker.selected == 0 else "own"), _new_manager_config())
 	if not result.ok:
 		_new_feedback.text = "Preview unavailable · " + str(result.get("error", "Check the selected values."))
 		return
@@ -624,23 +628,26 @@ func _refresh_generated_preview() -> void:
 		_new_feedback.text = "Preview unavailable · " + str(location.get("error", "Choose another insertion point."))
 		return
 	var prefix_length: int = result.offset
-	var suffix_length: int = source.substr(prefix_length).length()
-	var inserted_length: int = result.source.length() - prefix_length - suffix_length
 	_new_feedback.text = ""
-	_new_placement.show_generated(str(result.source), prefix_length, inserted_length)
+	_new_placement.show_generated(str(result.source), prefix_length, result.inserted_length, int(result.get("global_offset", -1)), int(result.get("global_lines", 0)))
 
 
 func _new_manager_config() -> Dictionary:
-	if _new_backend.selected == 0:
+	if _new_backend.current_tab == 0:
 		return {}
-	return {"instance": str(_new_manager.get_item_metadata(_new_manager.selected)), "name": _new_name.text}
+	var choice := str(_new_manager.get_item_metadata(_new_manager.selected))
+	return {"instance": "" if choice in ["", "@global"] else choice, "scope": "global" if choice == "@global" else "local", "name": _new_name.text}
 
 
 func _refresh_manager_choices() -> void:
 	var previous := str(_new_manager.get_item_metadata(_new_manager.selected)) if _new_manager.selected >= 0 else ""
 	_new_manager.clear()
-	_new_manager.add_item("Create a new Tweenimator here")
+	_new_manager.add_item("New local Tweenimator · inside this function")
 	_new_manager.set_item_metadata(0, "")
+	_new_manager.add_item("New script Tweenimator · outside all methods")
+	_new_manager.set_item_metadata(1, "@global")
+	if previous == "@global":
+		_new_manager.select(1)
 	var source := _document_source(_new_method.path)
 	var place := WRITER.location(source, _new_method, _new_anchors[_new_place_picker.selected])
 	if not place.ok:
@@ -671,7 +678,7 @@ func _create_key() -> void:
 		if data.mode == "constant" and (not (data.value is float or data.value is int) or float(data.value) < 0 or not is_finite(float(data.value))):
 			_new_feedback.text = "Duration and wait must be finite, non-negative numbers."
 			return
-	var result := WRITER.insert_property(original, _new_method, _new_anchors[_new_place_picker.selected], selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "own" if _new_backend.selected == 1 else ("auto" if _new_sequence_picker.selected == 0 else "own"), _new_manager_config())
+	var result := WRITER.insert_property(original, _new_method, _new_anchors[_new_place_picker.selected], selected_node, property, _new_fields.value.data(), _new_fields.duration.data(), _new_fields.interval.data(), "own" if _new_backend.current_tab == 1 else ("auto" if _new_sequence_picker.selected == 0 else "own"), _new_manager_config())
 	if _commit_result(_new_method.path, original, result, "Add Tween call"):
 		_new_dialog.queue_free()
 	elif _new_feedback.text.is_empty():

@@ -184,6 +184,8 @@ static func insert_property(source: String, method: Dictionary, anchor: Dictiona
 			receiver = "tweenimation_step_" + str(suffix)
 			suffix += 1
 		declarations = ("var " + receiver + " := create_tween()" if method.language == "gd" else "var " + receiver + " = CreateTween();") + "\n" + str(place.indent)
+	var global_declaration := ""
+	var global_offset := -1
 	if not manager.is_empty():
 		var instance := str(manager.get("instance", ""))
 		var tween_name := str(manager.get("name", "")).strip_edges()
@@ -195,6 +197,11 @@ static func insert_property(source: String, method: Dictionary, anchor: Dictiona
 			while instance in source:
 				instance += "_new"
 			manager_declaration = ("var " + instance + " := Tweenimator.new(self)" if method.language == "gd" else "var " + instance + ' = GD.Load<Script>("res://addons/tween_animation/src/tweenimator.gd").New(this);') + "\n" + str(place.indent)
+			if manager.get("scope", "local") == "global":
+				# The registry needs no owner until create(name, self) runs.
+				global_declaration = (str(method.indent) + "var " + instance + " := Tweenimator.new()" if method.language == "gd" else str(method.indent) + "private Godot.GodotObject " + instance + ' = GD.Load<Script>("res://addons/tween_animation/src/tweenimator.gd").New();') + "\n\n"
+				global_offset = source.rfind("\n", maxi(0, int(method.start) - 1)) + 1
+				manager_declaration = ""
 		var creator := instance + ".create(&" + JSON.stringify(tween_name) + ", self)" if method.language == "gd" else '(Tween)' + instance + '.Call("create", new StringName(' + JSON.stringify(tween_name) + '), this).AsGodotObject()'
 		declarations = manager_declaration + ("var " + receiver + " := " + creator if method.language == "gd" else "var " + receiver + " = " + creator + ";") + "\n" + str(place.indent)
 	var node := node_expression(method.owner, target, method.language)
@@ -209,7 +216,13 @@ static func insert_property(source: String, method: Dictionary, anchor: Dictiona
 		if source.substr(line_start, offset - line_start).strip_edges().is_empty():
 			offset = line_start
 			insertion = str(place.indent) + declarations + call + "\n\n"
-	return {"ok": true, "source": source.left(offset) + insertion + source.substr(offset), "line": SYNTAX.line_at(source, offset), "offset": offset, "inserted_length": insertion.length(), "sequence": receiver}
+	var updated := source.left(offset) + insertion + source.substr(offset)
+	var preview_offset := offset
+	if global_offset >= 0:
+		updated = updated.left(global_offset) + global_declaration + updated.substr(global_offset)
+		preview_offset += global_declaration.length()
+	return {"ok": true, "source": updated, "line": SYNTAX.line_at(updated, preview_offset), "offset": preview_offset, "inserted_length": insertion.length(), "global_offset": global_offset, "global_lines": global_declaration.count("\n"), "global_length": global_declaration.length(), "sequence": receiver}
+
 
 
 static func move_statement(source: String, operation: Dictionary, method: Dictionary, anchor: Dictionary) -> Dictionary:

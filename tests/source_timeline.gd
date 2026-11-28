@@ -134,6 +134,13 @@ public partial class Actor : Node2D {
   named_script.source_code = named.source
   check(named_script.reload()==OK,"Named Tween source compiles")
   check(named.source.find("tween_property") < named.source.find("pass"),"Insertion pushes existing statement below")
+ var global_named := WRITER.insert_property(named_base,named_doc.methods[0],{"kind":"before","start":named_doc.methods[0].statements[0].start},owner,"position",relative,duration,interval,"own",{"instance":"","scope":"global","name":"shared_intro"})
+ check(global_named.ok,"Script registry generated")
+ var global_script := GDScript.new()
+ global_script.source_code = global_named.source
+ check(global_script.reload()==OK,"Script registry source compiles")
+ check(global_named.source.find("var tweenimator := Tweenimator.new()") < global_named.source.find("func animate"),"Registry lives outside method")
+ check(global_named.global_lines==2 and global_named.global_length>0,"Preview tracks class field insertion")
  var unnamed := WRITER.insert_property(named_base,named_doc.methods[0],{"kind":"start"},owner,"position",relative,duration,interval,"own",{"instance":"animations","name":""})
  check(not unnamed.ok,"Empty registry name rejected")
  var file := FileAccess.open("res://write_test.gd",FileAccess.WRITE)
