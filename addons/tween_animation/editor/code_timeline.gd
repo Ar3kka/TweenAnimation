@@ -625,14 +625,22 @@ func _open_new_key() -> void:
 
 func _dialog_heading(parent: Node, icon_name: String, title: String) -> void:
 	var heading := HBoxContainer.new()
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	heading.custom_minimum_size.y = 34
 	heading.add_theme_constant_override("separation", 10)
 	var icon := TextureRect.new()
 	icon.texture = _icon(icon_name)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.custom_minimum_size = Vector2(24, 24)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	heading.add_child(icon)
-	heading.add_child(_label(title, 20))
+	var caption := _label(title, 20)
+	caption.autowrap_mode = TextServer.AUTOWRAP_OFF
+	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	heading.add_child(caption)
 	parent.add_child(heading)
 
 
